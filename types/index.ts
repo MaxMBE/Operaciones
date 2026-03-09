@@ -1,4 +1,4 @@
-export type ProjectStatus = "active" | "completed" | "at-risk" | "on-hold" | "guarantee" | "delayed";
+export type ProjectStatus = "active" | "completed" | "at-risk" | "on-hold" | "guarantee" | "delayed" | "terminated";
 export type OportunidadModelo = "Fixed Price" | "Workpackage" | "Time & Material" | "Competence Center" | "Service Center" | "Otro";
 
 export interface Oportunidad {
@@ -72,6 +72,10 @@ export interface Project {
   csvHistoricalComments?: string;
   csvOtdPercent?: string;
   csvOqdPercent?: string;
+  revenueMonthly?: number;
+  costMonthly?: number;
+  revenueProjection?: number;
+  costProjection?: number;
 }
 
 export interface BurndownPoint {
@@ -95,7 +99,7 @@ export interface MemberCost {
   hoursWorked: number;
 }
 
-export type HealthStatus = "G" | "A" | "R" | "grey" | "B";
+export type HealthStatus = "G" | "A" | "R" | "grey" | "B" | "done";
 
 export interface Milestone {
   id: string;

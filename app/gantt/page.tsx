@@ -5,14 +5,17 @@ import { differenceInDays, parseISO, format, startOfMonth } from "date-fns";
 import { es as esLocale, enUS as enLocale } from "date-fns/locale";
 import type { ProjectStatus } from "@/types";
 import { useT, useLang } from "@/lib/i18n";
+import { PrintButton } from "@/components/print-button";
+import { PrintHeader } from "@/components/print-header";
 
 const statusColors: Record<ProjectStatus, string> = {
-  "active":    "bg-blue-400",
-  "at-risk":   "bg-red-400",
-  "on-hold":   "bg-yellow-400",
-  "completed": "bg-emerald-400",
-  "guarantee": "bg-purple-400",
-  "delayed":   "bg-orange-400",
+  "active":     "bg-blue-400",
+  "at-risk":    "bg-red-400",
+  "on-hold":    "bg-yellow-400",
+  "completed":  "bg-emerald-400",
+  "guarantee":  "bg-purple-400",
+  "delayed":    "bg-orange-400",
+  "terminated": "bg-slate-400",
 };
 
 const CHART_START = new Date("2025-01-01");
@@ -27,12 +30,13 @@ export default function GanttPage() {
   const dateLocale = lang === "en" ? enLocale : esLocale;
 
   const statusLabel: Record<ProjectStatus, string> = {
-    "active":    t.status_in_progress,
-    "at-risk":   t.status_at_risk,
-    "on-hold":   t.status_on_hold_alt,
-    "completed": t.status_completed,
-    "guarantee": t.status_guarantee,
-    "delayed":   t.status_delayed,
+    "active":     t.status_in_progress,
+    "at-risk":    t.status_at_risk,
+    "on-hold":    t.status_on_hold_alt,
+    "completed":  t.status_completed,
+    "guarantee":  t.status_guarantee,
+    "delayed":    t.status_delayed,
+    "terminated": t.status_terminated,
   };
 
   function getMonthHeaders() {
@@ -63,9 +67,13 @@ export default function GanttPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Gantt</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{t.gantt_subtitle}</p>
+      <PrintHeader title="Gantt" subtitle={t.gantt_subtitle} />
+      <div className="flex items-center justify-between print:hidden">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Gantt</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{t.gantt_subtitle}</p>
+        </div>
+        <PrintButton />
       </div>
 
       {/* Resumen */}

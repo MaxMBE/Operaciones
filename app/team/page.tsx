@@ -9,6 +9,8 @@ import {
   Trash2, Download, UserPlus,
 } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { PrintButton } from "@/components/print-button";
+import { PrintHeader } from "@/components/print-header";
 
 const ALL_ROLES: MemberRole[] = [
   "BM", "PM", "Team Lead", "Developer", "Architect", "Data Engineer",
@@ -288,6 +290,13 @@ function BenchView() {
 
   return (
     <div className="space-y-5">
+      <PrintHeader title={t.nav_team} subtitle="Bench & Disponibilidad" />
+      <div className="flex items-center justify-between print:hidden">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">{t.nav_team}</h1>
+        </div>
+        <PrintButton />
+      </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -668,12 +677,13 @@ function BenchView() {
 // ── Leaders view ──────────────────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<ProjectStatus, { bg: string; text: string }> = {
-  "active":    { bg: "bg-blue-100",    text: "text-blue-700"    },
-  "at-risk":   { bg: "bg-red-100",     text: "text-red-700"     },
-  "on-hold":   { bg: "bg-yellow-100",  text: "text-yellow-700"  },
-  "completed": { bg: "bg-emerald-100", text: "text-emerald-700" },
-  "guarantee": { bg: "bg-purple-100",  text: "text-purple-700"  },
-  "delayed":   { bg: "bg-orange-100",  text: "text-orange-700"  },
+  "active":     { bg: "bg-blue-100",    text: "text-blue-700"    },
+  "at-risk":    { bg: "bg-red-100",     text: "text-red-700"     },
+  "on-hold":    { bg: "bg-yellow-100",  text: "text-yellow-700"  },
+  "completed":  { bg: "bg-emerald-100", text: "text-emerald-700" },
+  "guarantee":  { bg: "bg-purple-100",  text: "text-purple-700"  },
+  "delayed":    { bg: "bg-orange-100",  text: "text-orange-700"  },
+  "terminated": { bg: "bg-slate-100",   text: "text-slate-600"   },
 };
 
 function LeadersView() {
@@ -681,12 +691,13 @@ function LeadersView() {
   const t = useT();
 
   const statusLabel: Record<ProjectStatus, string> = {
-    "active":    t.status_in_progress,
-    "at-risk":   t.status_at_risk,
-    "on-hold":   t.status_on_hold,
-    "completed": t.status_completed,
-    "guarantee": t.status_guarantee,
-    "delayed":   t.status_delayed,
+    "active":     t.status_in_progress,
+    "at-risk":    t.status_at_risk,
+    "on-hold":    t.status_on_hold,
+    "completed":  t.status_completed,
+    "guarantee":  t.status_guarantee,
+    "delayed":    t.status_delayed,
+    "terminated": t.status_terminated,
   };
 
   const [expanded,    setExpanded]    = useState<Set<string>>(new Set());

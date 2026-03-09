@@ -4,14 +4,17 @@ import { useState, useMemo, useEffect } from "react";
 import { useData } from "@/lib/data-context";
 import { BurndownChart } from "@/components/metrics/burndown-chart";
 import { ServicesTimelineChart } from "@/components/metrics/services-timeline-chart";
-import { formatCurrency } from "@/lib/utils";
+import { formatClpToUsd } from "@/lib/utils";
 import type { Project, ProjectStatus } from "@/types";
-import { Search, X, Pencil, Check, FileText } from "lucide-react";
+import { Search, X, Pencil, Check, FileText, Trash2, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
+import { PrintButton } from "@/components/print-button";
+import { PrintHeader } from "@/components/print-header";
+import { MultiFilter } from "@/components/multi-filter";
 
 export default function OverviewPage() {
-  const { projects, teamMembers, isDefaultData, csvFileName, rowCount, updateProject } = useData();
+  const { projects, teamMembers, isDefaultData, csvFileName, rowCount, updateProject, deleteProject } = useData();
   const router = useRouter();
   const t = useT();
 
@@ -20,8 +23,9 @@ export default function OverviewPage() {
     completed:   { label: t.status_completed, class: "bg-emerald-100 text-emerald-700" },
     "at-risk":   { label: t.status_at_risk,   class: "bg-red-100 text-red-700"        },
     "on-hold":   { label: t.status_on_hold,   class: "bg-yellow-100 text-yellow-700"  },
-    guarantee:   { label: t.status_guarantee, class: "bg-purple-100 text-purple-700"  },
-    delayed:     { label: t.status_delayed,   class: "bg-orange-100 text-orange-700"  },
+    guarantee:   { label: t.status_guarantee,   class: "bg-purple-100 text-purple-700"  },
+    delayed:     { label: t.status_delayed,     class: "bg-orange-100 text-orange-700"  },
+    terminated:  { label: t.status_terminated,  class: "bg-slate-100 text-slate-600"    },
   };
 
   const statusBar: Record<ProjectStatus, string> = {
@@ -29,32 +33,42 @@ export default function OverviewPage() {
     completed: "bg-emerald-500",
     "at-risk": "bg-red-500",
     "on-hold": "bg-yellow-500",
-    guarantee: "bg-purple-500",
-    delayed:   "bg-orange-500",
+    guarantee:  "bg-purple-500",
+    delayed:    "bg-orange-500",
+    terminated: "bg-slate-400",
   };
 
   const inputCls = "w-full px-1.5 py-0.5 text-xs border border-primary rounded focus:outline-none bg-white";
 
   // ── Filtros ──────────────────────────────────────────────────────────────
   const [search,        setSearch]        = useState("");
-  const [filterStatus,  setFilterStatus]  = useState<ProjectStatus | "">("");
-  const [filterClient,  setFilterClient]  = useState("");
-  const [filterType,    setFilterType]    = useState("");
-  const [filterManager, setFilterManager] = useState("");
-  const [filterLeader, setFilterLeaderState] = useState("");
+  const [filterStatus,  setFilterStatus]  = useState<string[]>([]);
+  const [filterClient,  setFilterClient]  = useState<string[]>([]);
+  const [filterType,    setFilterType]    = useState<string[]>([]);
+  const [filterManager, setFilterManager] = useState<string[]>([]);
+  const [filterLeader,  setFilterLeaderState] = useState<string[]>([]);
+  const [filterBU,      setFilterBU]      = useState<string[]>([]);
 
   // Restore persisted leader filter after mount
   useEffect(() => {
     const saved = sessionStorage.getItem("overview_filterLeader");
-    if (saved) setFilterLeaderState(saved);
+    if (saved) {
+      try { setFilterLeaderState(JSON.parse(saved)); } catch { /* ignore */ }
+    }
   }, []);
 
-  function setFilterLeader(value: string) {
+  function setFilterLeader(value: string[]) {
     setFilterLeaderState(value);
-    if (value) sessionStorage.setItem("overview_filterLeader", value);
+    if (value.length) sessionStorage.setItem("overview_filterLeader", JSON.stringify(value));
     else sessionStorage.removeItem("overview_filterLeader");
   }
-  const [filterBU,      setFilterBU]      = useState("");
+
+  // ── Eliminar ──────────────────────────────────────────────────────────────
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+
+  function confirmDelete() {
+    if (deleteTarget) { deleteProject(deleteTarget.id); setDeleteTarget(null); }
+  }
 
   // ── Edición ───────────────────────────────────────────────────────────────
   const [editId,   setEditId]   = useState<string | null>(null);
@@ -102,12 +116,12 @@ export default function OverviewPage() {
 
   const filtered = useMemo(() => {
     return projects.filter((p) => {
-      if (filterStatus  && p.status !== filterStatus)        return false;
-      if (filterClient  && p.client !== filterClient)        return false;
-      if (filterType    && p.serviceType !== filterType)     return false;
-      if (filterManager && p.manager !== filterManager)      return false;
-      if (filterLeader  && p.leader  !== filterLeader)       return false;
-      if (filterBU      && p.bu !== filterBU)                return false;
+      if (filterStatus.length  && !filterStatus.includes(p.status))          return false;
+      if (filterClient.length  && !filterClient.includes(p.client ?? ""))    return false;
+      if (filterType.length    && !filterType.includes(p.serviceType ?? "")) return false;
+      if (filterManager.length && !filterManager.includes(p.manager ?? "")) return false;
+      if (filterLeader.length  && !filterLeader.includes(p.leader ?? ""))   return false;
+      if (filterBU.length      && !filterBU.includes(p.bu ?? ""))           return false;
       if (search) {
         const q = search.toLowerCase();
         const hay = `${p.name} ${p.client ?? ""} ${p.manager} ${p.leader ?? ""}`.toLowerCase();
@@ -117,14 +131,24 @@ export default function OverviewPage() {
     });
   }, [projects, filterStatus, filterClient, filterType, filterManager, filterLeader, filterBU, search]);
 
-  const hasFilters = search || filterStatus || filterClient || filterType || filterManager || filterLeader || filterBU;
+  const hasFilters = !!(search || filterStatus.length || filterClient.length || filterType.length || filterManager.length || filterLeader.length || filterBU.length);
 
   function clearFilters() {
-    setSearch(""); setFilterStatus(""); setFilterClient("");
-    setFilterType(""); setFilterManager(""); setFilterBU("");
-    setFilterLeader("");
+    setSearch("");
+    setFilterStatus([]); setFilterClient([]); setFilterType([]);
+    setFilterManager([]); setFilterLeader([]); setFilterBU([]);
     sessionStorage.removeItem("overview_filterLeader");
   }
+
+  const statusOptions = [
+    { value: "active",     label: t.status_active     },
+    { value: "at-risk",    label: t.status_at_risk    },
+    { value: "on-hold",    label: t.status_on_hold_alt },
+    { value: "completed",  label: t.status_completed  },
+    { value: "guarantee",  label: t.status_guarantee  },
+    { value: "delayed",    label: t.status_delayed    },
+    { value: "terminated", label: t.status_terminated },
+  ];
 
   // ── KPIs ────────────────────────────────────────────────────────────────
   const active       = projects.filter((p) => p.status === "active").length;
@@ -137,23 +161,27 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
+      <PrintHeader title="Overview" subtitle={t.overview_subtitle} />
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between print:hidden">
         <div>
           <h1 className="text-xl font-bold text-foreground">Overview</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{t.overview_subtitle}</p>
         </div>
-        {!isDefaultData && (
-          <div className="text-right">
-            <p className="text-xs font-medium text-emerald-600">{csvFileName}</p>
-            <p className="text-xs text-muted-foreground">{rowCount} {t.csv_services_loaded}</p>
-          </div>
-        )}
-        {isDefaultData && (
-          <span className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-1 rounded-lg">
-            {t.overview_example_data}
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {!isDefaultData && (
+            <div className="text-right">
+              <p className="text-xs font-medium text-emerald-600">{csvFileName}</p>
+              <p className="text-xs text-muted-foreground">{rowCount} {t.csv_services_loaded}</p>
+            </div>
+          )}
+          {isDefaultData && (
+            <span className="text-xs bg-yellow-50 text-yellow-700 border border-yellow-200 px-2 py-1 rounded-lg">
+              {t.overview_example_data}
+            </span>
+          )}
+          <PrintButton />
+        </div>
       </div>
 
       {/* KPIs */}
@@ -161,7 +189,7 @@ export default function OverviewPage() {
         {[
           { label: t.kpi_active_services, value: active,          sub: `${atRisk} ${t.kpi_at_risk_suffix}`,        color: "text-blue-600",   bg: "bg-blue-50"   },
           { label: t.kpi_total_projects,  value: projects.length, sub: `${projects.filter(p => p.status === "completed").length} ${t.kpi_completed_suffix}`, color: "text-violet-600", bg: "bg-violet-50" },
-          { label: t.kpi_gross_margin,    value: totalRevenue > 0 ? `${grossMargin}%` : t.kpi_no_finance_data, sub: totalRevenue > 0 ? `Revenue ${formatCurrency(totalRevenue)}` : t.kpi_enter_finance, color: "text-emerald-600", bg: "bg-emerald-50" },
+          { label: t.kpi_gross_margin,    value: totalRevenue > 0 ? `${grossMargin}%` : t.kpi_no_finance_data, sub: totalRevenue > 0 ? `Revenue ${formatClpToUsd(totalRevenue)}` : t.kpi_enter_finance, color: "text-emerald-600", bg: "bg-emerald-50" },
           { label: t.kpi_team,            value: teamMembers.length, sub: t.kpi_people_identified, color: "text-orange-600", bg: "bg-orange-50" },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-xl border border-border p-5 flex items-start gap-4">
@@ -215,44 +243,51 @@ export default function OverviewPage() {
               className="w-full pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-muted/30"
             />
           </div>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as ProjectStatus | "")} className="px-2.5 py-1.5 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-muted/30 text-foreground">
-            <option value="">{t.filter_all_statuses}</option>
-            <option value="active">{t.status_active}</option>
-            <option value="at-risk">{t.status_at_risk}</option>
-            <option value="on-hold">{t.status_on_hold_alt}</option>
-            <option value="completed">{t.status_completed}</option>
-            <option value="guarantee">{t.status_guarantee}</option>
-            <option value="delayed">{t.status_delayed}</option>
-          </select>
+          <MultiFilter
+            placeholder={t.filter_all_statuses}
+            options={statusOptions}
+            value={filterStatus}
+            onChange={setFilterStatus}
+          />
           {clientOptions.length > 0 && (
-            <select value={filterClient} onChange={(e) => setFilterClient(e.target.value)} className="px-2.5 py-1.5 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-muted/30 text-foreground">
-              <option value="">{t.filter_all_clients}</option>
-              {clientOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <MultiFilter
+              placeholder={t.filter_all_clients}
+              options={clientOptions.map(c => ({ value: c, label: c }))}
+              value={filterClient}
+              onChange={setFilterClient}
+            />
           )}
           {typeOptions.length > 0 && (
-            <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="px-2.5 py-1.5 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-muted/30 text-foreground">
-              <option value="">{t.filter_all_types}</option>
-              {typeOptions.map((ty) => <option key={ty} value={ty}>{ty}</option>)}
-            </select>
+            <MultiFilter
+              placeholder={t.filter_all_types}
+              options={typeOptions.map(ty => ({ value: ty, label: ty }))}
+              value={filterType}
+              onChange={setFilterType}
+            />
           )}
           {managerOptions.length > 0 && (
-            <select value={filterManager} onChange={(e) => setFilterManager(e.target.value)} className="px-2.5 py-1.5 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-muted/30 text-foreground">
-              <option value="">{t.filter_all_bm}</option>
-              {managerOptions.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
+            <MultiFilter
+              placeholder={t.filter_all_bm}
+              options={managerOptions.map(m => ({ value: m, label: m }))}
+              value={filterManager}
+              onChange={setFilterManager}
+            />
           )}
           {leaderOptions.length > 0 && (
-            <select value={filterLeader} onChange={(e) => setFilterLeader(e.target.value)} className="px-2.5 py-1.5 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-muted/30 text-foreground">
-              <option value="">{t.filter_all_leaders}</option>
-              {leaderOptions.map((l) => <option key={l} value={l}>{l}</option>)}
-            </select>
+            <MultiFilter
+              placeholder={t.filter_all_leaders}
+              options={leaderOptions.map(l => ({ value: l, label: l }))}
+              value={filterLeader}
+              onChange={setFilterLeader}
+            />
           )}
           {buOptions.length > 0 && (
-            <select value={filterBU} onChange={(e) => setFilterBU(e.target.value)} className="px-2.5 py-1.5 text-xs border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-muted/30 text-foreground">
-              <option value="">{t.filter_all_bu}</option>
-              {buOptions.map((b) => <option key={b} value={b}>{b}</option>)}
-            </select>
+            <MultiFilter
+              placeholder={t.filter_all_bu}
+              options={buOptions.map(b => ({ value: b, label: b }))}
+              value={filterBU}
+              onChange={setFilterBU}
+            />
           )}
         </div>
 
@@ -333,6 +368,7 @@ export default function OverviewPage() {
                           <option value="completed">{t.status_completed}</option>
                           <option value="guarantee">{t.status_guarantee}</option>
                           <option value="delayed">{t.status_delayed}</option>
+                          <option value="terminated">{t.status_terminated}</option>
                         </select>
                       ) : (
                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${cfg.class}`}>{cfg.label}</span>
@@ -388,6 +424,13 @@ export default function OverviewPage() {
                           >
                             <FileText className="w-3.5 h-3.5" />
                           </button>
+                          <button
+                            onClick={() => setDeleteTarget(p)}
+                            title={t.action_delete}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                           <button onClick={() => startEdit(p)} className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -401,6 +444,39 @@ export default function OverviewPage() {
           </table>
         </div>
       </div>
+      {/* Modal eliminar */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-50 mx-auto">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+            </div>
+            <div className="text-center">
+              <h2 className="text-base font-semibold text-foreground">Eliminar servicio</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                ¿Estás seguro que deseas eliminar{" "}
+                <span className="font-medium text-foreground">"{deleteTarget.name}"</span>?
+                Esta acción no se puede deshacer.
+              </p>
+            </div>
+            <div className="flex gap-2 mt-1">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 px-4 py-2 text-sm font-medium rounded-xl border border-border text-foreground hover:bg-muted/50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 px-4 py-2 text-sm font-medium rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

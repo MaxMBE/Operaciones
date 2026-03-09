@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LanguageProvider>
           <DataProvider>
             <Sidebar />
-            <main className="ml-56 min-h-screen bg-background">
+            <main className="ml-56 min-h-screen bg-background print:ml-0">
               <div className="p-6 max-w-7xl mx-auto">
                 {children}
               </div>

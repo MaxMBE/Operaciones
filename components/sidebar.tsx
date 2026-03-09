@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { LayoutDashboard, CalendarRange, Users, TrendingUp, Globe, PieChart } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getFiscalQuarter } from "@/lib/utils";
 import { CsvUpload } from "@/components/csv-upload";
 import { useT, useLang } from "@/lib/i18n";
 
@@ -11,6 +12,11 @@ export function Sidebar() {
   const pathname = usePathname();
   const t = useT();
   const { lang, toggleLang } = useLang();
+  const [fq, setFq] = useState<ReturnType<typeof getFiscalQuarter> | null>(null);
+
+  useEffect(() => {
+    setFq(getFiscalQuarter(new Date()));
+  }, []);
 
   const nav = [
     { href: "/",              label: t.nav_overview,      icon: LayoutDashboard },
@@ -21,7 +27,7 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-56 bg-white border-r border-border flex flex-col z-40">
+    <aside className="fixed left-0 top-0 h-full w-56 bg-white border-r border-border flex flex-col z-40 print:hidden">
       {/* Logo */}
       <div className="flex flex-col items-center gap-1 px-4 py-4 border-b border-border">
         {/* Replace /sii-logo.png with your actual file once placed in public/ */}
@@ -50,6 +56,16 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Quarter badge — rendered client-only to avoid hydration mismatch */}
+      {fq && (
+        <div className="px-3 py-2 border-t border-border">
+          <div className="bg-gray-800 rounded-lg px-3 py-2 text-center">
+            <div className="text-white text-xs font-bold tracking-wide">{fq.label}</div>
+            <div className="text-gray-400 text-[10px] mt-0.5">{fq.range} · FY{fq.fyYear}</div>
+          </div>
+        </div>
+      )}
 
       {/* Language toggle */}
       <div className="px-4 py-2.5 border-t border-border">

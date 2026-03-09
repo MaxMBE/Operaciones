@@ -12,5 +12,8 @@ out/
 
 # misc
 .DS_Store
+
+# Shared data store (auto-generated, contains real project data)
+data/store.json
 tsconfig.tsbuildinfo
 *.log

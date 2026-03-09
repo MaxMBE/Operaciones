@@ -1,14 +1,22 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import type { Project, TeamMember, FinancialData, ProjectReport, Oportunidad } from "@/types";
 import { projects as defaultProjects, teamMembers as defaultTeam, financialData as defaultFinance, oportunidades as defaultOportunidades } from "@/lib/data";
 import { parseServicesCSV } from "@/lib/csv-parser";
 
-const STORAGE_KEY_DATA         = "ph_csv_data";
-const STORAGE_KEY_FINANCE      = "ph_finance_data";
-const STORAGE_KEY_REPORTS      = "ph_report_data";
-const STORAGE_KEY_OPORTUNIDADES = "ph_oportunidades";
+// Legacy localStorage keys — only used for one-time migration on first server boot
+const LS_DATA          = "ph_csv_data";
+const LS_FINANCE       = "ph_finance_data";
+const LS_REPORTS       = "ph_report_data";
+const LS_OPORTUNIDADES = "ph_oportunidades";
+
+interface Store {
+  ph_csv_data?: { projects: Project[]; teamMembers: TeamMember[]; fileName: string | null; rowCount: number };
+  ph_finance_data?: FinancialData[];
+  ph_report_data?: Record<string, ProjectReport>;
+  ph_oportunidades?: Oportunidad[];
+}
 
 interface DataContextType {
   projects: Project[];
@@ -20,7 +28,9 @@ interface DataContextType {
   loadFromCSV: (text: string, fileName: string) => { success: boolean; error?: string };
   resetToDefault: () => void;
   updateFinancialData: (data: FinancialData[]) => void;
+  addProject: (project: Project) => void;
   updateProject: (id: string, changes: Partial<Project>) => void;
+  deleteProject: (id: string) => void;
   updateMember: (id: string, changes: Partial<TeamMember>) => void;
   deleteMember: (id: string) => void;
   addMember: (member: import("@/types").TeamMember) => void;
@@ -35,45 +45,106 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [projects, setProjects]         = useState<Project[]>(defaultProjects);
-  const [teamMembers, setTeamMembers]   = useState<TeamMember[]>(defaultTeam);
+  const [projects,      setProjects]      = useState<Project[]>(defaultProjects);
+  const [teamMembers,   setTeamMembers]   = useState<TeamMember[]>(defaultTeam);
   const [financialData, setFinancialData] = useState<FinancialData[]>(defaultFinance);
-  const [reportData, setReportData] = useState<Record<string, ProjectReport>>({});
+  const [reportData,    setReportData]    = useState<Record<string, ProjectReport>>({});
   const [oportunidades, setOportunidades] = useState<Oportunidad[]>(defaultOportunidades);
   const [isDefaultData, setIsDefaultData] = useState(true);
-  const [csvFileName, setCsvFileName]   = useState<string | null>(null);
-  const [rowCount, setRowCount]         = useState(0);
+  const [csvFileName,   setCsvFileName]   = useState<string | null>(null);
+  const [rowCount,      setRowCount]      = useState(0);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_DATA);
-      const savedFinance = localStorage.getItem(STORAGE_KEY_FINANCE);
-      if (saved) {
-        const { projects: p, teamMembers: t, fileName, rowCount: rc } = JSON.parse(saved);
-        setProjects(p);
-        setTeamMembers(t);
-        setIsDefaultData(false);
-        setCsvFileName(fileName);
-        setRowCount(rc);
-        if (savedFinance) {
-          setFinancialData(JSON.parse(savedFinance));
-        } else {
-          setFinancialData(p.map((proj: Project) => ({
-            projectId: proj.id, revenue: 0, directCosts: 0, operatingExpenses: 0, budget: 0, spent: 0,
-          })));
-        }
-      } else if (savedFinance) {
-        setFinancialData(JSON.parse(savedFinance));
-      }
-      const savedReports = localStorage.getItem(STORAGE_KEY_REPORTS);
-      if (savedReports) setReportData(JSON.parse(savedReports));
-      const savedOps = localStorage.getItem(STORAGE_KEY_OPORTUNIDADES);
-      if (savedOps) setOportunidades(JSON.parse(savedOps));
-    } catch {
-      // ignore localStorage errors
+  // loadedRef: true after initial server data has settled — prevents immediate sync-back
+  const loadedRef = useRef(false);
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Apply a store object into React state ─────────────────────────────
+  function applyStore(store: Store) {
+    if (store.ph_csv_data) {
+      const { projects: p, teamMembers: t, fileName, rowCount: rc } = store.ph_csv_data;
+      setProjects(p ?? defaultProjects);
+      setTeamMembers(t ?? defaultTeam);
+      setIsDefaultData(false);
+      setCsvFileName(fileName ?? null);
+      setRowCount(rc ?? 0);
     }
+    if (store.ph_finance_data)  setFinancialData(store.ph_finance_data);
+    if (store.ph_report_data)   setReportData(store.ph_report_data);
+    if (store.ph_oportunidades) setOportunidades(store.ph_oportunidades);
+  }
+
+  // ── POST store to server (debounced 800 ms) ───────────────────────────
+  function scheduleSync(store: Store) {
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(() => {
+      fetch("/api/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(store),
+      }).catch(console.error);
+    }, 800);
+  }
+
+  // ── Load from server on mount; auto-migrate localStorage if needed ─────
+  useEffect(() => {
+    fetch("/api/data")
+      .then(r => r.json())
+      .then((serverStore: Store) => {
+        const serverEmpty =
+          !serverStore.ph_csv_data &&
+          !serverStore.ph_report_data &&
+          !serverStore.ph_oportunidades;
+
+        if (serverEmpty) {
+          // First boot: check if user has data in localStorage and upload it
+          const local: Store = {};
+          try {
+            const d  = localStorage.getItem(LS_DATA);
+            const f  = localStorage.getItem(LS_FINANCE);
+            const r  = localStorage.getItem(LS_REPORTS);
+            const op = localStorage.getItem(LS_OPORTUNIDADES);
+            if (d)  local.ph_csv_data      = JSON.parse(d);
+            if (f)  local.ph_finance_data  = JSON.parse(f);
+            if (r)  local.ph_report_data   = JSON.parse(r);
+            if (op) local.ph_oportunidades = JSON.parse(op);
+          } catch { /* ignore */ }
+
+          if (Object.keys(local).length > 0) {
+            applyStore(local);
+            fetch("/api/data", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(local),
+            }).catch(console.error);
+          }
+        } else {
+          applyStore(serverStore);
+        }
+      })
+      .catch(console.error)
+      .finally(() => {
+        // Small delay so React state setters from applyStore settle before sync is enabled
+        setTimeout(() => { loadedRef.current = true; }, 200);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Sync to server whenever any data state changes ────────────────────
+  useEffect(() => {
+    if (!loadedRef.current) return;
+    const store: Store = {
+      ph_finance_data:  financialData,
+      ph_report_data:   reportData,
+      ph_oportunidades: oportunidades,
+    };
+    if (!isDefaultData || csvFileName) {
+      store.ph_csv_data = { projects, teamMembers, fileName: csvFileName, rowCount };
+    }
+    scheduleSync(store);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects, teamMembers, financialData, reportData, oportunidades]);
+
+  // ── Setters (pure state updates — server sync handled by effect above) ─
 
   const loadFromCSV = useCallback((text: string, fileName: string) => {
     try {
@@ -81,20 +152,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (result.rowCount === 0) {
         return { success: false, error: "El CSV no contiene filas de datos válidos." };
       }
-      setProjects(result.projects);
+      setProjects(prev => {
+        const manualProjects = prev.filter(p => p.id.startsWith("manual-"));
+        const merged = result.projects.map(csvP => {
+          const existing = prev.find(p => p.id === csvP.id);
+          if (!existing) return csvP;
+          return {
+            ...csvP,
+            revenueMonthly:    existing.revenueMonthly,
+            costMonthly:       existing.costMonthly,
+            revenueProjection: existing.revenueProjection,
+            costProjection:    existing.costProjection,
+          };
+        });
+        return [...merged, ...manualProjects];
+      });
       setTeamMembers(result.teamMembers);
       setFinancialData(result.financialData);
       setIsDefaultData(false);
       setCsvFileName(fileName);
       setRowCount(result.rowCount);
-
-      localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify({
-        projects: result.projects,
-        teamMembers: result.teamMembers,
-        fileName,
-        rowCount: result.rowCount,
-      }));
-      localStorage.setItem(STORAGE_KEY_FINANCE, JSON.stringify(result.financialData));
       return { success: true };
     } catch (e) {
       return { success: false, error: `Error al parsear el CSV: ${(e as Error).message}` };
@@ -108,100 +185,72 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setIsDefaultData(true);
     setCsvFileName(null);
     setRowCount(0);
-    localStorage.removeItem(STORAGE_KEY_DATA);
-    localStorage.removeItem(STORAGE_KEY_FINANCE);
+    // Also wipe server store
+    fetch("/api/data", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    }).catch(console.error);
   }, []);
 
   const updateReport = useCallback((projectId: string, changes: Partial<ProjectReport>) => {
-    setReportData((prev) => {
-      const updated = { ...prev, [projectId]: { ...prev[projectId], ...changes } };
-      localStorage.setItem(STORAGE_KEY_REPORTS, JSON.stringify(updated));
-      return updated;
-    });
+    setReportData(prev => ({ ...prev, [projectId]: { ...prev[projectId], ...changes } }));
   }, []);
 
   const updateFinancialData = useCallback((data: FinancialData[]) => {
     setFinancialData(data);
-    localStorage.setItem(STORAGE_KEY_FINANCE, JSON.stringify(data));
+  }, []);
+
+  const addProject = useCallback((project: Project) => {
+    setProjects(prev => [...prev, project]);
+    setIsDefaultData(false);
   }, []);
 
   const updateProject = useCallback((id: string, changes: Partial<Project>) => {
-    setProjects((prev) => {
-      const updated = prev.map((p) => p.id === id ? { ...p, ...changes } : p);
-      const saved = localStorage.getItem(STORAGE_KEY_DATA);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify({ ...parsed, projects: updated }));
-      }
-      return updated;
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, ...changes } : p));
+  }, []);
+
+  const deleteProject = useCallback((id: string) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
+    setFinancialData(prev => prev.filter(f => f.projectId !== id));
+    setReportData(prev => {
+      const { [id]: _removed, ...rest } = prev;
+      return rest;
     });
   }, []);
 
   const updateMember = useCallback((id: string, changes: Partial<TeamMember>) => {
-    setTeamMembers((prev) => {
-      const updated = prev.map((m) => m.id === id ? { ...m, ...changes } : m);
-      const saved = localStorage.getItem(STORAGE_KEY_DATA);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify({ ...parsed, teamMembers: updated }));
-      }
-      return updated;
-    });
+    setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, ...changes } : m));
   }, []);
 
   const addMember = useCallback((member: import("@/types").TeamMember) => {
-    setTeamMembers((prev) => {
-      const updated = [...prev, member];
-      const saved = localStorage.getItem(STORAGE_KEY_DATA);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify({ ...parsed, teamMembers: updated }));
-      }
-      return updated;
-    });
-  }, []);
-
-  const addOportunidad = useCallback((o: Oportunidad) => {
-    setOportunidades(prev => {
-      const updated = [...prev, o];
-      localStorage.setItem(STORAGE_KEY_OPORTUNIDADES, JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
-
-  const updateOportunidad = useCallback((id: string, changes: Partial<Oportunidad>) => {
-    setOportunidades(prev => {
-      const updated = prev.map(o => o.id === id ? { ...o, ...changes } : o);
-      localStorage.setItem(STORAGE_KEY_OPORTUNIDADES, JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
-
-  const deleteOportunidad = useCallback((id: string) => {
-    setOportunidades(prev => {
-      const updated = prev.filter(o => o.id !== id);
-      localStorage.setItem(STORAGE_KEY_OPORTUNIDADES, JSON.stringify(updated));
-      return updated;
-    });
+    setTeamMembers(prev => [...prev, member]);
   }, []);
 
   const deleteMember = useCallback((id: string) => {
-    setTeamMembers((prev) => {
-      const updated = prev.filter((m) => m.id !== id);
-      const saved = localStorage.getItem(STORAGE_KEY_DATA);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        localStorage.setItem(STORAGE_KEY_DATA, JSON.stringify({ ...parsed, teamMembers: updated }));
-      }
-      return updated;
-    });
+    setTeamMembers(prev => prev.filter(m => m.id !== id));
+  }, []);
+
+  const addOportunidad = useCallback((o: Oportunidad) => {
+    setOportunidades(prev => [...prev, o]);
+  }, []);
+
+  const updateOportunidad = useCallback((id: string, changes: Partial<Oportunidad>) => {
+    setOportunidades(prev => prev.map(o => o.id === id ? { ...o, ...changes } : o));
+  }, []);
+
+  const deleteOportunidad = useCallback((id: string) => {
+    setOportunidades(prev => prev.filter(o => o.id !== id));
   }, []);
 
   return (
     <DataContext.Provider value={{
       projects, teamMembers, financialData,
       isDefaultData, csvFileName, rowCount,
-      loadFromCSV, resetToDefault, updateFinancialData, updateProject, updateMember, addMember, deleteMember, reportData, updateReport,
+      loadFromCSV, resetToDefault, updateFinancialData,
+      addProject, updateProject, deleteProject,
+      updateMember, addMember, deleteMember,
+      reportData, updateReport,
       oportunidades, addOportunidad, updateOportunidad, deleteOportunidad,
     }}>
       {children}

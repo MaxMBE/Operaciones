@@ -30,6 +30,7 @@ export const es = {
   status_on_hold_alt: "Por iniciar",
   status_guarantee:   "Garantía",
   status_delayed:     "Atraso",
+  status_terminated:  "Terminado",
   status_in_progress: "En curso",
 
   // ── CSV Upload ────────────────────────────────────────────────────────────────
@@ -234,7 +235,7 @@ export const es = {
   pf_pending_legend:      "Pendiente",
   pf_phase:               "Fase",
   pf_planned_date:        "Fecha Plan",
-  pf_forecast_col:        "Pronóstico",
+  pf_forecast_col:        "Mensual",
   pf_top_delays:          "Top Delays / Excepciones",
   pf_no_delays:           "No hay retrasos detectados",
   pf_variance:            "Varianza",
@@ -295,6 +296,7 @@ export const es = {
   cor_weather_critical:   "Critical",
   cor_weather_na:         "N/A",
   cor_weather_stable:     "Stable",
+  cor_weather_done:       "Terminado",
 };
 
 export const en: typeof es = {
@@ -329,6 +331,7 @@ export const en: typeof es = {
   status_on_hold_alt: "Pending start",
   status_guarantee:   "Warranty",
   status_delayed:     "Delayed",
+  status_terminated:  "Terminated",
   status_in_progress: "In progress",
 
   // ── CSV Upload ────────────────────────────────────────────────────────────────
@@ -533,7 +536,7 @@ export const en: typeof es = {
   pf_pending_legend:      "Pending",
   pf_phase:               "Phase",
   pf_planned_date:        "Planned Date",
-  pf_forecast_col:        "Forecast",
+  pf_forecast_col:        "Monthly",
   pf_top_delays:          "Top Delays / Exceptions",
   pf_no_delays:           "No delays detected",
   pf_variance:            "Variance",
@@ -594,4 +597,5 @@ export const en: typeof es = {
   cor_weather_critical:   "Critical",
   cor_weather_na:         "N/A",
   cor_weather_stable:     "Stable",
+  cor_weather_done:       "Terminated",
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback, Fragment } from "react";
+import { useMemo, useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { useData } from "@/lib/data-context";
 import { useT } from "@/lib/i18n";
 import {
@@ -8,11 +8,14 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
   BarChart, Bar,
 } from "recharts";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatClpToUsd } from "@/lib/utils";
+import { PrintButton } from "@/components/print-button";
+import { PrintHeader } from "@/components/print-header";
+import { MultiFilter } from "@/components/multi-filter";
 import type { Project, ProjectReport, HealthStatus } from "@/types";
 import {
   CheckCircle2, TrendingUp, DollarSign,
-  ChevronDown, ChevronRight, Target, Gauge, Pencil,
+  ChevronDown, ChevronRight, Target, Gauge, Pencil, Plus, X,
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -26,10 +29,10 @@ const COR_MANUAL_KEY = "cor_manual_data";
 
 interface CORManual {
   revenue: string; cost: string; otd: string; oqd: string;
-  customers: string; models: string; margins: string;
+  customers: string; models: string;
 }
 
-const EMPTY_MANUAL: CORManual = { revenue:"", cost:"", otd:"", oqd:"", customers:"", models:"", margins:"" };
+const EMPTY_MANUAL: CORManual = { revenue:"", cost:"", otd:"", oqd:"", customers:"", models:"" };
 
 function parseCORCSV(text: string): Array<{name:string; value:number}> {
   return text.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
@@ -67,7 +70,7 @@ function csatFromHealth(health: string | undefined): string {
 
 // ── WEATHER is built from translations at render time — see makeWeather() ──────
 
-const WEATHER_KEYS = ["G","A","R","grey","B"] as const;
+const WEATHER_KEYS = ["G","A","R","grey","B","done"] as const;
 type WeatherKey = typeof WEATHER_KEYS[number];
 
 function makeWeather(t: ReturnType<typeof useT>) {
@@ -77,7 +80,30 @@ function makeWeather(t: ReturnType<typeof useT>) {
     R:    { icon: "⛈️", label: t.cor_weather_critical, bg: "bg-red-50",    text: "text-red-700",    border: "border-red-300"   },
     grey: { icon: "☁️",  label: t.cor_weather_na,       bg: "bg-gray-50",   text: "text-gray-500",   border: "border-gray-200"  },
     B:    { icon: "🌤️", label: t.cor_weather_stable,   bg: "bg-blue-50",   text: "text-blue-600",   border: "border-blue-200"  },
+    done: { icon: "✅",  label: t.cor_weather_done,     bg: "bg-teal-50",   text: "text-teal-700",   border: "border-teal-300"  },
   } as Record<WeatherKey, { icon: string; label: string; bg: string; text: string; border: string }>;
+}
+
+// ── BulletList ────────────────────────────────────────────────────────────────
+
+function BulletList({ text }: { text: string }) {
+  const items = text
+    .split(/\n|(?<=\S)\s*•\s*/)
+    .map(s => s.replace(/^[•\-]\s*/, "").trim())
+    .filter(Boolean);
+  if (items.length <= 1) {
+    return <p className="text-[10px] text-muted-foreground leading-relaxed">{text}</p>;
+  }
+  return (
+    <ul className="space-y-1 mt-0.5">
+      {items.map((item, i) => (
+        <li key={i} className="flex items-start gap-1.5 text-[10px] text-muted-foreground leading-snug">
+          <span className="w-1 h-1 rounded-full bg-gray-400 mt-1.5 flex-shrink-0" />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 // ── Small edit-field helpers ──────────────────────────────────────────────────
@@ -121,7 +147,7 @@ function SEF({
   label: string; value: string; editMode: boolean;
   onChange?: (v: string) => void;
 }) {
-  const w = (makeWeather as unknown as (t: { cor_weather_on_track: string; cor_weather_at_risk: string; cor_weather_critical: string; cor_weather_na: string; cor_weather_stable: string }) => ReturnType<typeof makeWeather>)({ cor_weather_on_track: "On Track", cor_weather_at_risk: "At Risk", cor_weather_critical: "Critical", cor_weather_na: "N/A", cor_weather_stable: "Stable" })[value as WeatherKey] ?? { icon: "☁️", label: "N/A", text: "text-gray-500" };
+  const w = (makeWeather as unknown as (t: { cor_weather_on_track: string; cor_weather_at_risk: string; cor_weather_critical: string; cor_weather_na: string; cor_weather_stable: string; cor_weather_done: string }) => ReturnType<typeof makeWeather>)({ cor_weather_on_track: "On Track", cor_weather_at_risk: "At Risk", cor_weather_critical: "Critical", cor_weather_na: "N/A", cor_weather_stable: "Stable", cor_weather_done: "Terminado" })[value as WeatherKey] ?? { icon: "☁️", label: "N/A", text: "text-gray-500" };
   return (
     <div>
       <span className="text-[8px] text-muted-foreground uppercase tracking-wide block">{label}</span>
@@ -136,10 +162,32 @@ function SEF({
           <option value="R">⛈️ Critical</option>
           <option value="grey">☁️ N/A</option>
           <option value="B">🌤️ Stable</option>
+          <option value="done">✅ Terminado</option>
         </select>
       ) : (
         <span className={`text-[10px] font-medium ${w.text}`}>{w.icon} {w.label}</span>
       )}
+    </div>
+  );
+}
+
+function NumericInput({
+  label, value, onChange,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+}) {
+  const display = value ? parseInt(value, 10).toLocaleString("es-CL") : "";
+  return (
+    <div>
+      <span className="text-[8px] text-muted-foreground uppercase tracking-wide block">{label}</span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={display}
+        onChange={e => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+        className="w-full text-[10px] border border-indigo-200 rounded px-1.5 py-0.5 mt-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
+        placeholder="0"
+      />
     </div>
   );
 }
@@ -170,10 +218,14 @@ function ProjectDetailPanel({
     serviceLevel:  p.serviceLevel || "",
     bu:            p.bu           || "",
     teamSize:      String(p.teamSize || ""),
-    revenue:       String(p.revenue  || ""),
-    budget:        String(p.budget   || ""),
-    spent:         String(p.spent    || ""),
-    progress:      String(p.progress || ""),
+    revenue:           String(p.revenue           || ""),
+    budget:            String(p.budget            || ""),
+    spent:             String(p.spent             || ""),
+    revenueMonthly:    String(p.revenueMonthly    || ""),
+    costMonthly:       String(p.costMonthly       || ""),
+    revenueProjection: String(p.revenueProjection || ""),
+    costProjection:    String(p.costProjection    || ""),
+    progress:       String(p.progress || ""),
     expectedProgress: String(p.expectedProgress ?? ""),
     startDate:     p.startDate    || "",
     endDate:       p.endDate      || "",
@@ -187,8 +239,6 @@ function ProjectDetailPanel({
 
   const [draftR, setDraftR] = useState({
     ftes:             rep?.ftes             || "",
-    marginYTD:        (rep?.marginYTD        || "").replace("%",""),
-    marginActual:     (rep?.marginActual     || "").replace("%",""),
     phase:            rep?.phase             || "",
     overallStatus:    rep?.overallStatus     ?? "grey",
     currentStatus:    rep?.currentStatus     ?? "grey",
@@ -217,9 +267,13 @@ function ProjectDetailPanel({
       serviceLevel:  draftP.serviceLevel,
       bu:            draftP.bu,
       teamSize:      parseInt(draftP.teamSize) || p.teamSize,
-      revenue:       parseFloat(draftP.revenue) || p.revenue,
-      budget:        parseFloat(draftP.budget)  || p.budget,
-      spent:         parseFloat(draftP.spent)   || p.spent,
+      revenue:           parseFloat(draftP.revenue)           || p.revenue,
+      budget:            parseFloat(draftP.budget)            || p.budget,
+      spent:             parseFloat(draftP.spent)             || p.spent,
+      revenueMonthly:    parseFloat(draftP.revenueMonthly)    || undefined,
+      costMonthly:       parseFloat(draftP.costMonthly)       || undefined,
+      revenueProjection: parseFloat(draftP.revenueProjection) || undefined,
+      costProjection:    parseFloat(draftP.costProjection)    || undefined,
       progress:      parseInt(draftP.progress)  || p.progress,
       expectedProgress: draftP.expectedProgress !== "" ? parseInt(draftP.expectedProgress) : p.expectedProgress,
       startDate:     draftP.startDate,
@@ -233,8 +287,6 @@ function ProjectDetailPanel({
     });
     onSaveReport({
       ftes:             draftR.ftes,
-      marginYTD:        draftR.marginYTD ? draftR.marginYTD + "%" : rep?.marginYTD,
-      marginActual:     draftR.marginActual ? draftR.marginActual + "%" : rep?.marginActual,
       phase:            draftR.phase,
       overallStatus:    draftR.overallStatus as HealthStatus,
       currentStatus:    draftR.currentStatus as HealthStatus,
@@ -259,7 +311,11 @@ function ProjectDetailPanel({
       serviceType: p.serviceType||"", serviceLevel: p.serviceLevel||"",
       bu: p.bu||"", teamSize: String(p.teamSize||""),
       revenue: String(p.revenue||""), budget: String(p.budget||""),
-      spent: String(p.spent||""), progress: String(p.progress||""),
+      spent: String(p.spent||""), revenueMonthly: String(p.revenueMonthly||""),
+      costMonthly: String(p.costMonthly||""),
+      revenueProjection: String(p.revenueProjection||""),
+      costProjection: String(p.costProjection||""),
+      progress: String(p.progress||""),
       expectedProgress: String(p.expectedProgress??""),
       startDate: p.startDate||"", endDate: p.endDate||"",
       csvOtdPercent: (p.csvOtdPercent||"").replace("%",""),
@@ -268,8 +324,7 @@ function ProjectDetailPanel({
       csvMitigation: p.csvMitigation||"", csvNextActions: p.csvNextActions||"",
     });
     setDraftR({
-      ftes: rep?.ftes||"", marginYTD: (rep?.marginYTD||"").replace("%",""),
-      marginActual: (rep?.marginActual||"").replace("%",""),
+      ftes: rep?.ftes||"",
       phase: rep?.phase||"", overallStatus: rep?.overallStatus??"grey",
       currentStatus: rep?.currentStatus??"grey",
       milestonesStatus: rep?.milestonesStatus??"grey",
@@ -287,14 +342,47 @@ function ProjectDetailPanel({
   const weather = makeWeather(t);
   const otdVal  = parsePercent(draftP.csvOtdPercent || undefined);
   const oqdVal  = parsePercent(draftP.csvOqdPercent || undefined);
-  const marginYTDNum = parsePercent(draftR.marginYTD || undefined);
-  const marginNum = marginYTDNum ?? (parseFloat(draftP.revenue) > 0
-    ? Math.round((parseFloat(draftP.revenue) - parseFloat(draftP.spent)) / parseFloat(draftP.revenue) * 100)
-    : null);
-  const budgetDev = parseFloat(draftP.budget) > 0
-    ? Math.round((parseFloat(draftP.revenue) - parseFloat(draftP.budget)) / parseFloat(draftP.budget) * 100)
-    : null;
-  const marginDev = marginNum !== null ? Math.round(marginNum - 34) : null;
+
+  // Financial values
+  const revMes   = parseFloat(draftP.revenueMonthly)    || 0;
+  const costMes  = parseFloat(draftP.costMonthly)       || 0;
+  const rev      = parseFloat(draftP.revenue)           || 0;
+  const cost     = parseFloat(draftP.spent)             || 0;
+  const revProj  = parseFloat(draftP.revenueProjection) || 0;
+  const costProj = parseFloat(draftP.costProjection)    || 0;
+
+  // Ganancia (Producción - Costo) per column
+  const ganMes   = revMes  > 0 ? revMes  - costMes  : null;
+  const ganYTD   = rev     > 0 ? rev     - cost      : null;
+  const ganProj  = revProj > 0 ? revProj - costProj  : null;
+
+  // Margen % per column
+  const mrgMes   = revMes  > 0 ? Math.round((revMes  - costMes)  / revMes  * 100) : null;
+  const mrgYTD   = rev     > 0 ? Math.round((rev     - cost)     / rev     * 100) : null;
+  const mrgProj  = revProj > 0 ? Math.round((revProj - costProj) / revProj * 100) : null;
+
+  // TMD = Margen - 34% target
+  const tmdMes   = mrgMes  !== null ? mrgMes  - 34 : null;
+  const tmdYTD   = mrgYTD  !== null ? mrgYTD  - 34 : null;
+  const tmdProj  = mrgProj !== null ? mrgProj - 34 : null;
+
+  function fmtCLP(v: number | null): string {
+    if (v === null || v === 0) return "—";
+    return Math.round(v).toLocaleString("es-CL");
+  }
+  function fmtPct(v: number | null): string {
+    if (v === null) return "—";
+    return `${v}%`;
+  }
+  function fmtDev(v: number | null): string {
+    if (v === null) return "—";
+    return `${v > 0 ? "+" : ""}${v}pp`;
+  }
+  function devClass(v: number | null): string {
+    if (v === null) return "text-gray-400";
+    return v >= 0 ? "text-emerald-700" : "text-red-600";
+  }
+
   const fmtDate = (d: string) => d ? new Date(d + "T00:00:00").toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
   return (
@@ -343,8 +431,8 @@ function ProjectDetailPanel({
             </div>
             <div className="grid grid-cols-2 gap-x-3 gap-y-2">
               <EF label={t.cor_client_label} value={draftP.client}      editMode={editMode} onChange={v => setP("client", v)} />
-              <EF label="PM"                  value={draftP.manager}     editMode={editMode} onChange={v => setP("manager", v)} />
-              <EF label="Leader"              value={draftP.leader}      editMode={editMode} onChange={v => setP("leader", v)} />
+              <EF label="BM"                  value={draftP.manager}     editMode={editMode} onChange={v => setP("manager", v)} />
+              <EF label="Team Leader"         value={draftP.leader}      editMode={editMode} onChange={v => setP("leader", v)} />
               <EF label={t.cor_phase_label}   value={draftR.phase}       editMode={editMode} onChange={v => setR("phase", v)} />
               <EF label={t.cor_model_label}   value={draftP.serviceType} editMode={editMode} onChange={v => setP("serviceType", v)} />
               <EF label="FTEs"                value={draftR.ftes || draftP.teamSize} editMode={editMode} onChange={v => setR("ftes", v)} />
@@ -374,17 +462,17 @@ function ProjectDetailPanel({
                   {draftR.achievements && (
                     <div>
                       <p className="text-[9px] font-semibold text-emerald-700 mb-0.5">{t.cor_achievements_label}</p>
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.achievements}</p>
+                      <BulletList text={draftR.achievements} />
                     </div>
                   )}
                   {draftR.currentIssues && (
                     <div>
                       <p className="text-[9px] font-semibold text-amber-700 mb-0.5">{t.cor_issues_label}</p>
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.currentIssues}</p>
+                      <BulletList text={draftR.currentIssues} />
                     </div>
                   )}
                   {draftP.shortComment && !draftR.currentIssues && (
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">{draftP.shortComment}</p>
+                    <BulletList text={draftP.shortComment} />
                   )}
                   {!draftR.achievements && !draftR.currentIssues && !draftP.shortComment && (
                     <p className="text-[10px] text-muted-foreground italic">—</p>
@@ -401,14 +489,15 @@ function ProjectDetailPanel({
             <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide mb-2">Financial KPIs</h4>
             {editMode ? (
               <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                <EF label="Revenue"         value={draftP.revenue}    editMode={editMode} onChange={v => setP("revenue", v)} />
-                <EF label="Budget/Forecast" value={draftP.budget}     editMode={editMode} onChange={v => setP("budget", v)} />
-                <EF label="Costo/Gasto"     value={draftP.spent}      editMode={editMode} onChange={v => setP("spent", v)} />
-                <EF label="Margen YTD %"    value={draftR.marginYTD}  editMode={editMode} onChange={v => setR("marginYTD", v)} />
-                <EF label="Margen Actual %"  value={draftR.marginActual} editMode={editMode} onChange={v => setR("marginActual", v)} />
+                <NumericInput label="Prod. del Mes"     value={draftP.revenueMonthly}    onChange={v => setP("revenueMonthly", v)} />
+                <NumericInput label="Costo del Mes"     value={draftP.costMonthly}        onChange={v => setP("costMonthly", v)} />
+                <NumericInput label="Producción YTD"    value={draftP.revenue}            onChange={v => setP("revenue", v)} />
+                <NumericInput label="Costo YTD"         value={draftP.spent}              onChange={v => setP("spent", v)} />
+                <NumericInput label="Proyec. FY Prod."  value={draftP.revenueProjection}  onChange={v => setP("revenueProjection", v)} />
+                <NumericInput label="Proyec. FY Costo"  value={draftP.costProjection}     onChange={v => setP("costProjection", v)} />
                 {draftP.serviceType === "Fixed Price" && <>
-                  <EF label="Avance %"        value={draftP.progress}   editMode={editMode} onChange={v => setP("progress", v)} />
-                  <EF label="Avance Plan %"   value={draftP.expectedProgress} editMode={editMode} onChange={v => setP("expectedProgress", v)} />
+                  <EF label="Avance %"        value={draftP.progress}         editMode onChange={v => setP("progress", v)} />
+                  <EF label="Avance Plan %"   value={draftP.expectedProgress} editMode onChange={v => setP("expectedProgress", v)} />
                 </>}
               </div>
             ) : (
@@ -416,39 +505,45 @@ function ProjectDetailPanel({
                 <thead>
                   <tr>
                     <th className="text-left font-semibold text-muted-foreground py-1 pr-2 border-b border-gray-200">KPI</th>
-                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200">{t.pf_forecast_col}</th>
-                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200">{t.cor_ytd_actual_col}</th>
-                    <th className="text-right font-semibold text-muted-foreground py-1 pl-1 border-b border-gray-200">{t.cor_dev_col}</th>
+                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200">Mensual</th>
+                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200">Real YTD</th>
+                    <th className="text-right font-semibold text-muted-foreground py-1 pl-1 border-b border-gray-200">Proyección FY</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   <tr>
-                    <td className="py-1 pr-2 font-medium">Revenue</td>
-                    <td className="py-1 px-1 text-right">{formatCurrency(parseFloat(draftP.budget)||0)}</td>
-                    <td className="py-1 px-1 text-right font-semibold">{formatCurrency(parseFloat(draftP.revenue)||0)}</td>
-                    <td className={`py-1 pl-1 text-right font-semibold ${budgetDev!==null?(budgetDev>=0?"text-emerald-700":"text-red-600"):"text-gray-400"}`}>
-                      {budgetDev!==null?`${budgetDev>0?"+":""}${budgetDev}%`:"—"}
-                    </td>
+                    <td className="py-1 pr-2 font-medium">Producción</td>
+                    <td className="py-1 px-1 text-right">{fmtCLP(revMes||null)}</td>
+                    <td className="py-1 px-1 text-right font-semibold">{fmtCLP(rev||null)}</td>
+                    <td className="py-1 pl-1 text-right">{fmtCLP(revProj||null)}</td>
                   </tr>
                   <tr>
-                    <td className="py-1 pr-2 font-medium">{t.cor_total_cost_kpi}</td>
-                    <td className="py-1 px-1 text-right">{formatCurrency(parseFloat(draftP.budget)*0.6||0)}</td>
-                    <td className="py-1 px-1 text-right font-semibold">{formatCurrency(parseFloat(draftP.spent)||0)}</td>
-                    <td className="py-1 pl-1 text-right text-gray-400">—</td>
+                    <td className="py-1 pr-2 font-medium">Costo</td>
+                    <td className="py-1 px-1 text-right">{fmtCLP(costMes||null)}</td>
+                    <td className="py-1 px-1 text-right font-semibold">{fmtCLP(cost||null)}</td>
+                    <td className="py-1 pl-1 text-right">{fmtCLP(costProj||null)}</td>
+                  </tr>
+                  <tr>
+                    <td className="py-1 pr-2 font-medium">Ganancia</td>
+                    <td className={`py-1 px-1 text-right ${ganMes!==null&&ganMes<0?"text-red-600":""}`}>{fmtCLP(ganMes)}</td>
+                    <td className={`py-1 px-1 text-right font-semibold ${ganYTD!==null&&ganYTD<0?"text-red-600":""}`}>{fmtCLP(ganYTD)}</td>
+                    <td className={`py-1 pl-1 text-right ${ganProj!==null&&ganProj<0?"text-red-600":""}`}>{fmtCLP(ganProj)}</td>
                   </tr>
                   <tr>
                     <td className="py-1 pr-2 font-medium">Gross Margin</td>
-                    <td className="py-1 px-1 text-right">34%</td>
-                    <td className={`py-1 px-1 text-right font-semibold ${marginNum!==null?(marginNum>=34?"text-emerald-700":marginNum>=25?"text-amber-700":"text-red-600"):"text-gray-400"}`}>
-                      {marginNum!==null?`${marginNum}%`:"—"}
-                    </td>
-                    <td className={`py-1 pl-1 text-right font-semibold ${marginDev!==null?(marginDev>=0?"text-emerald-700":"text-red-600"):"text-gray-400"}`}>
-                      {marginDev!==null?`${marginDev>0?"+":""}${marginDev}pp`:"—"}
-                    </td>
+                    <td className={`py-1 px-1 text-right ${mrgMes!==null?(mrgMes>=34?"text-emerald-700":mrgMes>=25?"text-amber-700":"text-red-600"):"text-gray-400"}`}>{fmtPct(mrgMes)}</td>
+                    <td className={`py-1 px-1 text-right font-semibold ${mrgYTD!==null?(mrgYTD>=34?"text-emerald-700":mrgYTD>=25?"text-amber-700":"text-red-600"):"text-gray-400"}`}>{fmtPct(mrgYTD)}</td>
+                    <td className={`py-1 pl-1 text-right ${mrgProj!==null?(mrgProj>=34?"text-emerald-700":mrgProj>=25?"text-amber-700":"text-red-600"):"text-gray-400"}`}>{fmtPct(mrgProj)}</td>
+                  </tr>
+                  <tr className="bg-indigo-50/50">
+                    <td className="py-1 pr-2 font-bold text-indigo-700">TMD <span className="text-gray-400 font-normal">(vs 34%)</span></td>
+                    <td className={`py-1 px-1 text-right font-semibold ${devClass(tmdMes)}`}>{fmtDev(tmdMes)}</td>
+                    <td className={`py-1 px-1 text-right font-bold ${devClass(tmdYTD)}`}>{fmtDev(tmdYTD)}</td>
+                    <td className={`py-1 pl-1 text-right font-semibold ${devClass(tmdProj)}`}>{fmtDev(tmdProj)}</td>
                   </tr>
                   <tr>
                     <td className="py-1 pr-2 font-medium">FTE Man-days</td>
-                    <td className="py-1 px-1 text-right">{draftP.teamSize||"—"}</td>
+                    <td className="py-1 px-1 text-right text-gray-400">—</td>
                     <td className="py-1 px-1 text-right font-semibold">{draftR.ftes||draftP.teamSize||"—"}</td>
                     <td className="py-1 pl-1 text-right text-gray-400">—</td>
                   </tr>
@@ -551,6 +646,7 @@ function ProjectDetailPanel({
                         <option value="R">⛈️ Critical</option>
                         <option value="grey">☁️ N/A</option>
                         <option value="B">🌤️ Stable</option>
+                        <option value="done">✅ Terminado</option>
                       </select>
                     ) : (
                       <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-medium border ${w.bg} ${w.text} ${w.border}`}>
@@ -594,15 +690,179 @@ function ProjectDetailPanel({
     </div>
   );
 }
+// ── New Service Modal ────────────────────────────────────────────────────────
+
+const EMPTY_NEW_SERVICE = {
+  name: "", client: "", manager: "", leader: "",
+  serviceType: "", serviceLevel: "", bu: "",
+  status: "active" as import("@/types").ProjectStatus,
+  startDate: "", endDate: "",
+};
+
+function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p: import("@/types").Project) => void }) {
+  const [form, setForm] = useState(EMPTY_NEW_SERVICE);
+  const t = useT();
+
+  function setF(k: keyof typeof EMPTY_NEW_SERVICE, v: string) {
+    setForm(d => ({ ...d, [k]: v }));
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    const project: import("@/types").Project = {
+      id: `manual-${Date.now()}`,
+      name: form.name.trim(),
+      status: form.status,
+      progress: 0,
+      budget: 0,
+      spent: 0,
+      revenue: 0,
+      startDate: form.startDate || new Date().toISOString().slice(0, 10),
+      endDate: form.endDate || "",
+      teamSize: 0,
+      tasksTotal: 0,
+      tasksDone: 0,
+      manager: form.manager,
+      client: form.client || undefined,
+      leader: form.leader || undefined,
+      serviceType: form.serviceType || undefined,
+      serviceLevel: form.serviceLevel || undefined,
+      bu: form.bu || undefined,
+    };
+    onSave(project);
+    onClose();
+  }
+
+  const STATUS_OPTIONS: import("@/types").ProjectStatus[] = ["active","at-risk","on-hold","guarantee","delayed","terminated","completed"];
+  const STATUS_LABELS: Record<string, string> = {
+    active:"Activo", "at-risk":"En Riesgo", "on-hold":"En Espera",
+    guarantee:"Garantía", delayed:"Retrasado", terminated:"Terminado", completed:"Completado",
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl border border-indigo-200 shadow-2xl w-full max-w-lg mx-4">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h2 className="text-sm font-bold text-indigo-800">Nuevo Servicio</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {/* Nombre */}
+          <div>
+            <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">
+              Nombre del Servicio <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.name}
+              onChange={e => setF("name", e.target.value)}
+              required
+              placeholder="Ej: Soporte Producción Transbank"
+              className="w-full text-[11px] border border-indigo-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              autoFocus
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: t.cor_client_label, key: "client" as const, ph: "Nombre cliente" },
+              { label: "BM / Manager",     key: "manager" as const, ph: "Nombre BM" },
+              { label: "Team Leader",       key: "leader" as const,  ph: "Nombre Team Leader" },
+              { label: "BU",               key: "bu" as const,       ph: "Business Unit" },
+              { label: t.cor_model_label,  key: "serviceType" as const, ph: "Ej: Competence Center" },
+              { label: t.cor_svc_level,    key: "serviceLevel" as const, ph: "Ej: L2" },
+            ].map(({ label, key, ph }) => (
+              <div key={key}>
+                <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{label}</label>
+                <input
+                  type="text"
+                  value={form[key]}
+                  onChange={e => setF(key, e.target.value)}
+                  placeholder={ph}
+                  className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">Estado</label>
+              <select
+                value={form.status}
+                onChange={e => setF("status", e.target.value)}
+                className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+              >
+                {STATUS_OPTIONS.map(s => (
+                  <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{t.cor_start_label}</label>
+              <input
+                type="date"
+                value={form.startDate}
+                onChange={e => setF("startDate", e.target.value)}
+                className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{t.cor_end_label}</label>
+              <input
+                type="date"
+                value={form.endDate}
+                onChange={e => setF("endDate", e.target.value)}
+                className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-[11px] font-semibold border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={!form.name.trim()}
+              className="px-4 py-2 text-[11px] font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Agregar Servicio
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── COR View ─────────────────────────────────────────────────────────────────
 
 function CORView() {
-  const { projects, reportData, updateProject, updateReport } = useData();
+  const { projects, reportData, updateProject, updateReport, addProject } = useData();
   const t = useT();
   const WEATHER = useMemo(() => makeWeather(t), [t]);
 
   const [selectedId, setSelectedId]  = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string; value: string } | null>(null);
+  const [showNewModal, setShowNewModal] = useState(false);
+
+  // ── Table filters ─────────────────────────────────────────────────────
+  const [fltStatus,  setFltStatus]  = useState<string[]>([]);
+  const [fltClient,  setFltClient]  = useState<string[]>([]);
+  const [fltLeader,  setFltLeader]  = useState<string[]>([]);
+  const [fltManager, setFltManager] = useState<string[]>([]);
+  const [fltType,    setFltType]    = useState<string[]>([]);
 
   // ── Manual override state ─────────────────────────────────────────────
   const [overrideMode, setOverrideMode] = useState(false);
@@ -634,6 +894,38 @@ function CORView() {
 
   const today = new Date().toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" });
 
+  // ── Filter options ────────────────────────────────────────────────────
+  const clientOpts  = useMemo(() => [...new Set(projects.map(p => p.client).filter(Boolean))].sort() as string[], [projects]);
+  const leaderOpts  = useMemo(() => [...new Set(projects.map(p => p.leader).filter(Boolean))].sort() as string[], [projects]);
+  const managerOpts = useMemo(() => [...new Set(projects.map(p => p.manager).filter(Boolean))].sort() as string[], [projects]);
+  const typeOpts    = useMemo(() => [...new Set(projects.map(p => p.serviceType).filter(Boolean))].sort() as string[], [projects]);
+
+  const weatherStatusOpts = [
+    { value: "G",    label: "🟢 Verde"     },
+    { value: "A",    label: "🟡 Amarillo"  },
+    { value: "R",    label: "🔴 Rojo"      },
+    { value: "grey", label: "⚪ Sin dato"  },
+    { value: "done", label: "✅ Terminado" },
+  ];
+
+  const filteredProjects = useMemo(() => {
+    return projects.filter(p => {
+      const status = reportData[p.id]?.overallStatus ?? "grey";
+      if (fltStatus.length  && !fltStatus.includes(status))           return false;
+      if (fltClient.length  && !fltClient.includes(p.client ?? ""))   return false;
+      if (fltLeader.length  && !fltLeader.includes(p.leader ?? ""))   return false;
+      if (fltManager.length && !fltManager.includes(p.manager ?? "")) return false;
+      if (fltType.length    && !fltType.includes(p.serviceType ?? "")) return false;
+      return true;
+    });
+  }, [projects, reportData, fltStatus, fltClient, fltLeader, fltManager, fltType]);
+
+  const hasTableFilters = !!(fltStatus.length || fltClient.length || fltLeader.length || fltManager.length || fltType.length);
+
+  function clearTableFilters() {
+    setFltStatus([]); setFltClient([]); setFltLeader([]); setFltManager([]); setFltType([]);
+  }
+
   // ── Calculated KPIs (from project data) ────────────────────────────────
   const corKPIsCalc = useMemo(() => {
     const active = projects.filter(p => p.status !== "on-hold");
@@ -644,7 +936,7 @@ function CORView() {
     const oqdVals = active.map(p => parsePercent(p.csvOqdPercent)).filter((v): v is number => v !== null);
     const avgOTD  = otdVals.length ? otdVals.reduce((s,v) => s+v, 0) / otdVals.length : null;
     const avgOQD  = oqdVals.length ? oqdVals.reduce((s,v) => s+v, 0) / oqdVals.length : null;
-    const wc = { G: 0, A: 0, R: 0, grey: 0 };
+    const wc = { G: 0, A: 0, R: 0, grey: 0, done: 0 };
     active.forEach(p => { const k = reportData[p.id]?.overallStatus ?? "grey"; if (k in wc) wc[k as keyof typeof wc]++; });
     return { totalRevenue, totalCost, grossMargin, avgOTD, avgOQD, activeCount: active.length, wc };
   }, [projects, reportData]);
@@ -704,28 +996,27 @@ function CORView() {
     modelData.map(d => ({ name: d.name.length>16?d.name.slice(0,14)+"…":d.name, revenue: d.value })),
   [modelData]);
 
-  const marginBarData = useMemo(() => {
-    if (!manualData.margins) return marginBarDataCalc;
-    return parseCORCSV(manualData.margins).map(d => ({
-      name: d.name.length>14?d.name.slice(0,12)+"…":d.name, margin: d.value, target: 34,
-    }));
-  }, [manualData.margins, marginBarDataCalc]);
+  const marginBarData = marginBarDataCalc;
 
   const selectedProject = useMemo(() => projects.find(p => p.id === selectedId), [projects, selectedId]);
   const selectedReport  = useMemo(() => selectedId ? reportData[selectedId] : undefined, [reportData, selectedId]);
 
   // ── Save cell edit ────────────────────────────────────────────────────
+  // Ref always points to latest editingCell to avoid stale-closure on onBlur
+  const editingCellRef = useRef(editingCell);
+  editingCellRef.current = editingCell;
+
   const commitCell = useCallback(() => {
-    if (!editingCell) return;
-    const { id, field, value } = editingCell;
+    const cell = editingCellRef.current;
+    if (!cell) return;
+    const { id, field, value } = cell;
     if (field === "otd")    updateProject(id, { csvOtdPercent: value ? value+"%" : "" });
     if (field === "oqd")    updateProject(id, { csvOqdPercent: value ? value+"%" : "" });
     if (field === "margin") updateReport(id, { marginYTD: value ? value+"%" : "" });
     if (field === "ftes")   updateReport(id, { ftes: value });
-    if (field === "status") updateReport(id, { overallStatus: value as HealthStatus });
     if (field === "csat")   updateReport(id, { healthGovernance: value });
     setEditingCell(null);
-  }, [editingCell, updateProject, updateReport]);
+  }, [updateProject, updateReport]);
 
   function cellInput(id: string, field: string, currentVal: string, isSelect?: boolean) {
     const active = editingCell?.id === id && editingCell?.field === field;
@@ -735,8 +1026,13 @@ function CORView() {
           <select
             autoFocus
             value={editingCell.value}
-            onChange={e => setEditingCell({ ...editingCell, value: e.target.value })}
-            onBlur={commitCell}
+            onChange={e => {
+              const newVal = e.target.value;
+              // Commit immediately on change — avoids stale-closure bug with onBlur
+              if (field === "status") updateReport(id, { overallStatus: newVal as HealthStatus });
+              setEditingCell(null);
+            }}
+            onBlur={() => setEditingCell(null)}
             className="text-[9px] border border-indigo-300 rounded p-0.5 bg-white w-full"
           >
             <option value="G">☀️ On Track</option>
@@ -744,6 +1040,7 @@ function CORView() {
             <option value="R">⛈️ Critical</option>
             <option value="grey">☁️ N/A</option>
             <option value="B">🌤️ Stable</option>
+            <option value="done">✅ Terminado</option>
           </select>
         );
       }
@@ -766,7 +1063,8 @@ function CORView() {
     <div className="space-y-4">
 
       {/* ── COR Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <PrintHeader title={t.cor_title} subtitle={t.cor_subtitle} />
+      <div className="flex items-center justify-between print:hidden">
         <div>
           <h2 className="text-base font-bold text-foreground">{t.cor_title}</h2>
           <p className="text-xs text-muted-foreground mt-0.5">{t.cor_subtitle}</p>
@@ -783,6 +1081,13 @@ function CORView() {
               <button onClick={clearOverride} title="Limpiar datos manuales" className="ml-1 text-violet-400 hover:text-red-500 transition-colors font-bold leading-none">×</button>
             </span>
           )}
+          <button
+            onClick={() => setShowNewModal(true)}
+            className="flex items-center gap-1.5 bg-indigo-600 text-white hover:bg-indigo-700 font-medium px-3 py-1.5 rounded-lg transition-colors text-xs"
+          >
+            <Plus className="w-3 h-3" />
+            Nuevo Servicio
+          </button>
           {!overrideMode && (
             <button
               onClick={openOverride}
@@ -792,6 +1097,7 @@ function CORView() {
               Editar overview
             </button>
           )}
+          <PrintButton />
         </div>
       </div>
 
@@ -847,11 +1153,10 @@ function CORView() {
           </div>
 
           {/* Chart data textareas */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {[
               { label: "Customer Delivery", key: "customers" as const, hint: "Una línea por cliente: Cliente,Revenue\nEj: Transbank,500000" },
               { label: "Delivery Model",    key: "models"    as const, hint: "Una línea por modelo: Modelo,Revenue\nEj: Fixed Price,300000" },
-              { label: "Gross Margin por Servicio", key: "margins" as const, hint: "Una línea por servicio: Servicio,Margen%\nEj: Proyecto ABC,45" },
             ].map(({ label, key, hint }) => (
               <div key={key} className="bg-white rounded-lg border border-indigo-200 p-2.5">
                 <label className="text-[9px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{label}</label>
@@ -877,8 +1182,8 @@ function CORView() {
             <DollarSign className="w-3.5 h-3.5 text-indigo-500" />
             <span className="text-[10px] font-medium text-muted-foreground">{t.cor_revenue_total_kpi}</span>
           </div>
-          <p className="text-lg font-bold text-foreground leading-none">{formatCurrency(corKPIs.totalRevenue)}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">{t.cor_cost_label} {formatCurrency(corKPIs.totalCost)}</p>
+          <p className="text-lg font-bold text-foreground leading-none">{formatClpToUsd(corKPIs.totalRevenue)}</p>
+          <p className="text-[10px] text-muted-foreground mt-1">{t.cor_cost_label} {formatClpToUsd(corKPIs.totalCost)}</p>
         </div>
 
         {/* Gross Margin */}
@@ -923,10 +1228,11 @@ function CORView() {
             <Gauge className="w-3.5 h-3.5 text-indigo-500" />
             <span className="text-[10px] font-medium text-muted-foreground">{t.cor_overall_status}</span>
           </div>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-sm">☀️</span><span className="text-[11px] font-bold text-emerald-700">{corKPIs.wc.G}</span>
             <span className="text-sm">⛅</span><span className="text-[11px] font-bold text-amber-700">{corKPIs.wc.A}</span>
             <span className="text-sm">⛈️</span><span className="text-[11px] font-bold text-red-700">{corKPIs.wc.R}</span>
+            <span className="text-sm">✅</span><span className="text-[11px] font-bold text-teal-700">{corKPIs.wc.done}</span>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">{corKPIs.activeCount} {t.cor_active_services}</p>
         </div>
@@ -945,7 +1251,7 @@ function CORView() {
                 <Pie data={customerData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} dataKey="value" paddingAngle={2} startAngle={90} endAngle={-270}>
                   {customerData.map((_,i) => <Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]} />)}
                 </Pie>
-                <ReTT contentStyle={{ fontSize:10, padding:"3px 8px", borderRadius:6 }} formatter={(v:number)=>[formatCurrency(v),""]} />
+                <ReTT contentStyle={{ fontSize:10, padding:"3px 8px", borderRadius:6 }} formatter={(v:number)=>[formatClpToUsd(v),""]} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex-1 space-y-1 min-w-0">
@@ -973,7 +1279,7 @@ function CORView() {
                 <Pie data={modelData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} dataKey="value" paddingAngle={2} startAngle={90} endAngle={-270}>
                   {modelData.map((_,i) => <Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]} />)}
                 </Pie>
-                <ReTT contentStyle={{ fontSize:10, padding:"3px 8px", borderRadius:6 }} formatter={(v:number)=>[formatCurrency(v),""]} />
+                <ReTT contentStyle={{ fontSize:10, padding:"3px 8px", borderRadius:6 }} formatter={(v:number)=>[formatClpToUsd(v),""]} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex-1 space-y-1 min-w-0">
@@ -998,7 +1304,7 @@ function CORView() {
             <BarChart data={revenueBarData} layout="vertical" margin={{ top:0, right:4, bottom:0, left:4 }}>
               <XAxis type="number" tick={{ fontSize:8 }} tickFormatter={v=>`${Math.round(v/1000)}k`} />
               <YAxis dataKey="name" type="category" tick={{ fontSize:8 }} width={60} />
-              <ReTT contentStyle={{ fontSize:10, padding:"3px 8px", borderRadius:6 }} formatter={(v:number)=>[formatCurrency(v),"Revenue"]} />
+              <ReTT contentStyle={{ fontSize:10, padding:"3px 8px", borderRadius:6 }} formatter={(v:number)=>[formatClpToUsd(v),"Revenue"]} />
               <Bar dataKey="revenue" radius={[0,3,3,0]}>
                 {revenueBarData.map((_,i) => <Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]} />)}
               </Bar>
@@ -1033,9 +1339,69 @@ function CORView() {
       {/* ── Projects Overview Table ─────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-border overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-          <h3 className="text-xs font-semibold">{t.cor_projects_overview}</h3>
-          <p className="text-[10px] text-muted-foreground">{t.cor_click_detail}</p>
+          <h3 className="text-xs font-semibold">
+            {t.cor_projects_overview}
+            {hasTableFilters && (
+              <span className="ml-2 font-normal text-muted-foreground">
+                {filteredProjects.length} de {projects.length}
+              </span>
+            )}
+          </h3>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] text-muted-foreground print:hidden">{t.cor_click_detail}</p>
+          </div>
         </div>
+
+        {/* Filter bar */}
+        <div className="px-4 py-2.5 border-b border-border flex flex-wrap gap-2 items-center print:hidden">
+          <MultiFilter
+            placeholder="Estado"
+            options={weatherStatusOpts}
+            value={fltStatus}
+            onChange={setFltStatus}
+          />
+          {clientOpts.length > 0 && (
+            <MultiFilter
+              placeholder={t.cor_client_label}
+              options={clientOpts.map(c => ({ value: c, label: c }))}
+              value={fltClient}
+              onChange={setFltClient}
+            />
+          )}
+          {leaderOpts.length > 0 && (
+            <MultiFilter
+              placeholder="Team Leader"
+              options={leaderOpts.map(l => ({ value: l, label: l }))}
+              value={fltLeader}
+              onChange={setFltLeader}
+            />
+          )}
+          {managerOpts.length > 0 && (
+            <MultiFilter
+              placeholder="BM"
+              options={managerOpts.map(m => ({ value: m, label: m }))}
+              value={fltManager}
+              onChange={setFltManager}
+            />
+          )}
+          {typeOpts.length > 0 && (
+            <MultiFilter
+              placeholder={t.cor_model_label}
+              options={typeOpts.map(ty => ({ value: ty, label: ty }))}
+              value={fltType}
+              onChange={setFltType}
+            />
+          )}
+          {hasTableFilters && (
+            <button
+              onClick={clearTableFilters}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors ml-auto"
+            >
+              <X className="w-3 h-3" /> Limpiar filtros
+            </button>
+          )}
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-[10px]">
             <thead>
@@ -1043,10 +1409,11 @@ function CORView() {
                 <th className="px-3 py-2 font-medium w-5"></th>
                 <th className="px-3 py-2 font-medium">{t.cor_client_label}</th>
                 <th className="px-3 py-2 font-medium">Proyecto / Servicio</th>
-                <th className="px-3 py-2 font-medium">PM</th>
+                <th className="px-3 py-2 font-medium">Team Leader</th>
                 <th className="px-3 py-2 font-medium text-center">FTEs <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
                 <th className="px-3 py-2 font-medium text-right">Revenue</th>
                 <th className="px-3 py-2 font-medium text-right">{t.cor_margin_ytd_col} <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
+                <th className="px-3 py-2 font-medium text-center">TMD</th>
                 <th className="px-3 py-2 font-medium text-center">OTD <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
                 <th className="px-3 py-2 font-medium text-center">OQD <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
                 <th className="px-3 py-2 font-medium text-center">CSAT <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
@@ -1054,7 +1421,13 @@ function CORView() {
               </tr>
             </thead>
             <tbody>
-              {projects.map((p, i) => {
+              {filteredProjects.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="py-8 text-center text-[10px] text-muted-foreground">
+                    Sin resultados para los filtros aplicados.
+                  </td>
+                </tr>
+              ) : filteredProjects.map((p, i) => {
                 const rep      = reportData[p.id];
                 const weather  = WEATHER[rep?.overallStatus ?? "grey"] ?? WEATHER.grey;
                 const otdVal   = parsePercent(p.csvOtdPercent);
@@ -1064,6 +1437,7 @@ function CORView() {
                   : p.revenue > 0 ? Math.round((p.revenue-p.spent)/p.revenue*100) : null;
                 const ftes  = rep?.ftes || String(p.teamSize||"—");
                 const csat  = csatFromHealth(rep?.healthGovernance);
+                const tmd   = marginPct !== null ? Math.round(marginPct - 34) : null;
                 const isOpen = selectedId === p.id;
 
                 return (
@@ -1080,7 +1454,7 @@ function CORView() {
                         <div className="truncate">{p.name}</div>
                         {p.serviceType && <div className="text-[9px] text-muted-foreground font-normal">{p.serviceType}</div>}
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground truncate max-w-[80px]">{p.manager||"—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground truncate max-w-[80px]">{p.leader||"—"}</td>
 
                       {/* FTEs — inline edit */}
                       <td
@@ -1095,7 +1469,7 @@ function CORView() {
                         )}
                       </td>
 
-                      <td className="px-3 py-2 text-right font-medium">{formatCurrency(p.revenue||0)}</td>
+                      <td className="px-3 py-2 text-right font-medium">{formatClpToUsd(p.revenue||0)}</td>
 
                       {/* Margin YTD — inline edit */}
                       <td
@@ -1110,6 +1484,15 @@ function CORView() {
                             <Pencil className="w-2.5 h-2.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                         )}
+                      </td>
+
+                      {/* TMD */}
+                      <td className="px-3 py-2 text-center">
+                        {tmd !== null ? (
+                          <span className={`font-semibold text-[9px] ${tmd >= 0 ? "text-emerald-700" : "text-red-600"}`}>
+                            {tmd > 0 ? "+" : ""}{tmd}pp
+                          </span>
+                        ) : <span className="text-gray-400">{t.cor_nd}</span>}
                       </td>
 
                       {/* OTD — inline edit */}
@@ -1178,7 +1561,7 @@ function CORView() {
                     {/* ── Expanded Detail ────────────────────────────────── */}
                     {isOpen && selectedProject && selectedProject.id === p.id && (
                       <tr>
-                        <td colSpan={11} className="p-0 bg-indigo-50/60">
+                        <td colSpan={12} className="p-0 bg-indigo-50/60">
                           <ProjectDetailPanel
                             project={selectedProject}
                             report={selectedReport}
@@ -1201,7 +1584,8 @@ function CORView() {
         <h3 className="text-xs font-semibold mb-3">{t.cor_kpi_def_title}</h3>
         <div className="grid grid-cols-3 gap-x-8 gap-y-2">
           {[
-            { name: "Monthly Margin %",  formula: t.cor_formula_monthly },
+            { name: "TMD",                formula: "Target Margin Deviation: Margen Real – Margen Plan (34%). + = ahorro / ganancia de margen · – = sobrecosto / pérdida de margen" },
+            { name: "Monthly Margin %",   formula: t.cor_formula_monthly },
             { name: "YTD Margin %",       formula: t.cor_formula_ytd     },
             { name: "OTD %",              formula: t.cor_formula_otd     },
             { name: "OQD %",              formula: t.cor_formula_oqd     },
@@ -1215,6 +1599,14 @@ function CORView() {
           ))}
         </div>
       </div>
+
+      {/* ── New Service Modal ──────────────────────────────────────────────── */}
+      {showNewModal && (
+        <NewServiceModal
+          onClose={() => setShowNewModal(false)}
+          onSave={project => addProject(project)}
+        />
+      )}
     </div>
   );
 }
