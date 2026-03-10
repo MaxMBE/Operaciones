@@ -506,10 +506,9 @@ function ProjectDetailPanel({
                   </>
                 ) : (
                   <>
-                    {draftR.achievements && <div><p className="text-[9px] font-semibold text-emerald-700 mb-0.5">{t.cor_achievements_label}</p><BulletList text={draftR.achievements} /></div>}
-                    {draftR.currentIssues && <div><p className="text-[9px] font-semibold text-amber-700 mb-0.5">{t.cor_issues_label}</p><BulletList text={draftR.currentIssues} /></div>}
-                    {draftP.shortComment && !draftR.currentIssues && <BulletList text={draftP.shortComment} />}
-                    {!draftR.achievements && !draftR.currentIssues && !draftP.shortComment && <p className="text-[10px] text-muted-foreground italic">—</p>}
+                    <div><p className="text-[9px] font-semibold text-emerald-700 mb-0.5">{t.cor_achievements_label}</p>{draftR.achievements ? <BulletList text={draftR.achievements} /> : <p className="text-[10px] text-muted-foreground italic">—</p>}</div>
+                    <div><p className="text-[9px] font-semibold text-amber-700 mb-0.5">{t.cor_issues_label}</p>{draftR.currentIssues ? <BulletList text={draftR.currentIssues} /> : <p className="text-[10px] text-muted-foreground italic">—</p>}</div>
+                    <div><p className="text-[9px] font-semibold text-muted-foreground mb-0.5">Comentario</p>{draftP.shortComment ? <BulletList text={draftP.shortComment} /> : <p className="text-[10px] text-muted-foreground italic">—</p>}</div>
                   </>
                 )}
               </div>
@@ -613,25 +612,36 @@ function ProjectDetailPanel({
                   <>
                     <EF label="Actions in Progress"  value={draftR.actionsInProgress}    editMode onChange={v => setR("actionsInProgress", v)} textarea />
                     <EF label="Next Steps"            value={draftR.nextSteps}             editMode onChange={v => setR("nextSteps", v)} textarea />
-                    <EF label="Next Actions (CSV)"    value={draftP.csvNextActions}        editMode onChange={v => setP("csvNextActions", v)} textarea />
                     <EF label="Margin Improvement"    value={draftR.marginImprovement}     editMode onChange={v => setR("marginImprovement", v)} textarea />
                   </>
                 ) : (
                   <div className="space-y-1.5">
-                    {(draftR.actionsInProgress || draftR.nextSteps || draftP.csvNextActions)
-                      ? (draftR.actionsInProgress || draftR.nextSteps || draftP.csvNextActions).split(/[;\n]/).filter(Boolean).slice(0,6).map((a, i) => (
-                          <div key={i} className="flex items-start gap-1.5">
-                            <span className="text-[9px] font-bold text-indigo-500 flex-shrink-0 mt-0.5">{String(i+1).padStart(2,"0")}</span>
-                            <span className="text-[10px] text-muted-foreground leading-tight">{a.trim()}</span>
-                          </div>
-                        ))
-                      : <p className="text-[10px] text-muted-foreground italic">—</p>}
-                    {draftR.marginImprovement && (
-                      <div className="mt-1.5 pt-1.5 border-t border-gray-100">
-                        <p className="text-[9px] font-semibold text-emerald-700 mb-0.5">Margin Improvement</p>
-                        <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.marginImprovement}</p>
-                      </div>
-                    )}
+                    <div>
+                      <p className="text-[9px] font-semibold text-muted-foreground mb-0.5">Actions in Progress</p>
+                      {draftR.actionsInProgress
+                        ? draftR.actionsInProgress.split(/[;\n]/).filter(Boolean).slice(0,6).map((a, i) => (
+                            <div key={i} className="flex items-start gap-1.5">
+                              <span className="text-[9px] font-bold text-indigo-500 flex-shrink-0 mt-0.5">{String(i+1).padStart(2,"0")}</span>
+                              <span className="text-[10px] text-muted-foreground leading-tight">{a.trim()}</span>
+                            </div>
+                          ))
+                        : <p className="text-[10px] text-muted-foreground italic">—</p>}
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-semibold text-muted-foreground mb-0.5">Next Steps</p>
+                      {draftR.nextSteps
+                        ? draftR.nextSteps.split(/[;\n]/).filter(Boolean).slice(0,6).map((a, i) => (
+                            <div key={i} className="flex items-start gap-1.5">
+                              <span className="text-[9px] font-bold text-indigo-500 flex-shrink-0 mt-0.5">{String(i+1).padStart(2,"0")}</span>
+                              <span className="text-[10px] text-muted-foreground leading-tight">{a.trim()}</span>
+                            </div>
+                          ))
+                        : <p className="text-[10px] text-muted-foreground italic">—</p>}
+                    </div>
+                    <div className="pt-1 border-t border-gray-100">
+                      <p className="text-[9px] font-semibold text-emerald-700 mb-0.5">Margin Improvement</p>
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.marginImprovement || "—"}</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -718,20 +728,15 @@ function ProjectDetailPanel({
               <div className="px-3 pb-3 space-y-2">
                 {editMode ? (
                   <>
-                    <EF label="Key Risks (Reporte)"   value={draftR.keyRisks}      editMode onChange={v => setR("keyRisks", v)} textarea />
-                    <EF label="Key Risks (CSV)"        value={draftP.csvRisks}      editMode onChange={v => setP("csvRisks", v)} textarea />
-                    <EF label={t.cor_mitigation_label + " (Reporte)"} value={draftR.mitigation}    editMode onChange={v => setR("mitigation", v)} textarea />
-                    <EF label={t.cor_mitigation_label + " (CSV)"}     value={draftP.csvMitigation} editMode onChange={v => setP("csvMitigation", v)} textarea />
+                    <EF label="Key Risks"        value={draftR.keyRisks}   editMode onChange={v => setR("keyRisks", v)} textarea />
+                    <EF label={t.cor_mitigation_label} value={draftR.mitigation} editMode onChange={v => setR("mitigation", v)} textarea />
                   </>
                 ) : (
                   <>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.keyRisks || draftP.csvRisks || "—"}</p>
-                    {(draftR.mitigation || draftP.csvMitigation) && (
-                      <>
-                        <p className="text-[9px] font-semibold text-amber-700 mt-1.5">{t.cor_mitigation_label}</p>
-                        <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.mitigation || draftP.csvMitigation}</p>
-                      </>
-                    )}
+                    <p className="text-[9px] font-semibold text-red-700 mb-0.5">Key Risks</p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.keyRisks || "—"}</p>
+                    <p className="text-[9px] font-semibold text-amber-700 mt-1.5 mb-0.5">{t.cor_mitigation_label}</p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.mitigation || "—"}</p>
                   </>
                 )}
               </div>
