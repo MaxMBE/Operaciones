@@ -959,11 +959,35 @@ function CORView() {
       setManualData(snapshotData.cor_manual ?? EMPTY_MANUAL);
       return;
     }
-    try {
-      const s = localStorage.getItem(COR_MANUAL_KEY);
-      if (s) setManualData(JSON.parse(s));
-      else setManualData(EMPTY_MANUAL);
-    } catch {}
+    // Modo live: cargar desde Supabase con migración automática desde localStorage
+    fetch("/api/settings/cor-manual")
+      .then(r => r.json())
+      .then((remote: CORManual | null) => {
+        if (remote && Object.values(remote).some(v => v !== "")) {
+          setManualData(remote);
+          try { localStorage.setItem(COR_MANUAL_KEY, JSON.stringify(remote)); } catch {}
+        } else {
+          // Supabase vacío → migrar desde localStorage
+          try {
+            const local = localStorage.getItem(COR_MANUAL_KEY);
+            if (local) {
+              const parsed: CORManual = JSON.parse(local);
+              setManualData(parsed);
+              fetch("/api/settings/cor-manual", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(parsed),
+              });
+            }
+          } catch {}
+        }
+      })
+      .catch(() => {
+        try {
+          const s = localStorage.getItem(COR_MANUAL_KEY);
+          if (s) setManualData(JSON.parse(s));
+        } catch {}
+      });
   }, [snapshotData]);
   const hasManual = Object.values(manualData).some(v => v !== "");
 
@@ -971,6 +995,12 @@ function CORView() {
   function saveOverride() {
     setManualData(draftManual);
     try { localStorage.setItem(COR_MANUAL_KEY, JSON.stringify(draftManual)); } catch {}
+    // Guardar en Supabase
+    fetch("/api/settings/cor-manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(draftManual),
+    });
     setOverrideMode(false);
   }
   function cancelOverride() { setOverrideMode(false); }
@@ -978,6 +1008,7 @@ function CORView() {
     setManualData(EMPTY_MANUAL);
     setDraftManual(EMPTY_MANUAL);
     try { localStorage.removeItem(COR_MANUAL_KEY); } catch {}
+    fetch("/api/settings/cor-manual", { method: "DELETE" });
   }
   function setDM(k: keyof CORManual, v: string) { setDraftManual(d => ({ ...d, [k]: v })); }
 

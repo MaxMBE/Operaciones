@@ -18,3 +18,13 @@ CREATE INDEX IF NOT EXISTS idx_portfolio_snapshots_date ON portfolio_snapshots (
 -- Row Level Security (RLS) — habilitar si usás autenticación
 -- ALTER TABLE portfolio_snapshots ENABLE ROW LEVEL SECURITY;
 -- CREATE POLICY "allow_all" ON portfolio_snapshots FOR ALL USING (true);
+
+-- ============================================================
+--  COR Settings (datos manuales del overview COR)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS cor_settings (
+  key        text        PRIMARY KEY,   -- e.g. 'cor_manual_data'
+  value      jsonb       NOT NULL,
+  updated_at timestamptz DEFAULT now()
+);
