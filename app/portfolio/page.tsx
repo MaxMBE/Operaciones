@@ -223,11 +223,13 @@ function ProjectDetailPanel({
   report: rep,
   onSaveProject,
   onSaveReport,
+  readOnly = false,
 }: {
   project: Project;
   report?: ProjectReport;
   onSaveProject: (changes: Partial<Project>) => void;
   onSaveReport:  (changes: Partial<ProjectReport>) => void;
+  readOnly?: boolean;
 }) {
   const t = useT();
 
@@ -420,7 +422,9 @@ function ProjectDetailPanel({
           {p.name}
         </h4>
         <div className="flex items-center gap-2">
-          {editMode ? (
+          {readOnly ? (
+            <span className="text-[9px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-lg">Vista histórica</span>
+          ) : editMode ? (
             <>
               <button
                 onClick={handleSave}
@@ -906,7 +910,7 @@ function CORView() {
   // Datos activos: live o snapshot
   const projects    = snapshotData ? snapshotData.projects    : liveProjects;
   const reportData  = snapshotData ? snapshotData.report_data : liveReportData;
-  const isHistorical = activeSnapshotId !== "live";
+  const isHistorical = activeSnapshotId !== "live" && snapshots.some(s => s.id === activeSnapshotId && s.snapshot_date !== getLastTuesday());
 
   // Cargar lista de snapshots al montar
   useEffect(() => {
@@ -949,15 +953,30 @@ function CORView() {
   }, [snapshots.length, liveProjects.length, isDefaultData]);
 
   // Al cambiar snapshot seleccionado, cargar datos completos
+  // "live" con snapshot de esta semana disponible → carga ese snapshot (son equivalentes)
   useEffect(() => {
-    if (activeSnapshotId === "live") { setSnapshotData(null); return; }
+    if (activeSnapshotId === "live") {
+      const currentWeekDate = getLastTuesday();
+      const thisWeekSnap = snapshots.find(s => s.snapshot_date === currentWeekDate);
+      if (thisWeekSnap) {
+        setSnapshotLoading(true);
+        fetch(`/api/snapshots/${thisWeekSnap.id}`)
+          .then(r => r.json())
+          .then((d: SnapshotFull) => setSnapshotData(d))
+          .catch(() => setSnapshotData(null))
+          .finally(() => setSnapshotLoading(false));
+      } else {
+        setSnapshotData(null);
+      }
+      return;
+    }
     setSnapshotLoading(true);
     fetch(`/api/snapshots/${activeSnapshotId}`)
       .then(r => r.json())
       .then((d: SnapshotFull) => setSnapshotData(d))
       .catch(() => setSnapshotData(null))
       .finally(() => setSnapshotLoading(false));
-  }, [activeSnapshotId]);
+  }, [activeSnapshotId, snapshots]);
 
   // ── Table filters ─────────────────────────────────────────────────────
   const [fltStatus,  setFltStatus]  = useState<string[]>([]);
@@ -1782,8 +1801,9 @@ function CORView() {
                           <ProjectDetailPanel
                             project={selectedProject}
                             report={selectedReport}
-                            onSaveProject={changes => updateProject(p.id, changes)}
-                            onSaveReport={changes => updateReport(p.id, changes)}
+                            onSaveProject={isHistorical ? () => {} : changes => updateProject(p.id, changes)}
+                            onSaveReport={isHistorical ? () => {} : changes => updateReport(p.id, changes)}
+                            readOnly={isHistorical}
                           />
                         </td>
                       </tr>
