@@ -277,6 +277,7 @@ function ProjectDetailPanel({
     keyRisks:         rep?.keyRisks          || "",
     mitigation:       rep?.mitigation        || "",
     csat:             csatFromHealth(rep?.healthGovernance) === "N/D" ? "" : csatFromHealth(rep?.healthGovernance),
+    teamMood:         rep?.healthTeam || "",
   });
 
   function setP(k: keyof typeof draftP, v: string) { setDraftP(d => ({ ...d, [k]: v })); }
@@ -325,6 +326,7 @@ function ProjectDetailPanel({
       keyRisks:         draftR.keyRisks,
       mitigation:       draftR.mitigation,
       healthGovernance: draftR.csat || rep?.healthGovernance || "",
+      healthTeam:       draftR.teamMood,
     });
     setEditMode(false);
   }
@@ -359,6 +361,7 @@ function ProjectDetailPanel({
       actionsInProgress: rep?.actionsInProgress||"", nextSteps: rep?.nextSteps||"",
       keyRisks: rep?.keyRisks||"", mitigation: rep?.mitigation||"",
       csat: csatFromHealth(rep?.healthGovernance)==="N/D" ? "" : csatFromHealth(rep?.healthGovernance),
+      teamMood: rep?.healthTeam||"",
     });
     setEditMode(false);
   }
@@ -468,6 +471,7 @@ function ProjectDetailPanel({
                 <SEF label={t.cor_status_col} value={draftR.overallStatus} editMode={editMode} onChange={v => setR("overallStatus", v)} />
               )}
               <EF label="CSAT (1-4)"          value={draftR.csat}        editMode={editMode} onChange={v => setR("csat", v)} />
+              <EF label="Team Mood (1-4)"     value={draftR.teamMood}    editMode={editMode} onChange={v => setR("teamMood", v)} />
             </div>
           </div>
 
@@ -1494,6 +1498,27 @@ function CORView() {
         </ResponsiveContainer>
       </div>
 
+      {/* ── KPI Definitions ─────────────────────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-border p-4">
+        <h3 className="text-xs font-semibold mb-3">{t.cor_kpi_def_title}</h3>
+        <div className="grid grid-cols-3 gap-x-8 gap-y-2">
+          {[
+            { name: "TMD",                formula: "Target Margin Deviation: Margen Real – Margen Plan (34%). + = ahorro / ganancia de margen · – = sobrecosto / pérdida de margen" },
+            { name: "Monthly Margin %",   formula: t.cor_formula_monthly },
+            { name: "YTD Margin %",       formula: t.cor_formula_ytd     },
+            { name: "OTD %",              formula: t.cor_formula_otd     },
+            { name: "OQD %",              formula: t.cor_formula_oqd     },
+            { name: "CSAT",               formula: t.cor_formula_csat    },
+            { name: "Team Mood",          formula: t.cor_formula_mood    },
+          ].map(({ name, formula }) => (
+            <div key={name} className="flex flex-col">
+              <span className="text-[10px] font-semibold text-foreground">{name}</span>
+              <span className="text-[9px] text-muted-foreground leading-tight">{formula}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── Projects Overview Table ─────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-border overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
@@ -1734,27 +1759,6 @@ function CORView() {
               })}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* ── KPI Definitions ─────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-border p-4">
-        <h3 className="text-xs font-semibold mb-3">{t.cor_kpi_def_title}</h3>
-        <div className="grid grid-cols-3 gap-x-8 gap-y-2">
-          {[
-            { name: "TMD",                formula: "Target Margin Deviation: Margen Real – Margen Plan (34%). + = ahorro / ganancia de margen · – = sobrecosto / pérdida de margen" },
-            { name: "Monthly Margin %",   formula: t.cor_formula_monthly },
-            { name: "YTD Margin %",       formula: t.cor_formula_ytd     },
-            { name: "OTD %",              formula: t.cor_formula_otd     },
-            { name: "OQD %",              formula: t.cor_formula_oqd     },
-            { name: "CSAT",               formula: t.cor_formula_csat    },
-            { name: "Team Mood",          formula: t.cor_formula_mood    },
-          ].map(({ name, formula }) => (
-            <div key={name} className="flex flex-col">
-              <span className="text-[10px] font-semibold text-foreground">{name}</span>
-              <span className="text-[9px] text-muted-foreground leading-tight">{formula}</span>
-            </div>
-          ))}
         </div>
       </div>
 
