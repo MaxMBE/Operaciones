@@ -139,6 +139,7 @@ export interface ProjectReport {
   nextSteps: string;
   focus: string;
   statusNote: string;
+  marginImprovement?: string;
   // Fixed Price specific
   projectScope?: string;
   projectCurrentStatus?: string;

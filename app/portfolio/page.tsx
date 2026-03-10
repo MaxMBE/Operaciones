@@ -235,6 +235,11 @@ function ProjectDetailPanel({
 
   const [editMode, setEditMode] = useState(false);
 
+  // Secciones colapsables
+  const [highlightsOpen,   setHighlightsOpen]   = useState(false);
+  const [improvementOpen,  setImprovementOpen]  = useState(false);
+  const [risksOpen,        setRisksOpen]        = useState(false);
+
   // Split draft into project fields and report fields
   const [draftP, setDraftP] = useState({
     client:        p.client       || "",
@@ -280,6 +285,7 @@ function ProjectDetailPanel({
     mitigation:       rep?.mitigation        || "",
     csat:             csatFromHealth(rep?.healthGovernance) === "N/D" ? "" : csatFromHealth(rep?.healthGovernance),
     teamMood:         rep?.healthTeam || "",
+    marginImprovement: rep?.marginImprovement || "",
   });
 
   function setP(k: keyof typeof draftP, v: string) { setDraftP(d => ({ ...d, [k]: v })); }
@@ -327,8 +333,9 @@ function ProjectDetailPanel({
       nextSteps:        draftR.nextSteps,
       keyRisks:         draftR.keyRisks,
       mitigation:       draftR.mitigation,
-      healthGovernance: draftR.csat || rep?.healthGovernance || "",
-      healthTeam:       draftR.teamMood,
+      healthGovernance:  draftR.csat || rep?.healthGovernance || "",
+      healthTeam:        draftR.teamMood,
+      marginImprovement: draftR.marginImprovement,
     });
     setEditMode(false);
   }
@@ -364,6 +371,7 @@ function ProjectDetailPanel({
       keyRisks: rep?.keyRisks||"", mitigation: rep?.mitigation||"",
       csat: csatFromHealth(rep?.healthGovernance)==="N/D" ? "" : csatFromHealth(rep?.healthGovernance),
       teamMood: rep?.healthTeam||"",
+      marginImprovement: rep?.marginImprovement||"",
     });
     setEditMode(false);
   }
@@ -480,38 +488,32 @@ function ProjectDetailPanel({
           </div>
 
           {/* Highlights */}
-          <div className="bg-white rounded-lg border border-indigo-200 p-3">
-            <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide mb-2">Highlights</h4>
-            <div className="space-y-2">
-              {editMode ? (
-                <>
-                  <EF label={t.cor_achievements_label} value={draftR.achievements} editMode={editMode} onChange={v => setR("achievements", v)} textarea />
-                  <EF label={t.cor_issues_label}        value={draftR.currentIssues} editMode={editMode} onChange={v => setR("currentIssues", v)} textarea />
-                  <EF label="Comentario"                value={draftP.shortComment}  editMode={editMode} onChange={v => setP("shortComment", v)} textarea />
-                </>
-              ) : (
-                <>
-                  {draftR.achievements && (
-                    <div>
-                      <p className="text-[9px] font-semibold text-emerald-700 mb-0.5">{t.cor_achievements_label}</p>
-                      <BulletList text={draftR.achievements} />
-                    </div>
-                  )}
-                  {draftR.currentIssues && (
-                    <div>
-                      <p className="text-[9px] font-semibold text-amber-700 mb-0.5">{t.cor_issues_label}</p>
-                      <BulletList text={draftR.currentIssues} />
-                    </div>
-                  )}
-                  {draftP.shortComment && !draftR.currentIssues && (
-                    <BulletList text={draftP.shortComment} />
-                  )}
-                  {!draftR.achievements && !draftR.currentIssues && !draftP.shortComment && (
-                    <p className="text-[10px] text-muted-foreground italic">—</p>
-                  )}
-                </>
-              )}
-            </div>
+          <div className="bg-white rounded-lg border border-indigo-200 overflow-hidden">
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 hover:bg-indigo-50/50 transition-colors"
+              onClick={() => setHighlightsOpen(o => !o)}
+            >
+              <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide">Highlights</h4>
+              {highlightsOpen || editMode ? <ChevronDown className="w-3 h-3 text-indigo-400" /> : <ChevronRight className="w-3 h-3 text-indigo-400" />}
+            </button>
+            {(highlightsOpen || editMode) && (
+              <div className="px-3 pb-3 space-y-2">
+                {editMode ? (
+                  <>
+                    <EF label={t.cor_achievements_label} value={draftR.achievements}  editMode onChange={v => setR("achievements", v)} textarea />
+                    <EF label={t.cor_issues_label}        value={draftR.currentIssues} editMode onChange={v => setR("currentIssues", v)} textarea />
+                    <EF label="Comentario"                value={draftP.shortComment}  editMode onChange={v => setP("shortComment", v)} textarea />
+                  </>
+                ) : (
+                  <>
+                    {draftR.achievements && <div><p className="text-[9px] font-semibold text-emerald-700 mb-0.5">{t.cor_achievements_label}</p><BulletList text={draftR.achievements} /></div>}
+                    {draftR.currentIssues && <div><p className="text-[9px] font-semibold text-amber-700 mb-0.5">{t.cor_issues_label}</p><BulletList text={draftR.currentIssues} /></div>}
+                    {draftP.shortComment && !draftR.currentIssues && <BulletList text={draftP.shortComment} />}
+                    {!draftR.achievements && !draftR.currentIssues && !draftP.shortComment && <p className="text-[10px] text-muted-foreground italic">—</p>}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -597,29 +599,41 @@ function ProjectDetailPanel({
           </div>
 
           {/* Improvement Plan */}
-          <div className="bg-white rounded-lg border border-indigo-200 p-3">
-            <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide mb-2">Improvement Plan</h4>
-            {editMode ? (
-              <div className="space-y-2">
-                <EF label="Actions in Progress" value={draftR.actionsInProgress} editMode={editMode} onChange={v => setR("actionsInProgress", v)} textarea />
-                <EF label="Next Steps"           value={draftR.nextSteps}         editMode={editMode} onChange={v => setR("nextSteps", v)} textarea />
-                <EF label="Next Actions (CSV)"   value={draftP.csvNextActions}    editMode={editMode} onChange={v => setP("csvNextActions", v)} textarea />
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                {(draftR.actionsInProgress || draftR.nextSteps || draftP.csvNextActions)
-                  ? (draftR.actionsInProgress || draftR.nextSteps || draftP.csvNextActions)
-                      .split(/[;\n]/)
-                      .filter(Boolean)
-                      .slice(0, 6)
-                      .map((action, i) => (
-                        <div key={i} className="flex items-start gap-1.5">
-                          <span className="text-[9px] font-bold text-indigo-500 flex-shrink-0 mt-0.5">{String(i+1).padStart(2,"0")}</span>
-                          <span className="text-[10px] text-muted-foreground leading-tight">{action.trim()}</span>
-                        </div>
-                      ))
-                  : <p className="text-[10px] text-muted-foreground italic">—</p>
-                }
+          <div className="bg-white rounded-lg border border-indigo-200 overflow-hidden">
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 hover:bg-indigo-50/50 transition-colors"
+              onClick={() => setImprovementOpen(o => !o)}
+            >
+              <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide">Improvement Plan</h4>
+              {improvementOpen || editMode ? <ChevronDown className="w-3 h-3 text-indigo-400" /> : <ChevronRight className="w-3 h-3 text-indigo-400" />}
+            </button>
+            {(improvementOpen || editMode) && (
+              <div className="px-3 pb-3 space-y-2">
+                {editMode ? (
+                  <>
+                    <EF label="Actions in Progress"  value={draftR.actionsInProgress}    editMode onChange={v => setR("actionsInProgress", v)} textarea />
+                    <EF label="Next Steps"            value={draftR.nextSteps}             editMode onChange={v => setR("nextSteps", v)} textarea />
+                    <EF label="Next Actions (CSV)"    value={draftP.csvNextActions}        editMode onChange={v => setP("csvNextActions", v)} textarea />
+                    <EF label="Margin Improvement"    value={draftR.marginImprovement}     editMode onChange={v => setR("marginImprovement", v)} textarea />
+                  </>
+                ) : (
+                  <div className="space-y-1.5">
+                    {(draftR.actionsInProgress || draftR.nextSteps || draftP.csvNextActions)
+                      ? (draftR.actionsInProgress || draftR.nextSteps || draftP.csvNextActions).split(/[;\n]/).filter(Boolean).slice(0,6).map((a, i) => (
+                          <div key={i} className="flex items-start gap-1.5">
+                            <span className="text-[9px] font-bold text-indigo-500 flex-shrink-0 mt-0.5">{String(i+1).padStart(2,"0")}</span>
+                            <span className="text-[10px] text-muted-foreground leading-tight">{a.trim()}</span>
+                          </div>
+                        ))
+                      : <p className="text-[10px] text-muted-foreground italic">—</p>}
+                    {draftR.marginImprovement && (
+                      <div className="mt-1.5 pt-1.5 border-t border-gray-100">
+                        <p className="text-[9px] font-semibold text-emerald-700 mb-0.5">Margin Improvement</p>
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.marginImprovement}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -692,29 +706,35 @@ function ProjectDetailPanel({
           </div>
 
           {/* Risks & Mitigation */}
-          <div className="bg-white rounded-lg border border-indigo-200 p-3">
-            <h4 className="text-[10px] font-bold text-red-700 uppercase tracking-wide mb-1.5">Key Risks</h4>
-            {editMode ? (
-              <div className="space-y-2">
-                <EF label="Key Risks (Reporte)"   value={draftR.keyRisks}      editMode onChange={v => setR("keyRisks", v)} textarea />
-                <EF label="Key Risks (CSV)"        value={draftP.csvRisks}      editMode onChange={v => setP("csvRisks", v)} textarea />
-                <EF label={t.cor_mitigation_label + " (Reporte)"} value={draftR.mitigation}    editMode onChange={v => setR("mitigation", v)} textarea />
-                <EF label={t.cor_mitigation_label + " (CSV)"}     value={draftP.csvMitigation} editMode onChange={v => setP("csvMitigation", v)} textarea />
-              </div>
-            ) : (
-              <>
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  {draftR.keyRisks || draftP.csvRisks || "—"}
-                </p>
-                {(draftR.mitigation || draftP.csvMitigation) && (
+          <div className="bg-white rounded-lg border border-indigo-200 overflow-hidden">
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 hover:bg-red-50/50 transition-colors"
+              onClick={() => setRisksOpen(o => !o)}
+            >
+              <h4 className="text-[10px] font-bold text-red-700 uppercase tracking-wide">Key Risks</h4>
+              {risksOpen || editMode ? <ChevronDown className="w-3 h-3 text-red-400" /> : <ChevronRight className="w-3 h-3 text-red-400" />}
+            </button>
+            {(risksOpen || editMode) && (
+              <div className="px-3 pb-3 space-y-2">
+                {editMode ? (
                   <>
-                    <h4 className="text-[10px] font-bold text-amber-700 uppercase tracking-wide mt-2 mb-1">{t.cor_mitigation_label}</h4>
-                    <p className="text-[10px] text-muted-foreground leading-relaxed">
-                      {draftR.mitigation || draftP.csvMitigation}
-                    </p>
+                    <EF label="Key Risks (Reporte)"   value={draftR.keyRisks}      editMode onChange={v => setR("keyRisks", v)} textarea />
+                    <EF label="Key Risks (CSV)"        value={draftP.csvRisks}      editMode onChange={v => setP("csvRisks", v)} textarea />
+                    <EF label={t.cor_mitigation_label + " (Reporte)"} value={draftR.mitigation}    editMode onChange={v => setR("mitigation", v)} textarea />
+                    <EF label={t.cor_mitigation_label + " (CSV)"}     value={draftP.csvMitigation} editMode onChange={v => setP("csvMitigation", v)} textarea />
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.keyRisks || draftP.csvRisks || "—"}</p>
+                    {(draftR.mitigation || draftP.csvMitigation) && (
+                      <>
+                        <p className="text-[9px] font-semibold text-amber-700 mt-1.5">{t.cor_mitigation_label}</p>
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.mitigation || draftP.csvMitigation}</p>
+                      </>
+                    )}
                   </>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
