@@ -1798,24 +1798,6 @@ export default function PortfolioPage() {
   return (
     <div className="space-y-4">
 
-      {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">
-            Advanced Project Plan &amp; Portfolio Management
-          </h1>
-          <span className="text-xs text-muted-foreground">
-            Portfolio Visibility · Planning · Tracking · Reporting
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="bg-muted/40 border border-border px-3 py-1.5 rounded-lg">{today}</span>
-          <span className="bg-blue-50 border border-blue-200 text-blue-700 font-medium px-3 py-1.5 rounded-lg">
-            {projects.length} {t.pf_services}
-          </span>
-        </div>
-      </div>
-
       {/* ── Tab Navigation ──────────────────────────────────────────────── */}
       <div className="flex items-center gap-1 border-b border-border">
         {(["cor","transformation"] as const).map(tab => (
