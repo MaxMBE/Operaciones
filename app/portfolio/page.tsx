@@ -15,8 +15,32 @@ import { MultiFilter } from "@/components/multi-filter";
 import type { Project, ProjectReport, HealthStatus } from "@/types";
 import {
   CheckCircle2, TrendingUp, DollarSign,
-  ChevronDown, ChevronRight, Target, Gauge, Pencil, Plus, X,
+  ChevronDown, ChevronRight, Target, Gauge, Pencil, Plus, X, History, Clock,
 } from "lucide-react";
+
+// ── Snapshot types ────────────────────────────────────────────────────────────
+interface SnapshotMeta { id: string; snapshot_date: string; week_label: string; created_at: string; }
+interface SnapshotFull extends SnapshotMeta { projects: Project[]; report_data: Record<string, ProjectReport>; cor_manual: CORManual | null; }
+
+// ── Helpers de fecha para snapshots ──────────────────────────────────────────
+function getLastTuesday(from = new Date()): string {
+  const d = new Date(from);
+  // day 0=Dom, 1=Lun, 2=Mar ... 6=Sab
+  const day = d.getDay();
+  const diff = day >= 2 ? day - 2 : day + 5; // días hacia atrás hasta el martes
+  d.setDate(d.getDate() - diff);
+  return d.toISOString().slice(0, 10);
+}
+
+function isTuesdayToday(): boolean {
+  return new Date().getDay() === 2;
+}
+
+function formatWeekLabel(isoDate: string): string {
+  const [y, m, day] = isoDate.split("-").map(Number);
+  const d = new Date(y, m - 1, day);
+  return `Semana del ${d.toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" })}`;
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -849,13 +873,72 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
 // ── COR View ─────────────────────────────────────────────────────────────────
 
 function CORView() {
-  const { projects, reportData, updateProject, updateReport, addProject } = useData();
+  const { projects: liveProjects, reportData: liveReportData, updateProject, updateReport, addProject } = useData();
   const t = useT();
   const WEATHER = useMemo(() => makeWeather(t), [t]);
 
   const [selectedId, setSelectedId]  = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string; value: string } | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
+
+  // ── Snapshots ─────────────────────────────────────────────────────────
+  const [snapshots,        setSnapshots]        = useState<SnapshotMeta[]>([]);
+  const [activeSnapshotId, setActiveSnapshotId] = useState<string | "live">("live");
+  const [snapshotData,     setSnapshotData]     = useState<SnapshotFull | null>(null);
+  const [snapshotLoading,  setSnapshotLoading]  = useState(false);
+  const [snapshotStatus,   setSnapshotStatus]   = useState<string>("");
+
+  // Datos activos: live o snapshot
+  const projects    = snapshotData ? snapshotData.projects    : liveProjects;
+  const reportData  = snapshotData ? snapshotData.report_data : liveReportData;
+  const isHistorical = activeSnapshotId !== "live";
+
+  // Cargar lista de snapshots al montar
+  useEffect(() => {
+    fetch("/api/snapshots")
+      .then(r => r.json())
+      .then((list: SnapshotMeta[]) => setSnapshots(list))
+      .catch(() => {});
+  }, []);
+
+  // Auto-snapshot: si hoy es martes y no existe snapshot de esta semana, crear uno
+  useEffect(() => {
+    if (!isTuesdayToday() || liveProjects.length === 0) return;
+    const todayDate = getLastTuesday();
+    const alreadyExists = snapshots.some(s => s.snapshot_date === todayDate);
+    if (alreadyExists) return;
+
+    const week_label = formatWeekLabel(todayDate);
+    let corManual: CORManual | null = null;
+    try { const s = localStorage.getItem(COR_MANUAL_KEY); if (s) corManual = JSON.parse(s); } catch {}
+
+    setSnapshotStatus("Guardando snapshot semanal...");
+    fetch("/api/snapshots", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ snapshot_date: todayDate, week_label, projects: liveProjects, report_data: liveReportData, cor_manual: corManual }),
+    })
+      .then(r => r.json())
+      .then((newSnap: SnapshotMeta) => {
+        setSnapshots(prev => [newSnap, ...prev]);
+        setSnapshotStatus("✓ Snapshot guardado");
+        setTimeout(() => setSnapshotStatus(""), 3000);
+      })
+      .catch(() => setSnapshotStatus(""));
+  // Only run when snapshots list loads (once)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshots.length]);
+
+  // Al cambiar snapshot seleccionado, cargar datos completos
+  useEffect(() => {
+    if (activeSnapshotId === "live") { setSnapshotData(null); return; }
+    setSnapshotLoading(true);
+    fetch(`/api/snapshots/${activeSnapshotId}`)
+      .then(r => r.json())
+      .then((d: SnapshotFull) => setSnapshotData(d))
+      .catch(() => setSnapshotData(null))
+      .finally(() => setSnapshotLoading(false));
+  }, [activeSnapshotId]);
 
   // ── Table filters ─────────────────────────────────────────────────────
   const [fltStatus,  setFltStatus]  = useState<string[]>([]);
@@ -870,12 +953,18 @@ function CORView() {
   const [draftManual, setDraftManual] = useState<CORManual>(EMPTY_MANUAL);
 
   // Load manualData from localStorage after mount (avoids SSR/hydration mismatch)
+  // En modo histórico, usa el cor_manual del snapshot
   useEffect(() => {
+    if (snapshotData) {
+      setManualData(snapshotData.cor_manual ?? EMPTY_MANUAL);
+      return;
+    }
     try {
       const s = localStorage.getItem(COR_MANUAL_KEY);
       if (s) setManualData(JSON.parse(s));
+      else setManualData(EMPTY_MANUAL);
     } catch {}
-  }, []);
+  }, [snapshotData]);
   const hasManual = Object.values(manualData).some(v => v !== "");
 
   function openOverride() { setDraftManual({ ...manualData }); setOverrideMode(true); }
@@ -1019,6 +1108,7 @@ function CORView() {
   }, [updateProject, updateReport]);
 
   function cellInput(id: string, field: string, currentVal: string, isSelect?: boolean) {
+    if (isHistorical) return null; // solo lectura en modo histórico
     const active = editingCell?.id === id && editingCell?.field === field;
     if (active) {
       if (isSelect) {
@@ -1081,14 +1171,34 @@ function CORView() {
               <button onClick={clearOverride} title="Limpiar datos manuales" className="ml-1 text-violet-400 hover:text-red-500 transition-colors font-bold leading-none">×</button>
             </span>
           )}
-          <button
-            onClick={() => setShowNewModal(true)}
-            className="flex items-center gap-1.5 bg-indigo-600 text-white hover:bg-indigo-700 font-medium px-3 py-1.5 rounded-lg transition-colors text-xs"
-          >
-            <Plus className="w-3 h-3" />
-            Nuevo Servicio
-          </button>
-          {!overrideMode && (
+          {!isHistorical && (
+            <button
+              onClick={() => setShowNewModal(true)}
+              className="flex items-center gap-1.5 bg-indigo-600 text-white hover:bg-indigo-700 font-medium px-3 py-1.5 rounded-lg transition-colors text-xs"
+            >
+              <Plus className="w-3 h-3" />
+              Nuevo Servicio
+            </button>
+          )}
+          {/* ── Selector histórico ──────────────────────────────────── */}
+          <div className="flex items-center gap-1.5">
+            <History className="w-3 h-3 text-muted-foreground" />
+            <select
+              value={activeSnapshotId}
+              onChange={e => { setActiveSnapshotId(e.target.value); setSelectedId(null); }}
+              className="text-[11px] border border-border rounded-lg px-2 py-1.5 bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-400 max-w-[220px]"
+              disabled={snapshotLoading}
+            >
+              <option value="live">📡 Datos actuales</option>
+              {snapshots.map(s => (
+                <option key={s.id} value={s.id}>{s.week_label}</option>
+              ))}
+            </select>
+            {snapshotLoading && <span className="text-[10px] text-muted-foreground animate-pulse">Cargando...</span>}
+            {snapshotStatus && <span className="text-[10px] text-emerald-600 font-medium">{snapshotStatus}</span>}
+          </div>
+
+          {!isHistorical && !overrideMode && (
             <button
               onClick={openOverride}
               className="flex items-center gap-1.5 bg-white border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium px-3 py-1.5 rounded-lg transition-colors"
@@ -1101,8 +1211,25 @@ function CORView() {
         </div>
       </div>
 
+      {/* ── Banner modo histórico ──────────────────────────────────────── */}
+      {isHistorical && snapshotData && (
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5 print:hidden">
+          <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <div className="flex-1">
+            <span className="text-xs font-semibold text-amber-800">Modo histórico — {snapshotData.week_label}</span>
+            <span className="text-[10px] text-amber-600 ml-2">Vista de solo lectura. Los datos son del snapshot guardado ese martes.</span>
+          </div>
+          <button
+            onClick={() => { setActiveSnapshotId("live"); setSnapshotData(null); }}
+            className="text-[10px] font-semibold text-amber-700 border border-amber-400 bg-white px-2.5 py-1 rounded-lg hover:bg-amber-100 transition-colors"
+          >
+            Volver a datos actuales
+          </button>
+        </div>
+      )}
+
       {/* ── Manual Override Panel ──────────────────────────────────────── */}
-      {overrideMode && (
+      {!isHistorical && overrideMode && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div>
