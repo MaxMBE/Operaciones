@@ -877,13 +877,24 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
 // ── COR View ─────────────────────────────────────────────────────────────────
 
 function CORView() {
-  const { projects: liveProjects, reportData: liveReportData, updateProject, updateReport, addProject } = useData();
+  const { projects: liveProjects, reportData: liveReportData, updateProject, updateReport, addProject, isDefaultData } = useData();
   const t = useT();
   const WEATHER = useMemo(() => makeWeather(t), [t]);
 
   const [selectedId, setSelectedId]  = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string; value: string } | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
+  const [menuOpen,    setMenuOpen]    = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Cerrar dropdown al hacer click afuera
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // ── Snapshots ─────────────────────────────────────────────────────────
   const [snapshots,        setSnapshots]        = useState<SnapshotMeta[]>([]);
@@ -905,12 +916,17 @@ function CORView() {
       .catch(() => {});
   }, []);
 
-  // Auto-snapshot: si hoy es martes y no existe snapshot de esta semana, crear uno
+  // Auto-snapshot: cuando se carga un CSV (cualquier día) o cada martes
+  // Se dispara cuando cambian los proyectos o la lista de snapshots
+  const prevProjectsLenRef = useRef(0);
   useEffect(() => {
-    if (!isTuesdayToday() || liveProjects.length === 0) return;
+    if (isDefaultData || liveProjects.length === 0) return;
     const todayDate = getLastTuesday();
     const alreadyExists = snapshots.some(s => s.snapshot_date === todayDate);
-    if (alreadyExists) return;
+    // Crear snapshot si: es martes sin snapshot, O si se cargó un CSV nuevo (proyectos cambiaron)
+    const csvJustLoaded = liveProjects.length !== prevProjectsLenRef.current;
+    prevProjectsLenRef.current = liveProjects.length;
+    if (alreadyExists && !csvJustLoaded) return;
 
     const week_label = formatWeekLabel(todayDate);
     let corManual: CORManual | null = null;
@@ -929,9 +945,8 @@ function CORView() {
         setTimeout(() => setSnapshotStatus(""), 3000);
       })
       .catch(() => setSnapshotStatus(""));
-  // Only run when snapshots list loads (once)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snapshots.length]);
+  }, [snapshots.length, liveProjects.length, isDefaultData]);
 
   // Al cambiar snapshot seleccionado, cargar datos completos
   useEffect(() => {
@@ -1199,29 +1214,15 @@ function CORView() {
           <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-medium px-3 py-1.5 rounded-lg">
             {projects.length} {t.pf_services}
           </span>
-          {hasManual && !overrideMode && (
-            <span className="flex items-center gap-1.5 bg-violet-50 border border-violet-300 text-violet-700 font-medium px-2.5 py-1.5 rounded-lg">
-              <span className="text-base leading-none">📊</span>
-              <span>Datos manuales</span>
-              <button onClick={clearOverride} title="Limpiar datos manuales" className="ml-1 text-violet-400 hover:text-red-500 transition-colors font-bold leading-none">×</button>
-            </span>
-          )}
-          {!isHistorical && (
-            <button
-              onClick={() => setShowNewModal(true)}
-              className="flex items-center gap-1.5 bg-indigo-600 text-white hover:bg-indigo-700 font-medium px-3 py-1.5 rounded-lg transition-colors text-xs"
-            >
-              <Plus className="w-3 h-3" />
-              Nuevo Servicio
-            </button>
-          )}
+          {snapshotStatus && <span className="text-[10px] text-emerald-600 font-medium">{snapshotStatus}</span>}
+
           {/* ── Selector histórico ──────────────────────────────────── */}
           <div className="flex items-center gap-1.5">
             <History className="w-3 h-3 text-muted-foreground" />
             <select
               value={activeSnapshotId}
               onChange={e => { setActiveSnapshotId(e.target.value); setSelectedId(null); }}
-              className="text-[11px] border border-border rounded-lg px-2 py-1.5 bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-400 max-w-[220px]"
+              className="text-[11px] border border-border rounded-lg px-2 py-1.5 bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-400 max-w-[200px]"
               disabled={snapshotLoading}
             >
               <option value="live">📡 Datos actuales</option>
@@ -1229,20 +1230,53 @@ function CORView() {
                 <option key={s.id} value={s.id}>{s.week_label}</option>
               ))}
             </select>
-            {snapshotLoading && <span className="text-[10px] text-muted-foreground animate-pulse">Cargando...</span>}
-            {snapshotStatus && <span className="text-[10px] text-emerald-600 font-medium">{snapshotStatus}</span>}
+            {snapshotLoading && <span className="text-[10px] text-muted-foreground animate-pulse">…</span>}
           </div>
 
-          {!isHistorical && !overrideMode && (
+          {/* ── Menú desplegable de acciones ───────────────────────── */}
+          <div className="relative" ref={menuRef}>
             <button
-              onClick={openOverride}
+              onClick={() => setMenuOpen(o => !o)}
               className="flex items-center gap-1.5 bg-white border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium px-3 py-1.5 rounded-lg transition-colors"
             >
-              <Pencil className="w-3 h-3" />
-              Editar overview
+              Acciones
+              <ChevronDown className="w-3 h-3" />
             </button>
-          )}
-          <PrintButton />
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+                {!isHistorical && (
+                  <button
+                    onClick={() => { setShowNewModal(true); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-indigo-500" />
+                    Nuevo Servicio
+                  </button>
+                )}
+                {!isHistorical && (
+                  <button
+                    onClick={() => { openOverride(); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-indigo-500" />
+                    Editar overview
+                  </button>
+                )}
+                {hasManual && !isHistorical && (
+                  <button
+                    onClick={() => { clearOverride(); setMenuOpen(false); }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-violet-600 hover:bg-violet-50 transition-colors"
+                  >
+                    <span className="text-sm leading-none">📊</span>
+                    Limpiar datos manuales
+                  </button>
+                )}
+                <div className="border-t border-border">
+                  <PrintButton asMenuItem />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
