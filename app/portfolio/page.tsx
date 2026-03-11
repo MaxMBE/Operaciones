@@ -476,7 +476,6 @@ function ProjectDetailPanel({
               <EF label={t.cor_model_label}   value={draftP.serviceType} editMode={editMode} onChange={v => setP("serviceType", v)} />
               <EF label="FTEs"                value={draftR.ftes || draftP.teamSize} editMode={editMode} onChange={v => setR("ftes", v)} />
               <EF label="BU"                  value={draftP.bu}          editMode={editMode} onChange={v => setP("bu", v)} />
-              <EF label={t.cor_svc_level}     value={draftP.serviceLevel} editMode={editMode} onChange={v => setP("serviceLevel", v)} />
               <EF label={t.cor_start_label}   value={editMode ? draftP.startDate : fmtDate(draftP.startDate)} editMode={editMode} onChange={v => setP("startDate", v)} type="date" />
               <EF label={t.cor_end_label}     value={editMode ? draftP.endDate   : fmtDate(draftP.endDate)}   editMode={editMode} onChange={v => setP("endDate", v)} type="date" />
               {editMode && (
@@ -832,7 +831,6 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
               { label: "Team Leader",       key: "leader" as const,  ph: "Nombre Team Leader" },
               { label: "BU",               key: "bu" as const,       ph: "Business Unit" },
               { label: t.cor_model_label,  key: "serviceType" as const, ph: "Ej: Competence Center" },
-              { label: t.cor_svc_level,    key: "serviceLevel" as const, ph: "Ej: L2" },
             ].map(({ label, key, ph }) => (
               <div key={key}>
                 <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{label}</label>
@@ -969,7 +967,7 @@ function CORView() {
     })
       .then(r => r.json())
       .then((newSnap: SnapshotMeta) => {
-        setSnapshots(prev => [newSnap, ...prev]);
+        setSnapshots(prev => [newSnap, ...prev.filter(s => s.snapshot_date !== newSnap.snapshot_date)]);
         setSnapshotStatus("✓ Snapshot guardado");
         setTimeout(() => setSnapshotStatus(""), 3000);
       })
@@ -1674,14 +1672,14 @@ function CORView() {
                 <th className="px-3 py-2 font-medium text-center">Inicio</th>
                 <th className="px-3 py-2 font-medium text-center">Término</th>
                 <th className="px-3 py-2 font-medium">TL</th>
-                <th className="px-3 py-2 font-medium text-center">FTEs <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
+                <th className="px-3 py-2 font-medium text-center">FTEs</th>
                 <th className="px-3 py-2 font-medium text-right">Revenue</th>
-                <th className="px-3 py-2 font-medium text-right">{t.cor_margin_ytd_col} <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
+                <th className="px-3 py-2 font-medium text-right">{t.cor_margin_ytd_col}</th>
                 <th className="px-3 py-2 font-medium text-center">TMD</th>
-                <th className="px-3 py-2 font-medium text-center">OTD <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
-                <th className="px-3 py-2 font-medium text-center">OQD <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
-                <th className="px-3 py-2 font-medium text-center">CSAT <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
-                <th className="px-3 py-2 font-medium text-center">{t.cor_status_col} <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
+                <th className="px-3 py-2 font-medium text-center">OTD</th>
+                <th className="px-3 py-2 font-medium text-center">OQD</th>
+                <th className="px-3 py-2 font-medium text-center">CSAT</th>
+                <th className="px-3 py-2 font-medium text-center">{t.cor_status_col}</th>
               </tr>
             </thead>
             <tbody>
