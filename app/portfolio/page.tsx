@@ -12,7 +12,7 @@ import { formatCurrency, formatClpToUsd } from "@/lib/utils";
 import { PrintButton } from "@/components/print-button";
 import { PrintHeader } from "@/components/print-header";
 import { MultiFilter } from "@/components/multi-filter";
-import type { Project, ProjectReport, HealthStatus } from "@/types";
+import type { Project, ProjectReport, HealthStatus, TeamMember } from "@/types";
 import {
   CheckCircle2, TrendingUp, DollarSign,
   ChevronDown, ChevronRight, Target, Gauge, Pencil, Plus, X, History, Clock,
@@ -54,6 +54,7 @@ const COR_MANUAL_KEY = "cor_manual_data";
 interface CORManual {
   revenue: string; cost: string; otd: string; oqd: string;
   customers: string; models: string;
+  teamMembers?: TeamMember[];
 }
 
 const EMPTY_MANUAL: CORManual = { revenue:"", cost:"", otd:"", oqd:"", customers:"", models:"" };
@@ -904,7 +905,7 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
 // ── COR View ─────────────────────────────────────────────────────────────────
 
 function CORView() {
-  const { projects: liveProjects, reportData: liveReportData, updateProject, updateReport, addProject, isDefaultData } = useData();
+  const { projects: liveProjects, teamMembers: liveTeamMembers, reportData: liveReportData, updateProject, updateReport, addProject, isDefaultData } = useData();
   const t = useT();
   const WEATHER = useMemo(() => makeWeather(t), [t]);
 
@@ -963,7 +964,7 @@ function CORView() {
     fetch("/api/snapshots", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ snapshot_date: todayDate, week_label, projects: liveProjects, report_data: liveReportData, cor_manual: corManual }),
+      body: JSON.stringify({ snapshot_date: todayDate, week_label, projects: liveProjects, report_data: liveReportData, cor_manual: { ...(corManual ?? {}), teamMembers: liveTeamMembers } }),
     })
       .then(r => r.json())
       .then((newSnap: SnapshotMeta) => {

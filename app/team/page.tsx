@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useData } from "@/lib/data-context";
-import type { MemberRole, ProjectStatus } from "@/types";
+import type { MemberRole, ProjectStatus, TeamMember, Project } from "@/types";
 import {
   Pencil, Check, ChevronDown, ChevronRight, X,
   AlertTriangle, Clock, CheckCircle2, UserX, Search,
@@ -77,8 +77,14 @@ const RISK_STYLE: Record<BenchRisk, {
 
 // ── Bench view ────────────────────────────────────────────────────────────────
 
-function BenchView() {
-  const { projects, teamMembers, updateMember, deleteMember } = useData();
+function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
+  teamMembersOverride?: TeamMember[];
+  projectsOverride?: Project[];
+  isHistorical?: boolean;
+}) {
+  const { projects: liveProjects, teamMembers: liveTeamMembers, updateMember, deleteMember } = useData();
+  const projects    = projectsOverride    ?? liveProjects;
+  const teamMembers = teamMembersOverride ?? liveTeamMembers;
   const t = useT();
 
   const riskConfig: Record<BenchRisk, { label: string; bg: string; text: string; border: string; icon: React.ReactNode }> = {
@@ -928,11 +934,42 @@ function LeadersView() {
   );
 }
 
+// ── Snapshot types ─────────────────────────────────────────────────────────────
+
+interface SnapMeta { id: string; snapshot_date: string; week_label: string; }
+interface SnapFull extends SnapMeta { projects: Project[]; cor_manual: { teamMembers?: TeamMember[] } | null; }
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function TeamPage() {
-  const { projects, teamMembers, updateMember, addMember, deleteMember } = useData();
+  const { projects: liveProjects, teamMembers: liveTeamMembers, updateMember, addMember, deleteMember } = useData();
   const t = useT();
+
+  const [snapshots,        setSnapshots]        = useState<SnapMeta[]>([]);
+  const [activeSnapId,     setActiveSnapId]     = useState<string>("live");
+  const [snapData,         setSnapData]         = useState<SnapFull | null>(null);
+  const [snapLoading,      setSnapLoading]      = useState(false);
+
+  // Derived: live or historical data
+  const projects    = snapData ? snapData.projects                        : liveProjects;
+  const teamMembers = snapData ? (snapData.cor_manual?.teamMembers ?? liveTeamMembers) : liveTeamMembers;
+  const isHistorical = activeSnapId !== "live";
+
+  // Load snapshot list on mount
+  useEffect(() => {
+    fetch("/api/snapshots").then(r => r.json()).then(setSnapshots).catch(() => {});
+  }, []);
+
+  // Load full snapshot when selection changes
+  useEffect(() => {
+    if (activeSnapId === "live") { setSnapData(null); return; }
+    setSnapLoading(true);
+    fetch(`/api/snapshots/${activeSnapId}`)
+      .then(r => r.json())
+      .then((d: SnapFull) => setSnapData(d))
+      .catch(() => setSnapData(null))
+      .finally(() => setSnapLoading(false));
+  }, [activeSnapId]);
 
   const [tab,       setTab]       = useState<"equipo" | "bench" | "leaders">("equipo");
   const [confirmDeleteEquipoId, setConfirmDeleteEquipoId] = useState<string | null>(null);
@@ -1126,10 +1163,29 @@ export default function TeamPage() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-foreground">{t.nav_team}</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          {teamMembers.length} {t.team_subtitle_people} · {groups.length} {t.team_subtitle_services}
-        </p>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-foreground">{t.nav_team}</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {teamMembers.length} {t.team_subtitle_people} · {groups.length} {t.team_subtitle_services}
+            </p>
+          </div>
+          <select
+            value={activeSnapId}
+            onChange={e => setActiveSnapId(e.target.value)}
+            className="text-xs border border-border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
+          >
+            <option value="live">Datos actuales</option>
+            {snapshots.map(s => (
+              <option key={s.id} value={s.id}>{s.week_label}</option>
+            ))}
+          </select>
+        </div>
+        {isHistorical && (
+          <div className="mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+            Modo histórico — {snapData?.week_label}. Vista de solo lectura.
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex gap-1 mt-4 border-b border-border">
@@ -1300,7 +1356,13 @@ export default function TeamPage() {
       {tab === "leaders" && <LeadersView />}
 
       {/* ── Bench tab ── */}
-      {tab === "bench" && <BenchView />}
+      {tab === "bench" && (
+        <BenchView
+          teamMembersOverride={isHistorical ? (snapData?.cor_manual?.teamMembers ?? liveTeamMembers) : undefined}
+          projectsOverride={isHistorical ? snapData?.projects : undefined}
+          isHistorical={isHistorical}
+        />
+      )}
     </div>
   );
 }

@@ -28,7 +28,7 @@ console.log("📖  Leyendo data actual de cor_settings...");
 const { data: rows, error: readError } = await supabase
   .from("cor_settings")
   .select("key, value")
-  .in("key", ["ph_csv_data", "ph_report_data"]);
+  .in("key", ["ph_csv_data", "ph_report_data", "ph_team_data"]);
 
 if (readError || !rows?.length) {
   console.error("❌  Error leyendo cor_settings:", readError?.message ?? "sin datos");
@@ -36,8 +36,9 @@ if (readError || !rows?.length) {
 }
 
 const store = Object.fromEntries(rows.map(r => [r.key, r.value]));
-const projects   = store["ph_csv_data"]?.projects ?? [];
-const reportData = store["ph_report_data"] ?? {};
+const projects    = store["ph_csv_data"]?.projects ?? [];
+const teamMembers = store["ph_csv_data"]?.teamMembers ?? [];
+const reportData  = store["ph_report_data"] ?? {};
 
 console.log(`   ${projects.length} proyectos, ${Object.keys(reportData).length} reports`);
 
@@ -64,7 +65,7 @@ for (const snap of snapshots) {
         week_label:    snap.week_label,
         projects,
         report_data:   reportData,
-        cor_manual:    null,
+        cor_manual:    { teamMembers },
       },
       { onConflict: "snapshot_date" }
     );
