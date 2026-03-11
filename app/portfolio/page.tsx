@@ -1670,7 +1670,10 @@ function CORView() {
                 <th className="px-3 py-2 font-medium w-5"></th>
                 <th className="px-3 py-2 font-medium">{t.cor_client_label}</th>
                 <th className="px-3 py-2 font-medium">Proyecto / Servicio</th>
-                <th className="px-3 py-2 font-medium">Team Leader</th>
+                <th className="px-3 py-2 font-medium text-center">Tipo</th>
+                <th className="px-3 py-2 font-medium text-center">Inicio</th>
+                <th className="px-3 py-2 font-medium text-center">Término</th>
+                <th className="px-3 py-2 font-medium">TL</th>
                 <th className="px-3 py-2 font-medium text-center">FTEs <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
                 <th className="px-3 py-2 font-medium text-right">Revenue</th>
                 <th className="px-3 py-2 font-medium text-right">{t.cor_margin_ytd_col} <Pencil className="w-2.5 h-2.5 inline opacity-50" /></th>
@@ -1684,7 +1687,7 @@ function CORView() {
             <tbody>
               {filteredProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-8 text-center text-[10px] text-muted-foreground">
+                  <td colSpan={15} className="py-8 text-center text-[10px] text-muted-foreground">
                     Sin resultados para los filtros aplicados.
                   </td>
                 </tr>
@@ -1713,9 +1716,24 @@ function CORView() {
                       <td className="px-3 py-2 text-muted-foreground truncate max-w-[90px]">{p.client||"—"}</td>
                       <td className="px-3 py-2 font-medium max-w-[160px]">
                         <div className="truncate">{p.name}</div>
-                        {p.serviceType && <div className="text-[9px] text-muted-foreground font-normal">{p.serviceType}</div>}
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground truncate max-w-[80px]">{p.leader||"—"}</td>
+                      <td className="px-3 py-2 text-center font-semibold">
+                        {p.serviceType
+                          ? p.serviceType.toLowerCase().includes("competence") ? "3"
+                          : p.serviceType.toLowerCase().includes("service center") ? "4"
+                          : p.serviceType.toLowerCase().includes("fixed") ? "5"
+                          : <span className="text-gray-400">—</span>
+                          : <span className="text-gray-400">—</span>}
+                      </td>
+                      <td className="px-3 py-2 text-center text-muted-foreground whitespace-nowrap">
+                        {p.startDate ? new Date(p.startDate).toLocaleDateString("es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-center text-muted-foreground whitespace-nowrap">
+                        {p.endDate ? new Date(p.endDate).toLocaleDateString("es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground font-semibold tracking-wide">
+                        {p.leader ? p.leader.split(" ").map((w: string) => w[0]?.toUpperCase()||"").join("") : "—"}
+                      </td>
 
                       {/* FTEs — inline edit */}
                       <td
@@ -1822,7 +1840,7 @@ function CORView() {
                     {/* ── Expanded Detail ────────────────────────────────── */}
                     {isOpen && selectedProject && selectedProject.id === p.id && (
                       <tr>
-                        <td colSpan={12} className="p-0 bg-indigo-50/60">
+                        <td colSpan={15} className="p-0 bg-indigo-50/60">
                           <ProjectDetailPanel
                             project={selectedProject}
                             report={selectedReport}
