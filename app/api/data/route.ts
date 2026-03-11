@@ -1,32 +1,40 @@
 import { NextResponse } from "next/server";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { supabase } from "@/lib/supabase";
 
-const DATA_DIR  = join(process.cwd(), "data");
-const DATA_FILE = join(DATA_DIR, "store.json");
+const KEYS = ["ph_csv_data", "ph_finance_data", "ph_report_data", "ph_oportunidades"] as const;
 
-function getStore(): Record<string, unknown> {
-  try {
-    if (!existsSync(DATA_FILE)) return {};
-    return JSON.parse(readFileSync(DATA_FILE, "utf8"));
-  } catch {
-    return {};
-  }
+async function getStore(): Promise<Record<string, unknown>> {
+  const { data, error } = await supabase
+    .from("cor_settings")
+    .select("key, value")
+    .in("key", KEYS);
+
+  if (error || !data) return {};
+
+  return Object.fromEntries(data.map(row => [row.key, row.value]));
 }
 
-function saveStore(data: Record<string, unknown>) {
-  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
-  writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
+async function saveStore(store: Record<string, unknown>) {
+  const rows = Object.entries(store)
+    .filter(([key]) => (KEYS as readonly string[]).includes(key))
+    .map(([key, value]) => ({ key, value, updated_at: new Date().toISOString() }));
+
+  if (rows.length === 0) return;
+
+  await supabase
+    .from("cor_settings")
+    .upsert(rows, { onConflict: "key" });
 }
 
 export async function GET() {
-  return NextResponse.json(getStore());
+  const store = await getStore();
+  return NextResponse.json(store);
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    saveStore(body);
+    await saveStore(body);
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ ok: false, error: "Failed to save" }, { status: 500 });
