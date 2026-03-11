@@ -1460,6 +1460,9 @@ function CORView() {
           </div>
           <p className="text-lg font-bold text-foreground leading-none">{formatClpToUsd(corKPIs.totalRevenue)}</p>
           <p className="text-[10px] text-muted-foreground mt-1">{t.cor_cost_label} {formatClpToUsd(corKPIs.totalCost)}</p>
+          <div className="mt-2 pt-1.5 border-t border-gray-100">
+            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={(v: string) => { const u={...manualData,reportMonth:v}; setManualData(u); try{localStorage.setItem(COR_MANUAL_KEY,JSON.stringify(u));}catch{} }} />
+          </div>
         </div>
 
         {/* Gross Margin */}
@@ -1472,6 +1475,9 @@ function CORView() {
             {Math.round(corKPIs.grossMargin)}%
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">{t.cor_target_40}</p>
+          <div className="mt-2 pt-1.5 border-t border-gray-100">
+            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={(v: string) => { const u={...manualData,reportMonth:v}; setManualData(u); try{localStorage.setItem(COR_MANUAL_KEY,JSON.stringify(u));}catch{} }} />
+          </div>
         </div>
 
         {/* OTD */}
@@ -1484,6 +1490,9 @@ function CORView() {
             {corKPIs.avgOTD!==null?`${Math.round(corKPIs.avgOTD)}%`:t.cor_nd}
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
+          <div className="mt-2 pt-1.5 border-t border-gray-100">
+            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={(v: string) => { const u={...manualData,reportMonth:v}; setManualData(u); try{localStorage.setItem(COR_MANUAL_KEY,JSON.stringify(u));}catch{} }} />
+          </div>
         </div>
 
         {/* OQD */}
@@ -1496,6 +1505,9 @@ function CORView() {
             {corKPIs.avgOQD!==null?`${Math.round(corKPIs.avgOQD)}%`:t.cor_nd}
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
+          <div className="mt-2 pt-1.5 border-t border-gray-100">
+            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={(v: string) => { const u={...manualData,reportMonth:v}; setManualData(u); try{localStorage.setItem(COR_MANUAL_KEY,JSON.stringify(u));}catch{} }} />
+          </div>
         </div>
 
         {/* Weather summary */}
@@ -1511,19 +1523,11 @@ function CORView() {
             <span className="text-sm">✅</span><span className="text-[11px] font-bold text-teal-700">{corKPIs.wc.done}</span>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">{corKPIs.activeCount} {t.cor_active_services}</p>
+          <div className="mt-2 pt-1.5 border-t border-gray-100">
+            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={(v: string) => { const u={...manualData,reportMonth:v}; setManualData(u); try{localStorage.setItem(COR_MANUAL_KEY,JSON.stringify(u));}catch{} }} />
+          </div>
         </div>
       </div>
-
-      {/* ── Reporte Mes ─────────────────────────────────────────────────── */}
-      <ReportMonthLabel
-        value={manualData.reportMonth ?? "Enero"}
-        readOnly={isHistorical}
-        onChange={(v: string) => {
-          const updated = { ...manualData, reportMonth: v };
-          setManualData(updated);
-          try { localStorage.setItem(COR_MANUAL_KEY, JSON.stringify(updated)); } catch {}
-        }}
-      />
 
       {/* ── Charts Row ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-4">
