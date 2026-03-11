@@ -54,10 +54,11 @@ const COR_MANUAL_KEY = "cor_manual_data";
 interface CORManual {
   revenue: string; cost: string; otd: string; oqd: string;
   customers: string; models: string;
+  reportMonth?: string;
   teamMembers?: TeamMember[];
 }
 
-const EMPTY_MANUAL: CORManual = { revenue:"", cost:"", otd:"", oqd:"", customers:"", models:"" };
+const EMPTY_MANUAL: CORManual = { revenue:"", cost:"", otd:"", oqd:"", customers:"", models:"", reportMonth:"Enero" };
 
 function parseCORCSV(text: string): Array<{name:string; value:number}> {
   return text.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
@@ -904,6 +905,42 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
 
 // ── COR View ─────────────────────────────────────────────────────────────────
 
+function ReportMonthLabel({ value, onChange, readOnly }: { value: string; onChange: (v: string) => void; readOnly?: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [draft,   setDraft]   = useState(value);
+
+  function save() {
+    onChange(draft.trim() || value);
+    setEditing(false);
+  }
+
+  if (editing && !readOnly) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-muted-foreground font-medium">Reporte: Mes</span>
+        <input
+          autoFocus
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={save}
+          onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
+          className="text-[11px] border border-primary/40 rounded px-2 py-0.5 w-28 focus:outline-none focus:ring-1 focus:ring-primary/40"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => { if (!readOnly) { setDraft(value); setEditing(true); } }}
+      className={`flex items-center gap-1 text-[11px] text-muted-foreground ${readOnly ? "" : "hover:text-foreground group"}`}
+    >
+      <span className="font-medium">Reporte: Mes {value}</span>
+      {!readOnly && <span className="opacity-0 group-hover:opacity-50 text-[9px]">✏️</span>}
+    </button>
+  );
+}
+
 function CORView() {
   const { projects: liveProjects, teamMembers: liveTeamMembers, reportData: liveReportData, updateProject, updateReport, addProject, isDefaultData } = useData();
   const t = useT();
@@ -1476,6 +1513,17 @@ function CORView() {
           <p className="text-[10px] text-muted-foreground mt-1">{corKPIs.activeCount} {t.cor_active_services}</p>
         </div>
       </div>
+
+      {/* ── Reporte Mes ─────────────────────────────────────────────────── */}
+      <ReportMonthLabel
+        value={manualData.reportMonth ?? "Enero"}
+        readOnly={isHistorical}
+        onChange={(v: string) => {
+          const updated = { ...manualData, reportMonth: v };
+          setManualData(updated);
+          try { localStorage.setItem(COR_MANUAL_KEY, JSON.stringify(updated)); } catch {}
+        }}
+      />
 
       {/* ── Charts Row ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-4">

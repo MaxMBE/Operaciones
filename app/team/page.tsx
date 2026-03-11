@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { useData } from "@/lib/data-context";
 import type { MemberRole, ProjectStatus, TeamMember, Project } from "@/types";
 import {
@@ -74,6 +75,60 @@ const RISK_STYLE: Record<BenchRisk, {
   medium:   { bg: "bg-amber-50",    text: "text-amber-700",   border: "border-amber-200",   icon: <Clock         className="w-3.5 h-3.5" /> },
   low:      { bg: "bg-emerald-50",  text: "text-emerald-700", border: "border-emerald-200", icon: <CheckCircle2  className="w-3.5 h-3.5" /> },
 };
+
+// ── Capacity Chart ────────────────────────────────────────────────────────────
+
+function CapacityChart({ teamMembers, projects }: { teamMembers: TeamMember[]; projects: Project[] }) {
+  const ACTIVE_STATUSES = new Set(["completed", "guarantee"]);
+
+  const data = useMemo(() => {
+    const today = new Date();
+    const months: { month: string; asignados: number; sinAsignacion: number }[] = [];
+
+    for (let i = -1; i <= 5; i++) {
+      const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+      const label = d.toLocaleDateString("es-CL", { month: "short", year: "2-digit" });
+
+      let asignados = 0;
+      let sinAsignacion = 0;
+
+      for (const m of teamMembers) {
+        const activeProjects = (m.projectIds ?? [])
+          .map(pid => projects.find(p => p.id === pid))
+          .filter(p => p && !ACTIVE_STATUSES.has(p.status)) as Project[];
+
+        const hasAssignment = activeProjects.some(p => {
+          const endDate = m.projectEndDates?.[p.id] ?? p.endDate ?? "";
+          return endDate >= d.toISOString().slice(0, 10);
+        });
+
+        if (hasAssignment) asignados++;
+        else sinAsignacion++;
+      }
+
+      months.push({ month: label, asignados, sinAsignacion });
+    }
+    return months;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamMembers, projects]);
+
+  return (
+    <div className="bg-white border border-border rounded-xl p-4">
+      <h3 className="text-xs font-semibold text-foreground mb-4">Evolución de Capacity por mes</h3>
+      <ResponsiveContainer width="100%" height={200}>
+        <LineChart data={data} margin={{ top: 4, right: 20, left: -10, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+          <Tooltip contentStyle={{ fontSize: 12 }} />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Line type="monotone" dataKey="asignados"     name="Con asignación"      stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+          <Line type="monotone" dataKey="sinAsignacion" name="Posible asignación"   stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 // ── Bench view ────────────────────────────────────────────────────────────────
 
@@ -326,6 +381,9 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
         })}
       </div>
 
+      {/* Capacity chart */}
+      <CapacityChart teamMembers={teamMembers} projects={projects} />
+
       {/* Filters bar */}
       <div className="flex flex-wrap gap-2.5 items-center">
         <div className="relative flex-1 min-w-[180px]">
@@ -467,12 +525,12 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
                     )}
                   </td>
 
-                  {/* Días hasta bench */}
+                  {/* Días sin asignación */}
                   <td className="px-3 py-3 align-top">
                     {m.daysUntilBench === null ? (
                       <span className="text-xs text-muted-foreground">—</span>
                     ) : m.daysUntilBench < 0 ? (
-                      <span className="text-xs font-medium text-gray-400">{t.bench_expired_cap}</span>
+                      <span className="text-sm font-bold text-gray-500">{Math.abs(m.daysUntilBench)}d</span>
                     ) : (
                       <span className={`text-sm font-bold ${cfg.text}`}>{m.daysUntilBench}d</span>
                     )}

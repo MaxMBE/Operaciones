@@ -110,7 +110,7 @@ export const es = {
   bench_no_risk:            "Sin Riesgo",
   bench_medium_risk:        "Riesgo Medio",
   bench_critical_risk:      "Riesgo Crítico",
-  bench_in_bench:           "Sin asignación",
+  bench_in_bench:           "Posible asignación",
   bench_all_clients:        "Todos los clientes",
   bench_all_statuses:       "Todos los estados",
   bench_search:             "Buscar por nombre...",
