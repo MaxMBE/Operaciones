@@ -130,6 +130,7 @@ export interface ProjectReport {
   healthDelivery: string;
   healthGovernance: string;
   healthTeam: string;
+  teamMood?: string;
   scopeService: string;
   scopeType: string;
   achievements: string;

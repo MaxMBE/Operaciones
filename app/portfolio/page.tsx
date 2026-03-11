@@ -284,7 +284,7 @@ function ProjectDetailPanel({
     keyRisks:         rep?.keyRisks          || "",
     mitigation:       rep?.mitigation        || "",
     csat:             csatFromHealth(rep?.healthGovernance) === "N/D" ? "" : csatFromHealth(rep?.healthGovernance),
-    teamMood:         rep?.healthTeam || "",
+    teamMood:         rep?.teamMood || "",
     marginImprovement: rep?.marginImprovement || "",
   });
 
@@ -334,7 +334,7 @@ function ProjectDetailPanel({
       keyRisks:         draftR.keyRisks,
       mitigation:       draftR.mitigation,
       healthGovernance:  draftR.csat || rep?.healthGovernance || "",
-      healthTeam:        draftR.teamMood,
+      teamMood:          draftR.teamMood,
       marginImprovement: draftR.marginImprovement,
     });
     setEditMode(false);
@@ -370,7 +370,7 @@ function ProjectDetailPanel({
       actionsInProgress: rep?.actionsInProgress||"", nextSteps: rep?.nextSteps||"",
       keyRisks: rep?.keyRisks||"", mitigation: rep?.mitigation||"",
       csat: csatFromHealth(rep?.healthGovernance)==="N/D" ? "" : csatFromHealth(rep?.healthGovernance),
-      teamMood: rep?.healthTeam||"",
+      teamMood: rep?.teamMood||"",
       marginImprovement: rep?.marginImprovement||"",
     });
     setEditMode(false);
