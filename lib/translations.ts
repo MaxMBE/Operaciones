@@ -297,6 +297,38 @@ export const es = {
   cor_weather_na:         "N/A",
   cor_weather_stable:     "Stable",
   cor_weather_done:       "Terminado",
+
+  // ── Capacity chart ────────────────────────────────────────────────────────
+  capacity_chart_title:   "Evolución de Capacity por mes",
+  capacity_assigned:      "Con asignación",
+  capacity_unassigned:    "Posible asignación",
+  capacity_subtitle:      "Bench & Disponibilidad",
+  report_month_label:     "Reporte: Mes",
+
+  // ── Snapshot selector ─────────────────────────────────────────────────────
+  live_data:              "Datos actuales",
+  historical_mode:        "Modo histórico",
+  historical_readonly:    "Vista de solo lectura.",
+  historical_banner_sub:  "Los datos son del snapshot guardado ese martes.",
+  back_to_live:           "Volver a datos actuales",
+
+  // ── Portfolio actions ─────────────────────────────────────────────────────
+  pf_actions:             "Acciones",
+  pf_new_service:         "Nuevo Servicio",
+  pf_edit_overview:       "Editar overview",
+  pf_clear_manual:        "Limpiar datos manuales",
+  cor_comment_label:      "Comentario",
+  action_confirm:         "Confirmar",
+  col_edit_end_date:      "Editar fecha de término",
+
+  // ── Bench modal ───────────────────────────────────────────────────────────
+  bench_edit_info:           "Editar información",
+  bench_label_role:          "Rol",
+  bench_label_services:      "Servicios asignados",
+  bench_label_comments:      "Comentarios",
+  bench_col_comments:        "Comentarios",
+  bench_search_service_ph:   "Buscar servicio...",
+  bench_notes_ph:            "Notas sobre el consultor, disponibilidad, próximos proyectos...",
 };
 
 export const en: typeof es = {
@@ -411,7 +443,7 @@ export const en: typeof es = {
   bench_no_risk:            "No Risk",
   bench_medium_risk:        "Medium Risk",
   bench_critical_risk:      "Critical Risk",
-  bench_in_bench:           "On Bench",
+  bench_in_bench:           "Possible Assignment",
   bench_all_clients:        "All clients",
   bench_all_statuses:       "All statuses",
   bench_search:             "Search by name...",
@@ -420,25 +452,25 @@ export const en: typeof es = {
   bench_col_consultant:     "Consultant / Role",
   bench_col_services:       "Active services",
   bench_col_last_end:       "Last end date",
-  bench_col_days:           "Days until bench",
+  bench_col_days:           "Days unassigned",
   bench_col_status:         "Status",
   bench_no_services:        "No active services",
   bench_expired:            "expired",
   bench_expired_cap:        "Expired",
-  bench_criterion_title:    "Bench risk criteria (from last active service end date)",
-  bench_criterion_bench:    "no active services or already expired",
+  bench_criterion_title:    "Capacity risk criteria (from last active service end date)",
+  bench_criterion_bench:    "unassigned or expired service",
   bench_criterion_critical: "≤ 30 days",
   bench_criterion_medium:   "31–60 days",
   bench_criterion_low:      "> 60 days",
   assign_services:          "Assign services",
   service_ended:            "ended",
-  bench_pdf_title:          "Bench Risk — Consultants",
+  bench_pdf_title:          "Capacity — Consultants",
   bench_pdf_generated:      "Generated on",
   bench_pdf_consultants_n:  "consultants",
   bench_pdf_col1:           "Consultant / Role",
   bench_pdf_col2:           "Active Services",
   bench_pdf_col3:           "Last End Date",
-  bench_pdf_col4:           "Days until Bench",
+  bench_pdf_col4:           "Days unassigned",
   bench_pdf_col5:           "Status",
   tab_leaders:              "Leaders",
   leader_no_leader:         "No leader assigned",
@@ -598,4 +630,36 @@ export const en: typeof es = {
   cor_weather_na:         "N/A",
   cor_weather_stable:     "Stable",
   cor_weather_done:       "Terminated",
+
+  // ── Capacity chart ────────────────────────────────────────────────────────
+  capacity_chart_title:   "Capacity Evolution by Month",
+  capacity_assigned:      "Assigned",
+  capacity_unassigned:    "Possible Assignment",
+  capacity_subtitle:      "Bench & Availability",
+  report_month_label:     "Report: Month",
+
+  // ── Snapshot selector ─────────────────────────────────────────────────────
+  live_data:              "Live data",
+  historical_mode:        "Historical mode",
+  historical_readonly:    "Read-only view.",
+  historical_banner_sub:  "Data is from the snapshot saved that Tuesday.",
+  back_to_live:           "Back to live data",
+
+  // ── Portfolio actions ─────────────────────────────────────────────────────
+  pf_actions:             "Actions",
+  pf_new_service:         "New Service",
+  pf_edit_overview:       "Edit overview",
+  pf_clear_manual:        "Clear manual data",
+  cor_comment_label:      "Comment",
+
+  // ── Bench modal ───────────────────────────────────────────────────────────
+  bench_edit_info:           "Edit information",
+  bench_label_role:          "Role",
+  bench_label_services:      "Assigned services",
+  bench_label_comments:      "Comments",
+  bench_col_comments:        "Comments",
+  bench_search_service_ph:   "Search service...",
+  bench_notes_ph:            "Notes on the consultant, availability, upcoming projects...",
+  action_confirm:            "Confirm",
+  col_edit_end_date:         "Edit end date",
 };

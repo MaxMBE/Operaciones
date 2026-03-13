@@ -29,7 +29,11 @@ function getLastTuesday(from = new Date()): string {
   const day = d.getDay();
   const diff = day >= 2 ? day - 2 : day + 5; // días hacia atrás hasta el martes
   d.setDate(d.getDate() - diff);
-  return d.toISOString().slice(0, 10);
+  // Usar fecha local para evitar desfase de zona horaria (no usar toISOString que es UTC)
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
 }
 
 function isTuesdayToday(): boolean {
@@ -242,6 +246,10 @@ function ProjectDetailPanel({
   const [improvementOpen,  setImprovementOpen]  = useState(false);
   const [risksOpen,        setRisksOpen]        = useState(false);
 
+  // Modal de confirmación y éxito
+  const [confirmOpen,  setConfirmOpen]  = useState(false);
+  const [saveSuccess,  setSaveSuccess]  = useState(false);
+
   // Split draft into project fields and report fields
   const [draftP, setDraftP] = useState({
     client:        p.client       || "",
@@ -294,6 +302,10 @@ function ProjectDetailPanel({
   function setR(k: keyof typeof draftR, v: string) { setDraftR(d => ({ ...d, [k]: v })); }
 
   function handleSave() {
+    setConfirmOpen(true);
+  }
+
+  function handleConfirmSave() {
     onSaveProject({
       client:        draftP.client,
       manager:       draftP.manager,
@@ -339,7 +351,10 @@ function ProjectDetailPanel({
       teamMood:          draftR.teamMood,
       marginImprovement: draftR.marginImprovement,
     });
+    setConfirmOpen(false);
     setEditMode(false);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
   }
 
   function handleCancel() {
@@ -503,13 +518,13 @@ function ProjectDetailPanel({
                   <>
                     <EF label={t.cor_achievements_label} value={draftR.achievements}  editMode onChange={v => setR("achievements", v)} textarea />
                     <EF label={t.cor_issues_label}        value={draftR.currentIssues} editMode onChange={v => setR("currentIssues", v)} textarea />
-                    <EF label="Comentario"                value={draftP.shortComment}  editMode onChange={v => setP("shortComment", v)} textarea />
+                    <EF label={t.cor_comment_label}       value={draftP.shortComment}  editMode onChange={v => setP("shortComment", v)} textarea />
                   </>
                 ) : (
                   <>
                     <div><p className="text-[9px] font-semibold text-emerald-700 mb-0.5">{t.cor_achievements_label}</p>{draftR.achievements ? <BulletList text={draftR.achievements} /> : <p className="text-[10px] text-muted-foreground italic">—</p>}</div>
                     <div><p className="text-[9px] font-semibold text-amber-700 mb-0.5">{t.cor_issues_label}</p>{draftR.currentIssues ? <BulletList text={draftR.currentIssues} /> : <p className="text-[10px] text-muted-foreground italic">—</p>}</div>
-                    <div><p className="text-[9px] font-semibold text-muted-foreground mb-0.5">Comentario</p>{draftP.shortComment ? <BulletList text={draftP.shortComment} /> : <p className="text-[10px] text-muted-foreground italic">—</p>}</div>
+                    <div><p className="text-[9px] font-semibold text-muted-foreground mb-0.5">{t.cor_comment_label}</p>{draftP.shortComment ? <BulletList text={draftP.shortComment} /> : <p className="text-[10px] text-muted-foreground italic">—</p>}</div>
                   </>
                 )}
               </div>
@@ -745,6 +760,37 @@ function ProjectDetailPanel({
           </div>
         </div>
       </div>
+
+      {/* ── Modal confirmación guardar ──────────────────────────────────── */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-indigo-100">
+            <h3 className="text-sm font-bold text-gray-800 mb-1">¿Confirmar cambios?</h3>
+            <p className="text-xs text-muted-foreground mb-5">Se guardarán todos los cambios realizados en <strong>{p.name}</strong>.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="px-4 py-2 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmSave}
+                className="px-4 py-2 text-xs bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+              >
+                Confirmar y guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Toast éxito ─────────────────────────────────────────────────── */}
+      {saveSuccess && (
+        <div className="fixed top-5 right-5 z-50 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 className="w-4 h-4" /> ¡Cambios guardados con éxito!
+        </div>
+      )}
     </div>
   );
 }
@@ -794,8 +840,8 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
 
   const STATUS_OPTIONS: import("@/types").ProjectStatus[] = ["active","at-risk","on-hold","guarantee","delayed","terminated","completed"];
   const STATUS_LABELS: Record<string, string> = {
-    active:"Activo", "at-risk":"En Riesgo", "on-hold":"En Espera",
-    guarantee:"Garantía", delayed:"Retrasado", terminated:"Terminado", completed:"Completado",
+    active: t.status_active, "at-risk": t.status_at_risk, "on-hold": t.status_on_hold,
+    guarantee: t.status_guarantee, delayed: t.status_delayed, terminated: t.status_terminated, completed: t.status_completed,
   };
 
   return (
@@ -803,7 +849,7 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
       <div className="bg-white rounded-2xl border border-indigo-200 shadow-2xl w-full max-w-lg mx-4">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-bold text-indigo-800">Nuevo Servicio</h2>
+          <h2 className="text-sm font-bold text-indigo-800">{t.pf_new_service}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X className="w-4 h-4" />
           </button>
@@ -906,6 +952,7 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
 // ── COR View ─────────────────────────────────────────────────────────────────
 
 function ReportMonthLabel({ value, onChange, readOnly }: { value: string; onChange: (v: string) => void; readOnly?: boolean }) {
+  const t = useT();
   const [editing, setEditing] = useState(false);
   const [draft,   setDraft]   = useState(value);
 
@@ -917,7 +964,7 @@ function ReportMonthLabel({ value, onChange, readOnly }: { value: string; onChan
   if (editing && !readOnly) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-[11px] text-muted-foreground font-medium">Reporte: Mes</span>
+        <span className="text-[11px] text-muted-foreground font-medium">{t.report_month_label}</span>
         <input
           autoFocus
           value={draft}
@@ -935,7 +982,7 @@ function ReportMonthLabel({ value, onChange, readOnly }: { value: string; onChan
       onClick={() => { if (!readOnly) { setDraft(value); setEditing(true); } }}
       className={`flex items-center gap-1 text-[11px] text-muted-foreground ${readOnly ? "" : "hover:text-foreground group"}`}
     >
-      <span className="font-medium">Reporte: Mes {value}</span>
+      <span className="font-medium">{t.report_month_label} {value}</span>
       {!readOnly && <span className="opacity-0 group-hover:opacity-50 text-[9px]">✏️</span>}
     </button>
   );
@@ -1090,8 +1137,12 @@ function CORView() {
   }, [snapshotData]);
   const hasManual = Object.values(manualData).some(v => v !== "");
 
+  const [confirmKPI,   setConfirmKPI]   = useState(false);
+  const [kpiSuccess,   setKpiSuccess]   = useState(false);
+
   function openOverride() { setDraftManual({ ...manualData }); setOverrideMode(true); }
-  function saveOverride() {
+  function saveOverride() { setConfirmKPI(true); }
+  function handleConfirmKPI() {
     setManualData(draftManual);
     try { localStorage.setItem(COR_MANUAL_KEY, JSON.stringify(draftManual)); } catch {}
     // Guardar en Supabase
@@ -1100,7 +1151,10 @@ function CORView() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(draftManual),
     });
+    setConfirmKPI(false);
     setOverrideMode(false);
+    setKpiSuccess(true);
+    setTimeout(() => setKpiSuccess(false), 3000);
   }
   function cancelOverride() { setOverrideMode(false); }
   function clearOverride() {
@@ -1305,7 +1359,7 @@ function CORView() {
               className="text-[11px] border border-border rounded-lg px-2 py-1.5 bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-400 max-w-[200px]"
               disabled={snapshotLoading}
             >
-              <option value="live">📡 Datos actuales</option>
+              <option value="live">📡 {t.live_data}</option>
               {snapshots.map(s => (
                 <option key={s.id} value={s.id}>{s.week_label}</option>
               ))}
@@ -1319,7 +1373,7 @@ function CORView() {
               onClick={() => setMenuOpen(o => !o)}
               className="flex items-center gap-1.5 bg-white border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium px-3 py-1.5 rounded-lg transition-colors"
             >
-              Acciones
+              {t.pf_actions}
               <ChevronDown className="w-3 h-3" />
             </button>
             {menuOpen && (
@@ -1330,7 +1384,7 @@ function CORView() {
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5 text-indigo-500" />
-                    Nuevo Servicio
+                    {t.pf_new_service}
                   </button>
                 )}
                 {!isHistorical && (
@@ -1339,7 +1393,7 @@ function CORView() {
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
                   >
                     <Pencil className="w-3.5 h-3.5 text-indigo-500" />
-                    Editar overview
+                    {t.pf_edit_overview}
                   </button>
                 )}
                 {hasManual && !isHistorical && (
@@ -1348,7 +1402,7 @@ function CORView() {
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-violet-600 hover:bg-violet-50 transition-colors"
                   >
                     <span className="text-sm leading-none">📊</span>
-                    Limpiar datos manuales
+                    {t.pf_clear_manual}
                   </button>
                 )}
                 <div className="border-t border-border">
@@ -1365,14 +1419,14 @@ function CORView() {
         <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5 print:hidden">
           <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
           <div className="flex-1">
-            <span className="text-xs font-semibold text-amber-800">Modo histórico — {snapshotData.week_label}</span>
-            <span className="text-[10px] text-amber-600 ml-2">Vista de solo lectura. Los datos son del snapshot guardado ese martes.</span>
+            <span className="text-xs font-semibold text-amber-800">{t.historical_mode} — {snapshotData.week_label}</span>
+            <span className="text-[10px] text-amber-600 ml-2">{t.historical_readonly} {t.historical_banner_sub}</span>
           </div>
           <button
             onClick={() => { setActiveSnapshotId("live"); setSnapshotData(null); }}
             className="text-[10px] font-semibold text-amber-700 border border-amber-400 bg-white px-2.5 py-1 rounded-lg hover:bg-amber-100 transition-colors"
           >
-            Volver a datos actuales
+            {t.back_to_live}
           </button>
         </div>
       )}
@@ -1447,6 +1501,37 @@ function CORView() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── Modal confirmación KPIs manuales ───────────────────────────── */}
+      {confirmKPI && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-indigo-100">
+            <h3 className="text-sm font-bold text-gray-800 mb-1">¿Confirmar KPIs manuales?</h3>
+            <p className="text-xs text-muted-foreground mb-5">Se guardarán los valores de override del COR en Supabase.</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmKPI(false)}
+                className="px-4 py-2 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmKPI}
+                className="px-4 py-2 text-xs bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+              >
+                Confirmar y guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Toast éxito KPIs ────────────────────────────────────────────── */}
+      {kpiSuccess && (
+        <div className="fixed top-5 right-5 z-50 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4" /> ¡KPIs guardados con éxito!
         </div>
       )}
 
@@ -1667,7 +1752,7 @@ function CORView() {
         {/* Filter bar */}
         <div className="px-4 py-2.5 border-b border-border flex flex-wrap gap-2 items-center print:hidden">
           <MultiFilter
-            placeholder="Estado"
+            placeholder={t.cor_status_col}
             options={weatherStatusOpts}
             value={fltStatus}
             onChange={setFltStatus}
