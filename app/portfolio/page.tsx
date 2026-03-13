@@ -806,6 +806,7 @@ const EMPTY_NEW_SERVICE = {
 function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p: import("@/types").Project) => void }) {
   const [form, setForm] = useState(EMPTY_NEW_SERVICE);
   const t = useT();
+  const { knownLeaders, knownManagers } = useData();
 
   function setF(k: keyof typeof EMPTY_NEW_SERVICE, v: string) {
     setForm(d => ({ ...d, [k]: v }));
@@ -873,13 +874,12 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            {[
+            {/* Cliente y BU: texto libre */}
+            {([
               { label: t.cor_client_label, key: "client" as const, ph: "Nombre cliente" },
-              { label: "BM / Manager",     key: "manager" as const, ph: "Nombre BM" },
-              { label: "Team Leader",       key: "leader" as const,  ph: "Nombre Team Leader" },
-              { label: "BU",               key: "bu" as const,       ph: "Business Unit" },
+              { label: "BU",               key: "bu" as const,      ph: "Business Unit"  },
               { label: t.cor_model_label,  key: "serviceType" as const, ph: "Ej: Competence Center" },
-            ].map(({ label, key, ph }) => (
+            ] as { label: string; key: keyof typeof EMPTY_NEW_SERVICE; ph: string }[]).map(({ label, key, ph }) => (
               <div key={key}>
                 <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{label}</label>
                 <input
@@ -891,6 +891,38 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
                 />
               </div>
             ))}
+
+            {/* BM — dropdown */}
+            <div>
+              <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">BM / Manager</label>
+              <select
+                value={form.manager}
+                onChange={e => setF("manager", e.target.value)}
+                className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+              >
+                <option value="">— Seleccionar BM —</option>
+                {knownManagers.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              {knownManagers.length === 0 && (
+                <p className="text-[9px] text-amber-600 mt-0.5">Agrega BMs en la sección Equipo → Directorio</p>
+              )}
+            </div>
+
+            {/* Team Leader — dropdown */}
+            <div>
+              <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">Team Leader</label>
+              <select
+                value={form.leader}
+                onChange={e => setF("leader", e.target.value)}
+                className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+              >
+                <option value="">— Seleccionar Team Leader —</option>
+                {knownLeaders.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+              {knownLeaders.length === 0 && (
+                <p className="text-[9px] text-amber-600 mt-0.5">Agrega Team Leaders en la sección Equipo → Directorio</p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">

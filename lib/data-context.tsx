@@ -16,6 +16,7 @@ interface Store {
   ph_finance_data?: FinancialData[];
   ph_report_data?: Record<string, ProjectReport>;
   ph_oportunidades?: Oportunidad[];
+  ph_known_people?: { leaders: string[]; managers: string[] };
 }
 
 interface DataContextType {
@@ -40,6 +41,12 @@ interface DataContextType {
   addOportunidad: (o: Oportunidad) => void;
   updateOportunidad: (id: string, changes: Partial<Oportunidad>) => void;
   deleteOportunidad: (id: string) => void;
+  knownLeaders: string[];
+  knownManagers: string[];
+  addKnownLeader: (name: string) => void;
+  removeKnownLeader: (name: string) => void;
+  addKnownManager: (name: string) => void;
+  removeKnownManager: (name: string) => void;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -53,6 +60,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [isDefaultData, setIsDefaultData] = useState(true);
   const [csvFileName,   setCsvFileName]   = useState<string | null>(null);
   const [rowCount,      setRowCount]      = useState(0);
+  const [knownLeaders,  setKnownLeaders]  = useState<string[]>([]);
+  const [knownManagers, setKnownManagers] = useState<string[]>([]);
 
   // loadedRef: true after initial server data has settled — prevents immediate sync-back
   const loadedRef = useRef(false);
@@ -71,6 +80,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (store.ph_finance_data)  setFinancialData(store.ph_finance_data);
     if (store.ph_report_data)   setReportData(store.ph_report_data);
     if (store.ph_oportunidades) setOportunidades(store.ph_oportunidades);
+    if (store.ph_known_people) {
+      setKnownLeaders(store.ph_known_people.leaders ?? []);
+      setKnownManagers(store.ph_known_people.managers ?? []);
+    }
   }
 
   // ── POST store to server (debounced 800 ms) ───────────────────────────
@@ -140,9 +153,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!isDefaultData || csvFileName) {
       store.ph_csv_data = { projects, teamMembers, fileName: csvFileName, rowCount };
     }
+    store.ph_known_people = { leaders: knownLeaders, managers: knownManagers };
     scheduleSync(store);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projects, teamMembers, financialData, reportData, oportunidades]);
+  }, [projects, teamMembers, financialData, reportData, oportunidades, knownLeaders, knownManagers]);
 
   // ── Setters (pure state updates — server sync handled by effect above) ─
 
@@ -243,6 +257,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setOportunidades(prev => prev.filter(o => o.id !== id));
   }, []);
 
+  // Auto-seed knownLeaders/Managers from project data if still empty after load
+  useEffect(() => {
+    if (!loadedRef.current) return;
+    if (knownLeaders.length === 0 && projects.length > 0) {
+      const leaders = [...new Set(projects.map(p => p.leader?.trim()).filter(Boolean))] as string[];
+      if (leaders.length > 0) setKnownLeaders(leaders.sort());
+    }
+    if (knownManagers.length === 0 && projects.length > 0) {
+      const managers = [...new Set(projects.map(p => p.manager?.trim()).filter(Boolean))] as string[];
+      if (managers.length > 0) setKnownManagers(managers.sort());
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadedRef.current, projects.length]);
+
+  const addKnownLeader = useCallback((name: string) => {
+    const n = name.trim();
+    if (!n) return;
+    setKnownLeaders(prev => prev.some(l => l.toLowerCase() === n.toLowerCase()) ? prev : [...prev, n].sort());
+  }, []);
+  const removeKnownLeader = useCallback((name: string) => {
+    setKnownLeaders(prev => prev.filter(l => l !== name));
+  }, []);
+  const addKnownManager = useCallback((name: string) => {
+    const n = name.trim();
+    if (!n) return;
+    setKnownManagers(prev => prev.some(m => m.toLowerCase() === n.toLowerCase()) ? prev : [...prev, n].sort());
+  }, []);
+  const removeKnownManager = useCallback((name: string) => {
+    setKnownManagers(prev => prev.filter(m => m !== name));
+  }, []);
+
   return (
     <DataContext.Provider value={{
       projects, teamMembers, financialData,
@@ -252,6 +297,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       updateMember, addMember, deleteMember,
       reportData, updateReport,
       oportunidades, addOportunidad, updateOportunidad, deleteOportunidad,
+      knownLeaders, knownManagers, addKnownLeader, removeKnownLeader, addKnownManager, removeKnownManager,
     }}>
       {children}
     </DataContext.Provider>

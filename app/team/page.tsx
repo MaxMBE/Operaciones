@@ -80,17 +80,18 @@ const RISK_STYLE: Record<BenchRisk, {
 
 function CapacityChart({ teamMembers, projects }: { teamMembers: TeamMember[]; projects: Project[] }) {
   const ACTIVE_STATUSES = new Set(["completed", "guarantee"]);
+  const t = useT();
 
   const data = useMemo(() => {
     const today = new Date();
-    const months: { month: string; asignados: number; sinAsignacion: number }[] = [];
+    const months: { month: string; assigned: number; unassigned: number }[] = [];
 
     for (let i = -1; i <= 5; i++) {
       const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
       const label = d.toLocaleDateString("es-CL", { month: "short", year: "2-digit" });
 
-      let asignados = 0;
-      let sinAsignacion = 0;
+      let assigned = 0;
+      let unassigned = 0;
 
       for (const m of teamMembers) {
         const activeProjects = (m.projectIds ?? [])
@@ -102,11 +103,11 @@ function CapacityChart({ teamMembers, projects }: { teamMembers: TeamMember[]; p
           return endDate >= d.toISOString().slice(0, 10);
         });
 
-        if (hasAssignment) asignados++;
-        else sinAsignacion++;
+        if (hasAssignment) assigned++;
+        else unassigned++;
       }
 
-      months.push({ month: label, asignados, sinAsignacion });
+      months.push({ month: label, assigned, unassigned });
     }
     return months;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -114,7 +115,7 @@ function CapacityChart({ teamMembers, projects }: { teamMembers: TeamMember[]; p
 
   return (
     <div className="bg-white border border-border rounded-xl p-4">
-      <h3 className="text-xs font-semibold text-foreground mb-4">Evolución de Capacity por mes</h3>
+      <h3 className="text-xs font-semibold text-foreground mb-4">{t.capacity_chart_title}</h3>
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={data} margin={{ top: 4, right: 20, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -122,8 +123,8 @@ function CapacityChart({ teamMembers, projects }: { teamMembers: TeamMember[]; p
           <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
           <Tooltip contentStyle={{ fontSize: 12 }} />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          <Line type="monotone" dataKey="asignados"     name="Con asignación"      stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-          <Line type="monotone" dataKey="sinAsignacion" name="Posible asignación"   stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+          <Line type="monotone" dataKey="assigned"   name={t.capacity_assigned}   stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+          <Line type="monotone" dataKey="unassigned" name={t.capacity_unassigned}   stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -333,7 +334,7 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
     <th>${t.bench_pdf_col3}</th>
     <th style="text-align:center">${t.bench_pdf_col4}</th>
     <th>${t.bench_pdf_col5}</th>
-    <th>Comentarios</th>
+    <th>${t.bench_col_comments}</th>
   </tr></thead>
   <tbody>${rows}</tbody>
 </table>
@@ -351,7 +352,7 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
 
   return (
     <div className="space-y-5">
-      <PrintHeader title={t.nav_team} subtitle="Bench & Disponibilidad" />
+      <PrintHeader title={t.nav_team} subtitle={t.capacity_subtitle} />
       <div className="flex items-center justify-between print:hidden">
         <div>
           <h1 className="text-xl font-bold text-foreground">{t.nav_team}</h1>
@@ -459,7 +460,7 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
               <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap">{t.bench_col_last_end}</th>
               <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5 whitespace-nowrap">{t.bench_col_days}</th>
               <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5">{t.bench_col_status}</th>
-              <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5">Comentarios</th>
+              <th className="text-left text-xs font-medium text-muted-foreground px-3 py-2.5">{t.bench_col_comments}</th>
               <th className="w-20 px-3 py-2.5" />
             </tr>
           </thead>
@@ -609,7 +610,7 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-foreground">{modalMember.name}</p>
-                  <p className="text-xs text-muted-foreground">Editar información</p>
+                  <p className="text-xs text-muted-foreground">{t.bench_edit_info}</p>
                 </div>
               </div>
               <button
@@ -624,7 +625,7 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
               {/* Rol */}
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Rol</label>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">{t.bench_label_role}</label>
                 <select
                   value={modalRole}
                   onChange={e => setModalRole(e.target.value as MemberRole)}
@@ -636,12 +637,12 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
 
               {/* Servicios asignados */}
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Servicios asignados</label>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">{t.bench_label_services}</label>
                 <input
                   type="text"
                   value={modalSearch}
                   onChange={e => setModalSearch(e.target.value)}
-                  placeholder="Buscar servicio..."
+                  placeholder={t.bench_search_service_ph}
                   className="w-full text-xs border border-border rounded-lg px-3 py-2 mb-2 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white"
                 />
                 <div className="border border-border rounded-lg max-h-52 overflow-y-auto divide-y divide-border/40">
@@ -695,11 +696,11 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
 
               {/* Comentarios */}
               <div>
-                <label className="text-xs font-medium text-muted-foreground block mb-1.5">Comentarios</label>
+                <label className="text-xs font-medium text-muted-foreground block mb-1.5">{t.bench_label_comments}</label>
                 <textarea
                   value={modalComments}
                   onChange={e => setModalComments(e.target.value)}
-                  placeholder="Notas sobre el consultor, disponibilidad, próximos proyectos..."
+                  placeholder={t.bench_notes_ph}
                   rows={3}
                   className="w-full text-sm border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30 bg-white resize-none"
                 />
@@ -712,13 +713,13 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
                 onClick={() => setModalMemberId(null)}
                 className="px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg hover:bg-muted transition-colors"
               >
-                Cancelar
+                {t.action_cancel}
               </button>
               <button
                 onClick={saveModal}
                 className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
               >
-                Guardar
+                {t.action_save}
               </button>
             </div>
           </div>
@@ -992,6 +993,222 @@ function LeadersView() {
   );
 }
 
+// ── People Directory (Team Leaders, BMs, Consultores) ─────────────────────────
+
+function PeopleDirectoryView() {
+  const {
+    knownLeaders, knownManagers, teamMembers,
+    addKnownLeader, removeKnownLeader,
+    addKnownManager, removeKnownManager,
+    addMember, deleteMember, updateMember,
+  } = useData();
+
+  const [newLeader,  setNewLeader]  = useState("");
+  const [newManager, setNewManager] = useState("");
+  const [newConsultant, setNewConsultant] = useState("");
+  const [newConsultantRole, setNewConsultantRole] = useState<MemberRole>("Developer");
+  const [editConsultantId, setEditConsultantId] = useState<string | null>(null);
+  const [editConsultantName, setEditConsultantName] = useState("");
+
+  const inputCls = "flex-1 text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400";
+
+  function handleAddLeader() {
+    if (!newLeader.trim()) return;
+    addKnownLeader(newLeader.trim());
+    setNewLeader("");
+  }
+  function handleAddManager() {
+    if (!newManager.trim()) return;
+    addKnownManager(newManager.trim());
+    setNewManager("");
+  }
+  function handleAddConsultant() {
+    if (!newConsultant.trim()) return;
+    addMember({
+      id: `m-${Date.now()}`,
+      name: newConsultant.trim(),
+      role: newConsultantRole,
+      avatar: newConsultant.trim().split(" ").map(w => w[0]?.toUpperCase() || "").join("").slice(0, 2),
+      projectIds: [],
+      hourlyRate: 0,
+      hoursWorked: 0,
+      projectsCount: 0,
+      utilization: 0,
+    });
+    setNewConsultant("");
+  }
+
+  const Section = ({
+    title, color, children,
+  }: { title: string; color: string; children: React.ReactNode }) => (
+    <div className={`bg-white rounded-xl border ${color} overflow-hidden`}>
+      <div className={`px-5 py-3 border-b ${color} bg-opacity-30`}>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      </div>
+      <div className="p-4 space-y-3">{children}</div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {/* Team Leaders */}
+      <Section title="Team Leaders" color="border-indigo-200">
+        <div className="flex gap-2">
+          <input
+            value={newLeader}
+            onChange={e => setNewLeader(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleAddLeader(); }}
+            placeholder="Nombre del Team Leader"
+            className={inputCls}
+          />
+          <button
+            onClick={handleAddLeader}
+            disabled={!newLeader.trim()}
+            className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+          >
+            Agregar
+          </button>
+        </div>
+        <div className="space-y-1.5">
+          {knownLeaders.length === 0 && (
+            <p className="text-xs text-muted-foreground italic">Sin Team Leaders registrados</p>
+          )}
+          {knownLeaders.map(l => (
+            <div key={l} className="flex items-center justify-between bg-indigo-50 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-indigo-200 text-indigo-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                  {l.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                </div>
+                <span className="text-xs font-medium text-foreground">{l}</span>
+              </div>
+              <button
+                onClick={() => removeKnownLeader(l)}
+                className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                title="Eliminar"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* BMs */}
+      <Section title="BMs (Business Managers)" color="border-rose-200">
+        <div className="flex gap-2">
+          <input
+            value={newManager}
+            onChange={e => setNewManager(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleAddManager(); }}
+            placeholder="Nombre del BM"
+            className={inputCls}
+          />
+          <button
+            onClick={handleAddManager}
+            disabled={!newManager.trim()}
+            className="px-3 py-1.5 text-xs bg-rose-600 text-white rounded-lg font-semibold hover:bg-rose-700 disabled:opacity-40 transition-colors"
+          >
+            Agregar
+          </button>
+        </div>
+        <div className="space-y-1.5">
+          {knownManagers.length === 0 && (
+            <p className="text-xs text-muted-foreground italic">Sin BMs registrados</p>
+          )}
+          {knownManagers.map(m => (
+            <div key={m} className="flex items-center justify-between bg-rose-50 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-rose-200 text-rose-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                  {m.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                </div>
+                <span className="text-xs font-medium text-foreground">{m}</span>
+              </div>
+              <button
+                onClick={() => removeKnownManager(m)}
+                className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                title="Eliminar"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* Consultores / FTEs */}
+      <Section title="Consultores / FTEs" color="border-violet-200">
+        <div className="flex gap-2">
+          <input
+            value={newConsultant}
+            onChange={e => setNewConsultant(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleAddConsultant(); }}
+            placeholder="Nombre del consultor"
+            className={inputCls}
+          />
+          <select
+            value={newConsultantRole}
+            onChange={e => setNewConsultantRole(e.target.value as MemberRole)}
+            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
+          >
+            {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <button
+            onClick={handleAddConsultant}
+            disabled={!newConsultant.trim()}
+            className="px-3 py-1.5 text-xs bg-violet-600 text-white rounded-lg font-semibold hover:bg-violet-700 disabled:opacity-40 transition-colors"
+          >
+            Agregar
+          </button>
+        </div>
+        <div className="space-y-1.5">
+          {teamMembers.length === 0 && (
+            <p className="text-xs text-muted-foreground italic">Sin consultores registrados</p>
+          )}
+          {teamMembers.map(m => (
+            <div key={m.id} className="flex items-center justify-between bg-violet-50 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-7 h-7 rounded-full bg-violet-200 text-violet-700 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                  {m.avatar || m.name.slice(0, 2).toUpperCase()}
+                </div>
+                {editConsultantId === m.id ? (
+                  <div className="flex items-center gap-1 flex-1">
+                    <input
+                      value={editConsultantName}
+                      onChange={e => setEditConsultantName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") {
+                          if (editConsultantName.trim()) updateMember(m.id, { name: editConsultantName.trim() });
+                          setEditConsultantId(null);
+                        }
+                        if (e.key === "Escape") setEditConsultantId(null);
+                      }}
+                      className="text-xs border border-violet-300 rounded px-2 py-0.5 flex-1 focus:outline-none"
+                      autoFocus
+                    />
+                    <button onClick={() => { if (editConsultantName.trim()) updateMember(m.id, { name: editConsultantName.trim() }); setEditConsultantId(null); }} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"><Check className="w-3 h-3" /></button>
+                    <button onClick={() => setEditConsultantId(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded"><X className="w-3 h-3" /></button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-xs font-medium text-foreground truncate">{m.name}</span>
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${roleColors[m.role] ?? "bg-gray-100 text-gray-600"}`}>{m.role}</span>
+                  </div>
+                )}
+              </div>
+              {editConsultantId !== m.id && (
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button onClick={() => { setEditConsultantId(m.id); setEditConsultantName(m.name); }} className="p-1 rounded text-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => deleteMember(m.id)} className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
 // ── Snapshot types ─────────────────────────────────────────────────────────────
 
 interface SnapMeta { id: string; snapshot_date: string; week_label: string; }
@@ -1233,7 +1450,7 @@ export default function TeamPage() {
             onChange={e => setActiveSnapId(e.target.value)}
             className="text-xs border border-border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground"
           >
-            <option value="live">Datos actuales</option>
+            <option value="live">{t.live_data}</option>
             {snapshots.map(s => (
               <option key={s.id} value={s.id}>{s.week_label}</option>
             ))}
@@ -1241,7 +1458,7 @@ export default function TeamPage() {
         </div>
         {isHistorical && (
           <div className="mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-            Modo histórico — {snapData?.week_label}. Vista de solo lectura.
+            {t.historical_mode} — {snapData?.week_label}. {t.historical_readonly}
           </div>
         )}
 
@@ -1249,7 +1466,7 @@ export default function TeamPage() {
         <div className="flex gap-1 mt-4 border-b border-border">
           {([
             { key: "equipo",   label: t.tab_team    },
-            { key: "leaders",  label: t.tab_leaders },
+            { key: "leaders",  label: "Directorio" },
             { key: "bench",    label: t.tab_bench   },
           ] as const).map(({ key: tabKey, label }) => (
             <button
@@ -1410,8 +1627,8 @@ export default function TeamPage() {
         </>
       )}
 
-      {/* ── Leaders tab ── */}
-      {tab === "leaders" && <LeadersView />}
+      {/* ── Directorio tab ── */}
+      {tab === "leaders" && <PeopleDirectoryView />}
 
       {/* ── Bench tab ── */}
       {tab === "bench" && (
