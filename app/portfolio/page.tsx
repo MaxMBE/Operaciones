@@ -1169,7 +1169,16 @@ function CORView() {
 
   // ── Filter options ────────────────────────────────────────────────────
   const clientOpts  = useMemo(() => [...new Set(projects.map(p => p.client).filter(Boolean))].sort() as string[], [projects]);
-  const leaderOpts  = useMemo(() => [...new Set(projects.map(p => p.leader).filter(Boolean))].sort() as string[], [projects]);
+  // Deduplicar líderes normalizando tildes y espacios para evitar duplicados por typos
+  const leaderOpts  = useMemo(() => {
+    const seen = new Map<string, string>();
+    projects.forEach(p => {
+      if (!p.leader) return;
+      const key = p.leader.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+      if (!seen.has(key)) seen.set(key, p.leader.trim());
+    });
+    return [...seen.values()].sort();
+  }, [projects]);
   const managerOpts = useMemo(() => [...new Set(projects.map(p => p.manager).filter(Boolean))].sort() as string[], [projects]);
   const typeOpts    = useMemo(() => [...new Set(projects.map(p => p.serviceType).filter(Boolean))].sort() as string[], [projects]);
 
