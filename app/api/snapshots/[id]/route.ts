@@ -8,6 +8,15 @@ function getSupabase() {
   );
 }
 
+// DELETE /api/snapshots/[id]
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = getSupabase();
+  const { id } = await params;
+  const { error } = await supabase.from("portfolio_snapshots").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 // GET /api/snapshots/[id] — snapshot completo
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const supabase = getSupabase();
