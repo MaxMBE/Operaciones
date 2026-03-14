@@ -1,22 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { LayoutDashboard, CalendarRange, Users, TrendingUp, Globe, PieChart } from "lucide-react";
+import { LayoutDashboard, CalendarRange, Users, TrendingUp, Globe, PieChart, LogOut } from "lucide-react";
 import { cn, getFiscalQuarter } from "@/lib/utils";
 import { CsvUpload } from "@/components/csv-upload";
 import { useT, useLang } from "@/lib/i18n";
+import { createClient } from "@/lib/supabase-client";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const t = useT();
   const { lang, toggleLang } = useLang();
   const [fq, setFq] = useState<ReturnType<typeof getFiscalQuarter> | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     setFq(getFiscalQuarter(new Date()));
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? null));
   }, []);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
 
   const nav = [
     { href: "/",              label: t.nav_overview,      icon: LayoutDashboard },
@@ -83,6 +95,20 @@ export function Sidebar() {
 
       {/* CSV Upload */}
       <CsvUpload />
+
+      {/* User / Logout */}
+      <div className="px-3 py-3 border-t border-border">
+        {userEmail && (
+          <p className="text-[10px] text-muted-foreground truncate px-1 mb-1.5">{userEmail}</p>
+        )}
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+        >
+          <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
+          Cerrar sesión
+        </button>
+      </div>
     </aside>
   );
 }
