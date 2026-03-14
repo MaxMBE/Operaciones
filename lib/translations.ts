@@ -110,7 +110,7 @@ export const es = {
   bench_no_risk:            "Sin Riesgo",
   bench_medium_risk:        "Riesgo Medio",
   bench_critical_risk:      "Riesgo Crítico",
-  bench_in_bench:           "Posible asignación",
+  bench_in_bench:           "Sin asignación",
   bench_all_clients:        "Todos los clientes",
   bench_all_statuses:       "Todos los estados",
   bench_search:             "Buscar por nombre...",
@@ -301,7 +301,7 @@ export const es = {
   // ── Capacity chart ────────────────────────────────────────────────────────
   capacity_chart_title:   "Evolución de Capacity por mes",
   capacity_assigned:      "Con asignación",
-  capacity_unassigned:    "Posible asignación",
+  capacity_unassigned:    "Sin asignación",
   capacity_subtitle:      "Bench & Disponibilidad",
   report_month_label:     "Reporte: Mes",
 
@@ -443,7 +443,7 @@ export const en: typeof es = {
   bench_no_risk:            "No Risk",
   bench_medium_risk:        "Medium Risk",
   bench_critical_risk:      "Critical Risk",
-  bench_in_bench:           "Possible Assignment",
+  bench_in_bench:           "Unassigned",
   bench_all_clients:        "All clients",
   bench_all_statuses:       "All statuses",
   bench_search:             "Search by name...",
@@ -634,7 +634,7 @@ export const en: typeof es = {
   // ── Capacity chart ────────────────────────────────────────────────────────
   capacity_chart_title:   "Capacity Evolution by Month",
   capacity_assigned:      "Assigned",
-  capacity_unassigned:    "Possible Assignment",
+  capacity_unassigned:    "Unassigned",
   capacity_subtitle:      "Bench & Availability",
   report_month_label:     "Report: Month",
 

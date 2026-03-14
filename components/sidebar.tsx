@@ -25,14 +25,31 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   useEffect(() => {
     setFq(getFiscalQuarter(new Date()));
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       const u = data.user;
       if (!u) return;
+
+      // Intentar obtener nombre desde user_profiles
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("first_name, last_name")
+        .eq("id", u.id)
+        .single();
+
+      if (profile?.first_name) {
+        const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(" ");
+        setUserName(fullName);
+        return;
+      }
+
+      // Fallback a user_metadata
       const name =
-        u.user_metadata?.full_name ||
-        u.user_metadata?.name ||
-        u.email?.split("@")[0] ||
-        "Usuario";
+        u.user_metadata?.first_name
+          ? [u.user_metadata.first_name, u.user_metadata.last_name].filter(Boolean).join(" ")
+          : u.user_metadata?.full_name ||
+            u.user_metadata?.name ||
+            u.email?.split("@")[0] ||
+            "Usuario";
       setUserName(name);
     });
   }, []);

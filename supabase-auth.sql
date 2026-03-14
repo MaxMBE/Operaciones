@@ -7,10 +7,18 @@
 create table if not exists public.user_profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   email       text not null,
-  full_name   text,
+  first_name  text,
+  last_name   text,
+  full_name   text generated always as (
+    trim(coalesce(first_name, '') || ' ' || coalesce(last_name, ''))
+  ) stored,
   role        text not null default 'viewer',  -- 'admin' | 'editor' | 'viewer'
   created_at  timestamptz default now()
 );
+
+-- Si la tabla ya existe, agregar las columnas (ejecutar solo si ya creaste la tabla antes):
+-- alter table public.user_profiles add column if not exists first_name text;
+-- alter table public.user_profiles add column if not exists last_name  text;
 
 -- 2. RLS: solo el propio usuario puede ver su perfil; admins ven todos
 alter table public.user_profiles enable row level security;
@@ -32,11 +40,12 @@ create policy "admins ven todos los perfiles"
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
 begin
-  insert into public.user_profiles (id, email, full_name)
+  insert into public.user_profiles (id, email, first_name, last_name)
   values (
     new.id,
     new.email,
-    coalesce(new.raw_user_meta_data->>'full_name', new.email)
+    coalesce(new.raw_user_meta_data->>'first_name', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    coalesce(new.raw_user_meta_data->>'last_name', '')
   );
   return new;
 end;
@@ -53,7 +62,17 @@ create trigger on_auth_user_created
 -- O con el siguiente SQL (reemplazá los valores):
 -- ─────────────────────────────────────────────────────────────────
 
--- Ejemplo para invitar un usuario:
--- select auth.admin_create_user(
---   '{"email": "usuario@siigroup.com", "password": "ContraseñaSegura123!", "email_confirm": true}'::jsonb
+-- Ejemplo para crear un usuario con nombre y apellido:
+-- insert into auth.users (email, encrypted_password, email_confirmed_at, raw_user_meta_data)
+-- values (
+--   'usuario@siigroup.com',
+--   crypt('ContraseñaSegura123!', gen_salt('bf')),
+--   now(),
+--   '{"first_name": "Juan", "last_name": "Pérez"}'::jsonb
 -- );
+
+-- O desde el Dashboard → Authentication → Users → Add user
+-- Y luego actualizar el perfil:
+-- update public.user_profiles
+--   set first_name = 'Juan', last_name = 'Pérez'
+--   where email = 'usuario@siigroup.com';
