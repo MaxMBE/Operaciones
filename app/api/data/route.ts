@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-const KEYS = ["ph_csv_data", "ph_finance_data", "ph_report_data", "ph_oportunidades"] as const;
+const KEYS = ["ph_csv_data", "ph_finance_data", "ph_report_data", "ph_oportunidades", "ph_known_people"] as const;
 
 async function getStore(): Promise<Record<string, unknown>> {
   const { data, error } = await supabase

@@ -2,6 +2,21 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // API routes y recursos: pasar directo sin verificar sesión.
+  // Un round-trip a Supabase en cada llamada API duplica la latencia.
+  if (
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/sii-logo") ||
+    pathname.startsWith("/login")
+  ) {
+    return NextResponse.next();
+  }
+
+  // Solo páginas de la app verifican sesión
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -23,16 +38,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
-
-  // Rutas públicas
-  const isPublic =
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon");
-
-  if (!user && !isPublic) {
+  if (!user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
@@ -42,5 +48,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|sii-logo.png).*)"],
+  matcher: ["/((?!_next/static|_next/image|api/|favicon.ico|sii-logo.png).*)"],
 };
