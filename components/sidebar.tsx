@@ -3,24 +3,38 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { LayoutDashboard, CalendarRange, Users, TrendingUp, Globe, PieChart, LogOut } from "lucide-react";
+import { LayoutDashboard, CalendarRange, Users, TrendingUp, Globe, PieChart, LogOut, ChevronLeft } from "lucide-react";
 import { cn, getFiscalQuarter } from "@/lib/utils";
 import { CsvUpload } from "@/components/csv-upload";
 import { useT, useLang } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase-client";
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const t = useT();
   const { lang, toggleLang } = useLang();
   const [fq, setFq] = useState<ReturnType<typeof getFiscalQuarter> | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
     setFq(getFiscalQuarter(new Date()));
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? null));
+    supabase.auth.getUser().then(({ data }) => {
+      const u = data.user;
+      if (!u) return;
+      const name =
+        u.user_metadata?.full_name ||
+        u.user_metadata?.name ||
+        u.email?.split("@")[0] ||
+        "Usuario";
+      setUserName(name);
+    });
   }, []);
 
   async function handleLogout() {
@@ -39,16 +53,36 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-56 bg-white border-r border-border flex flex-col z-40 print:hidden">
-      {/* Logo */}
-      <div className="flex flex-col items-center gap-1 px-4 py-4 border-b border-border">
-        {/* Replace /sii-logo.png with your actual file once placed in public/ */}
+    <aside
+      className={cn(
+        "fixed left-0 top-0 h-full w-56 bg-white border-r border-border flex flex-col z-40 print:hidden transition-transform duration-300 ease-in-out",
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      )}
+    >
+      {/* Logo + collapse button */}
+      <div className="flex flex-col items-center gap-1 px-4 py-4 border-b border-border relative">
         <img src="/sii-logo.png" alt="SII Group Chile" className="h-14 w-auto object-contain" />
         <span className="text-[11px] font-semibold text-muted-foreground tracking-wide uppercase">Operaciones</span>
+        {/* Botón colapsar */}
+        <button
+          onClick={onToggle}
+          className="absolute -right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-white border border-border rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50 transition-colors z-50"
+          title="Ocultar menú"
+        >
+          <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
+        </button>
       </div>
 
+      {/* Bienvenida */}
+      {userName && (
+        <div className="px-4 py-3 border-b border-border bg-indigo-50/60">
+          <p className="text-[9px] text-indigo-400 uppercase tracking-wide font-semibold">Bienvenido</p>
+          <p className="text-xs font-semibold text-indigo-800 truncate mt-0.5">{userName}</p>
+        </div>
+      )}
+
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {nav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
@@ -69,7 +103,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Quarter badge — rendered client-only to avoid hydration mismatch */}
+      {/* Quarter badge */}
       {fq && (
         <div className="px-3 py-2 border-t border-border">
           <div className="bg-gray-800 rounded-lg px-3 py-2 text-center">
@@ -96,11 +130,8 @@ export function Sidebar() {
       {/* CSV Upload */}
       <CsvUpload />
 
-      {/* User / Logout */}
+      {/* Logout */}
       <div className="px-3 py-3 border-t border-border">
-        {userEmail && (
-          <p className="text-[10px] text-muted-foreground truncate px-1 mb-1.5">{userEmail}</p>
-        )}
         <button
           onClick={handleLogout}
           className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

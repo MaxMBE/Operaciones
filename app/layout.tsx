@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/sidebar";
+import { LayoutShell } from "@/components/layout-shell";
 import { DataProvider } from "@/lib/data-context";
 import { LanguageProvider } from "@/lib/i18n";
 
@@ -18,12 +18,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className} suppressHydrationWarning>
         <LanguageProvider>
           <DataProvider>
-            <Sidebar />
-            <main className="ml-56 min-h-screen bg-background print:ml-0">
-              <div className="p-6 max-w-7xl mx-auto">
-                {children}
-              </div>
-            </main>
+            <LayoutShell>
+              {children}
+            </LayoutShell>
           </DataProvider>
         </LanguageProvider>
       </body>
