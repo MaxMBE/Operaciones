@@ -1125,6 +1125,16 @@ function CORView() {
   const [fltManager, setFltManager] = useState<string[]>([]);
   const [fltType,    setFltType]    = useState<string[]>([]);
 
+  // ── Table sorting ──────────────────────────────────────────────────────
+  type SortField = "client"|"name"|"serviceType"|"startDate"|"endDate"|"leader"|"ftes"|"revenue"|"margin"|"tmd"|"otd"|"oqd"|"csat"|"status";
+  const [sortField, setSortField] = useState<SortField|null>(null);
+  const [sortDir,   setSortDir]   = useState<"asc"|"desc">("asc");
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("asc"); }
+  }
+
   // ── Manual override state ─────────────────────────────────────────────
   const [overrideMode, setOverrideMode] = useState(false);
   const [manualData, setManualData] = useState<CORManual>(EMPTY_MANUAL);
@@ -1223,7 +1233,7 @@ function CORView() {
   ];
 
   const filteredProjects = useMemo(() => {
-    return projects.filter(p => {
+    const filtered = projects.filter(p => {
       const status = reportData[p.id]?.overallStatus ?? "grey";
       if (fltStatus.length  && !fltStatus.includes(status))           return false;
       if (fltClient.length  && !fltClient.includes(p.client ?? ""))   return false;
@@ -1232,7 +1242,43 @@ function CORView() {
       if (fltType.length    && !fltType.includes(p.serviceType ?? "")) return false;
       return true;
     });
-  }, [projects, reportData, fltStatus, fltClient, fltLeader, fltManager, fltType]);
+
+    if (!sortField) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      const rep_a = reportData[a.id];
+      const rep_b = reportData[b.id];
+      let va: string|number = "";
+      let vb: string|number = "";
+
+      if (sortField === "client")      { va = a.client ?? ""; vb = b.client ?? ""; }
+      else if (sortField === "name")   { va = a.name ?? ""; vb = b.name ?? ""; }
+      else if (sortField === "serviceType") { va = a.serviceType ?? ""; vb = b.serviceType ?? ""; }
+      else if (sortField === "startDate") { va = a.startDate ?? ""; vb = b.startDate ?? ""; }
+      else if (sortField === "endDate")   { va = a.endDate ?? ""; vb = b.endDate ?? ""; }
+      else if (sortField === "leader") { va = a.leader ?? ""; vb = b.leader ?? ""; }
+      else if (sortField === "ftes")   { va = parseFloat(rep_a?.ftes || String(a.teamSize||0))||0; vb = parseFloat(rep_b?.ftes || String(b.teamSize||0))||0; }
+      else if (sortField === "revenue"){ va = a.revenue||0; vb = b.revenue||0; }
+      else if (sortField === "margin") {
+        va = rep_a?.marginYTD ? (parsePercent(rep_a.marginYTD)??-999) : a.revenue>0 ? Math.round((a.revenue-a.spent)/a.revenue*100) : -999;
+        vb = rep_b?.marginYTD ? (parsePercent(rep_b.marginYTD)??-999) : b.revenue>0 ? Math.round((b.revenue-b.spent)/b.revenue*100) : -999;
+      }
+      else if (sortField === "tmd")  {
+        const ma = rep_a?.marginYTD ? (parsePercent(rep_a.marginYTD)??null) : a.revenue>0 ? Math.round((a.revenue-a.spent)/a.revenue*100) : null;
+        const mb = rep_b?.marginYTD ? (parsePercent(rep_b.marginYTD)??null) : b.revenue>0 ? Math.round((b.revenue-b.spent)/b.revenue*100) : null;
+        va = ma !== null ? ma - 34 : -999; vb = mb !== null ? mb - 34 : -999;
+      }
+      else if (sortField === "otd")    { va = parsePercent(a.csvOtdPercent)??-1; vb = parsePercent(b.csvOtdPercent)??-1; }
+      else if (sortField === "oqd")    { va = parsePercent(a.csvOqdPercent)??-1; vb = parsePercent(b.csvOqdPercent)??-1; }
+      else if (sortField === "csat")   { va = parseFloat(csatFromHealth(rep_a?.healthGovernance))||0; vb = parseFloat(csatFromHealth(rep_b?.healthGovernance))||0; }
+      else if (sortField === "status") { va = rep_a?.overallStatus??"grey"; vb = rep_b?.overallStatus??"grey"; }
+
+      if (typeof va === "string" && typeof vb === "string") {
+        return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+      }
+      return sortDir === "asc" ? (va as number)-(vb as number) : (vb as number)-(va as number);
+    });
+  }, [projects, reportData, fltStatus, fltClient, fltLeader, fltManager, fltType, sortField, sortDir]);
 
   const hasTableFilters = !!(fltStatus.length || fltClient.length || fltLeader.length || fltManager.length || fltType.length);
 
@@ -1843,22 +1889,37 @@ function CORView() {
         <div className="overflow-x-auto">
           <table className="w-full text-[10px]">
             <thead>
-              <tr className="bg-gray-800 text-white text-left">
+              <tr className="bg-gray-800 text-white text-left select-none">
                 <th className="px-3 py-2 font-medium w-5"></th>
-                <th className="px-3 py-2 font-medium">{t.cor_client_label}</th>
-                <th className="px-3 py-2 font-medium">Proyecto / Servicio</th>
-                <th className="px-3 py-2 font-medium text-center">Tipo</th>
-                <th className="px-3 py-2 font-medium text-center">Inicio</th>
-                <th className="px-3 py-2 font-medium text-center">Término</th>
-                <th className="px-3 py-2 font-medium">TL</th>
-                <th className="px-3 py-2 font-medium text-center">FTEs</th>
-                <th className="px-3 py-2 font-medium text-right">Revenue</th>
-                <th className="px-3 py-2 font-medium text-right">{t.cor_margin_ytd_col}</th>
-                <th className="px-3 py-2 font-medium text-center">TMD</th>
-                <th className="px-3 py-2 font-medium text-center">OTD</th>
-                <th className="px-3 py-2 font-medium text-center">OQD</th>
-                <th className="px-3 py-2 font-medium text-center">CSAT</th>
-                <th className="px-3 py-2 font-medium text-center">{t.cor_status_col}</th>
+                {([
+                  { label: t.cor_client_label,    field: "client"      as const, align: ""        },
+                  { label: "Proyecto / Servicio", field: "name"        as const, align: ""        },
+                  { label: "Tipo",                field: "serviceType" as const, align: "center"  },
+                  { label: "Inicio",              field: "startDate"   as const, align: "center"  },
+                  { label: "Término",             field: "endDate"     as const, align: "center"  },
+                  { label: "TL",                  field: "leader"      as const, align: ""        },
+                  { label: "FTEs",                field: "ftes"        as const, align: "center"  },
+                  { label: "Revenue",             field: "revenue"     as const, align: "right"   },
+                  { label: t.cor_margin_ytd_col,  field: "margin"      as const, align: "right"   },
+                  { label: "TMD",                 field: "tmd"         as const, align: "center"  },
+                  { label: "OTD",                 field: "otd"         as const, align: "center"  },
+                  { label: "OQD",                 field: "oqd"         as const, align: "center"  },
+                  { label: "CSAT",                field: "csat"        as const, align: "center"  },
+                  { label: t.cor_status_col,      field: "status"      as const, align: "center"  },
+                ] as { label: string; field: SortField; align: string }[]).map(col => (
+                  <th
+                    key={col.field}
+                    className={`px-3 py-2 font-medium cursor-pointer hover:bg-gray-700 transition-colors text-${col.align||"left"}`}
+                    onClick={() => toggleSort(col.field)}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {col.label}
+                      <span className="text-gray-400 text-[9px]">
+                        {sortField === col.field ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+                      </span>
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
