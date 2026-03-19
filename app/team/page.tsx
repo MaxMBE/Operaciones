@@ -993,6 +993,18 @@ function LeadersView() {
   );
 }
 
+// ── Section helper (definido fuera para no recrearse en cada render) ──────────
+function DirectorySection({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
+  return (
+    <div className={`bg-white rounded-xl border ${color} overflow-hidden`}>
+      <div className={`px-5 py-3 border-b ${color} bg-opacity-30`}>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      </div>
+      <div className="p-4 space-y-3">{children}</div>
+    </div>
+  );
+}
+
 // ── People Directory (Team Leaders, BMs, Consultores) ─────────────────────────
 
 function PeopleDirectoryView() {
@@ -1013,13 +1025,24 @@ function PeopleDirectoryView() {
   const inputCls = "flex-1 text-xs border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400";
 
   function handleAddLeader() {
-    if (!newLeader.trim()) return;
-    addKnownLeader(newLeader.trim());
+    const name = newLeader.trim();
+    if (!name) return;
+    // evitar duplicados (case-insensitive)
+    if (knownLeaders.some(l => l.toLowerCase() === name.toLowerCase())) {
+      setNewLeader("");
+      return;
+    }
+    addKnownLeader(name);
     setNewLeader("");
   }
   function handleAddManager() {
-    if (!newManager.trim()) return;
-    addKnownManager(newManager.trim());
+    const name = newManager.trim();
+    if (!name) return;
+    if (knownManagers.some(m => m.toLowerCase() === name.toLowerCase())) {
+      setNewManager("");
+      return;
+    }
+    addKnownManager(name);
     setNewManager("");
   }
   function handleAddConsultant() {
@@ -1038,21 +1061,10 @@ function PeopleDirectoryView() {
     setNewConsultant("");
   }
 
-  const Section = ({
-    title, color, children,
-  }: { title: string; color: string; children: React.ReactNode }) => (
-    <div className={`bg-white rounded-xl border ${color} overflow-hidden`}>
-      <div className={`px-5 py-3 border-b ${color} bg-opacity-30`}>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-      </div>
-      <div className="p-4 space-y-3">{children}</div>
-    </div>
-  );
-
   return (
     <div className="space-y-4">
       {/* Team Leaders */}
-      <Section title="Team Leaders" color="border-indigo-200">
+      <DirectorySection title="Team Leaders" color="border-indigo-200">
         <div className="flex gap-2">
           <input
             value={newLeader}
@@ -1091,10 +1103,10 @@ function PeopleDirectoryView() {
             </div>
           ))}
         </div>
-      </Section>
+      </DirectorySection>
 
       {/* BMs */}
-      <Section title="BMs (Business Managers)" color="border-rose-200">
+      <DirectorySection title="BMs (Business Managers)" color="border-rose-200">
         <div className="flex gap-2">
           <input
             value={newManager}
@@ -1133,10 +1145,10 @@ function PeopleDirectoryView() {
             </div>
           ))}
         </div>
-      </Section>
+      </DirectorySection>
 
       {/* Consultores / FTEs */}
-      <Section title="Consultores / FTEs" color="border-violet-200">
+      <DirectorySection title="Consultores / FTEs" color="border-violet-200">
         <div className="flex gap-2">
           <input
             value={newConsultant}
@@ -1204,7 +1216,7 @@ function PeopleDirectoryView() {
             </div>
           ))}
         </div>
-      </Section>
+      </DirectorySection>
     </div>
   );
 }
