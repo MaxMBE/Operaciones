@@ -141,6 +141,7 @@ export interface ProjectReport {
   focus: string;
   statusNote: string;
   marginImprovement?: string;
+  statusTrend?: "up" | "same" | "down";
   // Fixed Price specific
   projectScope?: string;
   projectCurrentStatus?: string;

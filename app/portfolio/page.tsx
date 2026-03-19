@@ -476,7 +476,7 @@ function ProjectDetailPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
 
         {/* ── Left: General Info + Highlights ──────────────────────────── */}
         <div className="space-y-3">
@@ -1431,12 +1431,12 @@ function CORView() {
 
       {/* ── COR Header ─────────────────────────────────────────────────── */}
       <PrintHeader title={t.cor_title} subtitle={t.cor_subtitle} />
-      <div className="flex items-center justify-between print:hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 print:hidden">
         <div>
           <h2 className="text-base font-bold text-foreground">{t.cor_title}</h2>
           <p className="text-xs text-muted-foreground mt-0.5">{t.cor_subtitle}</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span className="bg-muted/40 border border-border px-3 py-1.5 rounded-lg">{today}</span>
           <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-medium px-3 py-1.5 rounded-lg">
             {projects.length} {t.pf_services}
@@ -1555,7 +1555,7 @@ function CORView() {
           </div>
 
           {/* KPI global inputs */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { label: `${t.cor_revenue_total_kpi} (número)`, key: "revenue" as const, ph: `ej: ${corKPIsCalc.totalRevenue.toFixed(0)}` },
               { label: `Costo Total (número)`,                 key: "cost"    as const, ph: `ej: ${corKPIsCalc.totalCost.toFixed(0)}` },
@@ -1629,7 +1629,7 @@ function CORView() {
       )}
 
       {/* ── Global KPI Cards ───────────────────────────────────────────── */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Revenue */}
         <div className="rounded-xl border border-border bg-white p-3">
           <div className="flex items-center gap-1.5 mb-2">
@@ -1708,7 +1708,7 @@ function CORView() {
       </div>
 
       {/* ── Charts Row ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
         {/* Customer Delivery Pie */}
         <div className="bg-white rounded-xl border border-border p-4">
@@ -1838,7 +1838,7 @@ function CORView() {
       {/* ── KPI Definitions ─────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-border p-4">
         <h3 className="text-xs font-semibold mb-3">{t.cor_kpi_def_title}</h3>
-        <div className="grid grid-cols-3 gap-x-8 gap-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
           {[
             { name: "TMD",                formula: "Target Margin Deviation: Margen Real – Margen Plan (34%). + = ahorro / ganancia de margen · – = sobrecosto / pérdida de margen" },
             { name: "Monthly Margin %",   formula: t.cor_formula_monthly },
@@ -1922,8 +1922,8 @@ function CORView() {
           )}
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-[10px]">
+        <div className="overflow-x-auto -mx-0">
+          <table className="w-full min-w-[900px] text-[10px]">
             <thead>
               <tr className="bg-gray-800 text-white text-left select-none">
                 <th className="px-3 py-2 font-medium w-5"></th>
@@ -2112,16 +2112,33 @@ function CORView() {
                         )}
                       </td>
 
-                      {/* Status Trend */}
-                      <td className="px-3 py-2 text-center">
+                      {/* Status Trend — editable, cicla al hacer click */}
+                      <td
+                        className="px-3 py-2 text-center cursor-pointer group"
+                        title="Click para cambiar tendencia"
+                        onClick={e => {
+                          e.stopPropagation();
+                          if (isHistorical) return;
+                          const CYCLE: Array<"up"|"same"|"down"|undefined> = ["up","same","down",undefined];
+                          const cur = rep?.statusTrend;
+                          const next = CYCLE[(CYCLE.indexOf(cur as "up"|"same"|"down"|undefined) + 1) % CYCLE.length];
+                          updateReport(p.id, { statusTrend: next });
+                        }}
+                      >
                         {(() => {
-                          if (!rep?.previousStatus || rep.previousStatus === "grey") return <span className="text-gray-300 text-sm">—</span>;
-                          const curr = STATUS_RANK[rep.overallStatus ?? "grey"] ?? 3;
-                          const prev = STATUS_RANK[rep.previousStatus] ?? 3;
-                          const diff = curr - prev;
-                          if (diff > 0) return <span className="text-emerald-500 text-lg leading-none" title="Mejora">↗</span>;
-                          if (diff < 0) return <span className="text-red-500 text-lg leading-none" title="Baja">↘</span>;
-                          return <span className="text-gray-400 text-lg leading-none" title="Sin cambio">→</span>;
+                          // manual override tiene prioridad
+                          const manual = rep?.statusTrend;
+                          if (manual === "up")   return <span className="text-emerald-500 text-xl leading-none select-none">↗</span>;
+                          if (manual === "same") return <span className="text-gray-400 text-xl leading-none select-none">→</span>;
+                          if (manual === "down") return <span className="text-red-500 text-xl leading-none select-none">↘</span>;
+                          // auto-computado desde previousStatus
+                          if (!rep?.previousStatus || rep.previousStatus === "grey") {
+                            return <span className="text-gray-200 text-sm group-hover:text-gray-400 transition-colors select-none">↔</span>;
+                          }
+                          const diff = (STATUS_RANK[rep.overallStatus ?? "grey"]??3) - (STATUS_RANK[rep.previousStatus]??3);
+                          if (diff > 0) return <span className="text-emerald-300 text-xl leading-none select-none">↗</span>;
+                          if (diff < 0) return <span className="text-red-300 text-xl leading-none select-none">↘</span>;
+                          return <span className="text-gray-300 text-xl leading-none select-none">→</span>;
                         })()}
                       </td>
                     </tr>
