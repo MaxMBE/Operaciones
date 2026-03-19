@@ -1,22 +1,30 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useData } from "@/lib/data-context";
 import { BurndownChart } from "@/components/metrics/burndown-chart";
 import { ServicesTimelineChart } from "@/components/metrics/services-timeline-chart";
 import { formatClpToUsd } from "@/lib/utils";
 import type { Project, ProjectStatus } from "@/types";
-import { Search, X, Pencil, Check, FileText, Trash2, AlertTriangle } from "lucide-react";
+import { Search, X, Pencil, Check, FileText, Trash2, AlertTriangle, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { PrintButton } from "@/components/print-button";
 import { PrintHeader } from "@/components/print-header";
 import { MultiFilter } from "@/components/multi-filter";
+import { CsvUploadMenuItems } from "@/components/csv-upload-menu-items";
 
 export default function OverviewPage() {
   const { projects, teamMembers, isDefaultData, csvFileName, rowCount, updateProject, deleteProject } = useData();
   const router = useRouter();
   const t = useT();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    function h(e: MouseEvent) { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
 
   const statusConfig: Record<ProjectStatus, { label: string; class: string }> = {
     active:      { label: t.status_active,    class: "bg-blue-100 text-blue-700"      },
@@ -180,7 +188,22 @@ export default function OverviewPage() {
               {t.overview_example_data}
             </span>
           )}
-          <PrintButton />
+          {/* Acciones dropdown */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              className="flex items-center gap-1.5 bg-white border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium px-3 py-1.5 rounded-lg text-xs transition-colors"
+            >
+              Acciones
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+                <PrintButton asMenuItem />
+                <CsvUploadMenuItems onClose={() => setMenuOpen(false)} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

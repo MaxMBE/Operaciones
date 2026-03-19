@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { LayoutDashboard, CalendarRange, Users, TrendingUp, Globe, PieChart, LogOut, ChevronLeft } from "lucide-react";
 import { cn, getFiscalQuarter } from "@/lib/utils";
-import { CsvUpload } from "@/components/csv-upload";
 import { useT, useLang } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase-client";
 
@@ -143,9 +142,6 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           <span className={lang === "en" ? "font-semibold text-foreground" : ""}>EN</span>
         </button>
       </div>
-
-      {/* CSV Upload */}
-      <CsvUpload />
 
       {/* Logout */}
       <div className="px-3 py-3 border-t border-border">

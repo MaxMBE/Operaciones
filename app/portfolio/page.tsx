@@ -12,6 +12,7 @@ import { formatCurrency, formatClpToUsd } from "@/lib/utils";
 import { PrintButton } from "@/components/print-button";
 import { PrintHeader } from "@/components/print-header";
 import { MultiFilter } from "@/components/multi-filter";
+import { CsvUploadMenuItems } from "@/components/csv-upload-menu-items";
 import type { Project, ProjectReport, HealthStatus, TeamMember } from "@/types";
 import {
   CheckCircle2, TrendingUp, DollarSign,
@@ -1566,6 +1567,7 @@ function CORView() {
                 <div className="border-t border-border">
                   <PrintButton asMenuItem />
                 </div>
+                <CsvUploadMenuItems onClose={() => setMenuOpen(false)} />
               </div>
             )}
           </div>
