@@ -238,13 +238,21 @@ function ProjectDetailPanel({
   readOnly?: boolean;
 }) {
   const t = useT();
+  const { teamMembers } = useData();
 
   const [editMode, setEditMode] = useState(false);
 
   // Secciones colapsables
   const [highlightsOpen,   setHighlightsOpen]   = useState(false);
+  const [ftesOpen,         setFtesOpen]         = useState(false);
   const [improvementOpen,  setImprovementOpen]  = useState(false);
   const [risksOpen,        setRisksOpen]        = useState(false);
+
+  // Consultores asociados a este proyecto
+  const projectFTEs = useMemo(
+    () => teamMembers.filter(m => m.projectIds?.includes(p.id)),
+    [teamMembers, p.id]
+  );
 
   // Modal de confirmación y éxito
   const [confirmOpen,  setConfirmOpen]  = useState(false);
@@ -530,6 +538,41 @@ function ProjectDetailPanel({
                     <div><p className="text-[9px] font-semibold text-muted-foreground mb-0.5">{t.cor_comment_label}</p>{draftP.shortComment ? <BulletList text={draftP.shortComment} /> : <p className="text-[10px] text-muted-foreground italic">—</p>}</div>
                   </>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* FTEs / Consultores */}
+          <div className="bg-white rounded-lg border border-indigo-200 overflow-hidden">
+            <button
+              className="w-full flex items-center justify-between px-3 py-2 hover:bg-indigo-50/50 transition-colors"
+              onClick={() => setFtesOpen(o => !o)}
+            >
+              <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide">
+                FTEs {projectFTEs.length > 0 && <span className="ml-1 text-indigo-400 font-normal">({projectFTEs.length})</span>}
+              </h4>
+              {ftesOpen ? <ChevronDown className="w-3 h-3 text-indigo-400" /> : <ChevronRight className="w-3 h-3 text-indigo-400" />}
+            </button>
+            {ftesOpen && (
+              <div className="px-3 pb-3 space-y-1.5">
+                {projectFTEs.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground italic">Sin consultores asignados. Asígnalos en Equipo → Directorio.</p>
+                ) : projectFTEs.map(m => (
+                  <div key={m.id} className="flex items-center gap-2 py-1 border-b border-gray-50 last:border-0">
+                    <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[9px] font-bold flex-shrink-0">
+                      {m.avatar || m.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-medium text-foreground truncate">{m.name}</p>
+                      <p className="text-[9px] text-muted-foreground">{m.role}</p>
+                    </div>
+                    {m.projectEndDates?.[p.id] && (
+                      <span className="text-[8px] text-muted-foreground flex-shrink-0">
+                        hasta {new Date(m.projectEndDates[p.id]).toLocaleDateString("es-CL",{day:"2-digit",month:"short"})}
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
