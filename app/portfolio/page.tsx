@@ -1126,7 +1126,10 @@ function CORView() {
   const [fltType,    setFltType]    = useState<string[]>([]);
 
   // ── Table sorting ──────────────────────────────────────────────────────
-  type SortField = "client"|"name"|"serviceType"|"startDate"|"endDate"|"leader"|"ftes"|"revenue"|"margin"|"tmd"|"otd"|"oqd"|"csat"|"status";
+  type SortField = "client"|"name"|"serviceType"|"startDate"|"endDate"|"leader"|"ftes"|"revenue"|"margin"|"tmd"|"otd"|"oqd"|"csat"|"status"|"trend";
+
+  // Prioridad de status (mayor = mejor)
+  const STATUS_RANK: Record<string, number> = { G:5, B:4, grey:3, A:2, R:1, done:0 };
   const [sortField, setSortField] = useState<SortField|null>(null);
   const [sortDir,   setSortDir]   = useState<"asc"|"desc">("asc");
 
@@ -1272,6 +1275,10 @@ function CORView() {
       else if (sortField === "oqd")    { va = parsePercent(a.csvOqdPercent)??-1; vb = parsePercent(b.csvOqdPercent)??-1; }
       else if (sortField === "csat")   { va = parseFloat(csatFromHealth(rep_a?.healthGovernance))||0; vb = parseFloat(csatFromHealth(rep_b?.healthGovernance))||0; }
       else if (sortField === "status") { va = rep_a?.overallStatus??"grey"; vb = rep_b?.overallStatus??"grey"; }
+      else if (sortField === "trend")  {
+        va = rep_a ? (STATUS_RANK[rep_a.overallStatus??'grey']||3) - (STATUS_RANK[rep_a.previousStatus??'grey']||3) : 0;
+        vb = rep_b ? (STATUS_RANK[rep_b.overallStatus??'grey']||3) - (STATUS_RANK[rep_b.previousStatus??'grey']||3) : 0;
+      }
 
       if (typeof va === "string" && typeof vb === "string") {
         return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
@@ -1935,6 +1942,7 @@ function CORView() {
                   { label: "OQD",                 field: "oqd"         as const, align: "center"  },
                   { label: "CSAT",                field: "csat"        as const, align: "center"  },
                   { label: t.cor_status_col,      field: "status"      as const, align: "center"  },
+                  { label: "Trend",               field: "trend"       as const, align: "center"  },
                 ] as { label: string; field: SortField; align: string }[]).map(col => (
                   <th
                     key={col.field}
@@ -1954,7 +1962,7 @@ function CORView() {
             <tbody>
               {filteredProjects.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="py-8 text-center text-[10px] text-muted-foreground">
+                  <td colSpan={16} className="py-8 text-center text-[10px] text-muted-foreground">
                     Sin resultados para los filtros aplicados.
                   </td>
                 </tr>
@@ -2096,18 +2104,32 @@ function CORView() {
                       >
                         {cellInput(p.id,"status","",true) || (
                           <div className="flex items-center justify-center gap-1">
-                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-medium border ${weather.bg} ${weather.text} ${weather.border}`}>
-                              {weather.icon} {weather.label}
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[9px] font-medium border ${weather.bg} ${weather.text} ${weather.border}`}>
+                              <span className="text-base leading-none">{weather.icon}</span>
+                              {weather.label}
                             </span>
                           </div>
                         )}
+                      </td>
+
+                      {/* Status Trend */}
+                      <td className="px-3 py-2 text-center">
+                        {(() => {
+                          if (!rep?.previousStatus || rep.previousStatus === "grey") return <span className="text-gray-300 text-sm">—</span>;
+                          const curr = STATUS_RANK[rep.overallStatus ?? "grey"] ?? 3;
+                          const prev = STATUS_RANK[rep.previousStatus] ?? 3;
+                          const diff = curr - prev;
+                          if (diff > 0) return <span className="text-emerald-500 text-lg leading-none" title="Mejora">↗</span>;
+                          if (diff < 0) return <span className="text-red-500 text-lg leading-none" title="Baja">↘</span>;
+                          return <span className="text-gray-400 text-lg leading-none" title="Sin cambio">→</span>;
+                        })()}
                       </td>
                     </tr>
 
                     {/* ── Expanded Detail ────────────────────────────────── */}
                     {isOpen && selectedProject && selectedProject.id === p.id && (
                       <tr>
-                        <td colSpan={15} className="p-0 bg-indigo-50/60">
+                        <td colSpan={16} className="p-0 bg-indigo-50/60">
                           <ProjectDetailPanel
                             project={selectedProject}
                             report={selectedReport}
