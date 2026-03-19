@@ -58,6 +58,7 @@ export interface Project {
   manager: string;
   // Optional CSV-sourced fields
   client?: string;
+  ifsCode?: string;
   leader?: string;
   serviceType?: string;
   serviceLevel?: string;

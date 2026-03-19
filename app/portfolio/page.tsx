@@ -253,6 +253,7 @@ function ProjectDetailPanel({
   // Split draft into project fields and report fields
   const [draftP, setDraftP] = useState({
     client:        p.client       || "",
+    ifsCode:       p.ifsCode      || "",
     manager:       p.manager      || "",
     leader:        p.leader       || "",
     serviceType:   p.serviceType  || "",
@@ -308,6 +309,7 @@ function ProjectDetailPanel({
   function handleConfirmSave() {
     onSaveProject({
       client:        draftP.client,
+      ifsCode:       draftP.ifsCode || undefined,
       manager:       draftP.manager,
       leader:        draftP.leader,
       serviceType:   draftP.serviceType,
@@ -359,7 +361,7 @@ function ProjectDetailPanel({
 
   function handleCancel() {
     setDraftP({
-      client: p.client||"", manager: p.manager||"", leader: p.leader||"",
+      client: p.client||"", ifsCode: p.ifsCode||"", manager: p.manager||"", leader: p.leader||"",
       serviceType: p.serviceType||"", serviceLevel: p.serviceLevel||"",
       bu: p.bu||"", teamSize: String(p.teamSize||""),
       revenue: String(p.revenue||""), budget: String(p.budget||""),
@@ -490,6 +492,7 @@ function ProjectDetailPanel({
               <EF label="BM"                  value={draftP.manager}     editMode={editMode} onChange={v => setP("manager", v)} />
               <EF label="Team Leader"         value={draftP.leader}      editMode={editMode} onChange={v => setP("leader", v)} />
               <EF label={t.cor_phase_label}   value={draftR.phase}       editMode={editMode} onChange={v => setR("phase", v)} />
+              <EF label="Código IFS"          value={draftP.ifsCode}     editMode={editMode} onChange={v => setP("ifsCode", v)} />
               <EF label={t.cor_model_label}   value={draftP.serviceType} editMode={editMode} onChange={v => setP("serviceType", v)} />
               <EF label="FTEs"                value={draftR.ftes || draftP.teamSize} editMode={editMode} onChange={v => setR("ftes", v)} />
               <EF label="BU"                  value={draftP.bu}          editMode={editMode} onChange={v => setP("bu", v)} />
@@ -1388,6 +1391,26 @@ function CORView() {
     if (isHistorical) return null; // solo lectura en modo histórico
     const active = editingCell?.id === id && editingCell?.field === field;
     if (active) {
+      if (field === "trend") {
+        return (
+          <select
+            autoFocus
+            value={editingCell.value}
+            onChange={e => {
+              const v = e.target.value;
+              updateReport(id, { statusTrend: v === "" ? undefined : v as "up"|"same"|"down" });
+              setEditingCell(null);
+            }}
+            onBlur={() => setEditingCell(null)}
+            className="text-[9px] border border-indigo-300 rounded p-0.5 bg-white w-full"
+          >
+            <option value="">⬚ Auto</option>
+            <option value="up">↗ Mejora</option>
+            <option value="same">→ Sin cambio</option>
+            <option value="down">↘ Baja</option>
+          </select>
+        );
+      }
       if (isSelect) {
         return (
           <select
@@ -1395,7 +1418,6 @@ function CORView() {
             value={editingCell.value}
             onChange={e => {
               const newVal = e.target.value;
-              // Commit immediately on change — avoids stale-closure bug with onBlur
               if (field === "status") updateReport(id, { overallStatus: newVal as HealthStatus });
               setEditingCell(null);
             }}
@@ -2112,33 +2134,22 @@ function CORView() {
                         )}
                       </td>
 
-                      {/* Status Trend — editable, cicla al hacer click */}
+                      {/* Status Trend — dropdown editable */}
                       <td
                         className="px-3 py-2 text-center cursor-pointer group"
-                        title="Click para cambiar tendencia"
-                        onClick={e => {
-                          e.stopPropagation();
-                          if (isHistorical) return;
-                          const CYCLE: Array<"up"|"same"|"down"|undefined> = ["up","same","down",undefined];
-                          const cur = rep?.statusTrend;
-                          const next = CYCLE[(CYCLE.indexOf(cur as "up"|"same"|"down"|undefined) + 1) % CYCLE.length];
-                          updateReport(p.id, { statusTrend: next });
-                        }}
+                        onClick={e => { e.stopPropagation(); if (!isHistorical) setEditingCell({ id:p.id, field:"trend", value: rep?.statusTrend ?? "" }); }}
                       >
-                        {(() => {
-                          // manual override tiene prioridad
+                        {cellInput(p.id,"trend","") || (() => {
                           const manual = rep?.statusTrend;
-                          if (manual === "up")   return <span className="text-emerald-500 text-xl leading-none select-none">↗</span>;
-                          if (manual === "same") return <span className="text-gray-400 text-xl leading-none select-none">→</span>;
-                          if (manual === "down") return <span className="text-red-500 text-xl leading-none select-none">↘</span>;
-                          // auto-computado desde previousStatus
-                          if (!rep?.previousStatus || rep.previousStatus === "grey") {
-                            return <span className="text-gray-200 text-sm group-hover:text-gray-400 transition-colors select-none">↔</span>;
-                          }
+                          if (manual === "up")   return <span className="text-emerald-500 text-xl leading-none">↗</span>;
+                          if (manual === "same") return <span className="text-gray-400 text-xl leading-none">→</span>;
+                          if (manual === "down") return <span className="text-red-500 text-xl leading-none">↘</span>;
+                          if (!rep?.previousStatus || rep.previousStatus === "grey")
+                            return <span className="text-gray-300 text-sm group-hover:text-gray-400 transition-colors">↔</span>;
                           const diff = (STATUS_RANK[rep.overallStatus ?? "grey"]??3) - (STATUS_RANK[rep.previousStatus]??3);
-                          if (diff > 0) return <span className="text-emerald-300 text-xl leading-none select-none">↗</span>;
-                          if (diff < 0) return <span className="text-red-300 text-xl leading-none select-none">↘</span>;
-                          return <span className="text-gray-300 text-xl leading-none select-none">→</span>;
+                          if (diff > 0) return <span className="text-emerald-300 text-xl leading-none">↗</span>;
+                          if (diff < 0) return <span className="text-red-300 text-xl leading-none">↘</span>;
+                          return <span className="text-gray-300 text-xl leading-none">→</span>;
                         })()}
                       </td>
                     </tr>
