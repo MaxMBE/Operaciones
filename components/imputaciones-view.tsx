@@ -270,8 +270,8 @@ function buildInitialState(): ImputState {
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
-const MESES_NOMBRES = ["","Enero","Febrero","Marzo","Abril","Mayo","Junio",
-                       "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const MESES_NOMBRES = ["","January","February","March","April","May","June",
+                       "July","August","September","October","November","December"];
 
 function calcResumen(mesData: MesData, mesNum: number): ResumenRow[] {
   const hab = CALENDAR_2026[mesNum]?.habiles || [];
@@ -313,9 +313,9 @@ function exportToExcel(state: ImputState, mesNum: number) {
 
   const rows: (string | number | null)[][] = [];
   const header: (string | number)[] = [
-    "Profesional", "Proyecto",
+    "Professional", "Project",
     ...Array.from({ length: cal.dias }, (_, i) => i + 1),
-    "Total días", "hh",
+    "Total days", "hh",
   ];
   rows.push(header);
 
@@ -333,10 +333,10 @@ function exportToExcel(state: ImputState, mesNum: number) {
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb, ws, "Imputaciones");
-  const ws2 = XLSX.utils.aoa_to_sheet([["Margen","Proyecto","Profesional","Días","AR%"]]);
-  XLSX.utils.book_append_sheet(wb, ws2, "Márgenes");
-  XLSX.writeFile(wb, `Imputaciones_${MESES_NOMBRES[mesNum]}_2026.xlsx`);
+  XLSX.utils.book_append_sheet(wb, ws, "Time Logs");
+  const ws2 = XLSX.utils.aoa_to_sheet([["Margin","Project","Professional","Days","AR%"]]);
+  XLSX.utils.book_append_sheet(wb, ws2, "Margins");
+  XLSX.writeFile(wb, `TimeLogs_${MESES_NOMBRES[mesNum]}_2026.xlsx`);
 }
 
 // ─── ESTILOS ──────────────────────────────────────────────────────────────────
@@ -377,10 +377,10 @@ function TabResumen({ state, mesNum }: { state: ImputState; mesNum: number }) {
     <div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
         {([
-          ["Profesionales activos", totalPersonas, ""],
-          ["Días hábiles", totalHab, ""],
+          ["Active Professionals", totalPersonas, ""],
+          ["Working Days", totalHab, ""],
           ["Activity Rate", `${(arGeneral*100).toFixed(1)}%`, arColor],
-          ["Días bench total", diasBenchTotal, diasBenchTotal>0?"#c62828":""],
+          ["Total Bench Days", diasBenchTotal, diasBenchTotal>0?"#c62828":""],
         ] as const).map(([label,val,color])=>(
           <div key={label} style={S.card}>
             <div style={{fontSize:11,color:"#666",marginBottom:3}}>{label}</div>
@@ -391,7 +391,7 @@ function TabResumen({ state, mesNum }: { state: ImputState; mesNum: number }) {
 
       {sinData > 0 && (
         <div style={{marginBottom:12,padding:"8px 12px",background:"#f5f5f5",borderRadius:6,fontSize:12,color:"#666"}}>
-          {sinData} profesional(es) sin datos en {MESES_NOMBRES[mesNum]}
+          {sinData} professional(s) with no data in {MESES_NOMBRES[mesNum]}
         </div>
       )}
 
@@ -399,7 +399,7 @@ function TabResumen({ state, mesNum }: { state: ImputState; mesNum: number }) {
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
           <thead>
             <tr style={{borderBottom:"0.5px solid #ccc"}}>
-              {["Profesional","Billable","Bench","Vacac.","FNQ","REN","Interno","Total","AR%","Estado"].map(h=>(
+              {["Professional","Billable","Bench","Leave","FNQ","REN","Internal","Total","AR%","Status"].map(h=>(
                 <th key={h} style={{textAlign:"left",padding:"6px 8px",color:"#666",fontWeight:500,whiteSpace:"nowrap"}}>{h}</th>
               ))}
             </tr>
@@ -411,8 +411,8 @@ function TabResumen({ state, mesNum }: { state: ImputState; mesNum: number }) {
                 : r.activityRate>=0.80 ? "#e65100" : "#c62828";
               const alertaBadge = r.alerta==="bench"     ? {bg:"#ffebee",text:"#c62828",label:"⚠ BENCH"}
                 : r.alerta==="low_ar"    ? {bg:"#fff3e0",text:"#e65100",label:"AR<92%"}
-                : r.alerta==="incompleto"? {bg:"#fff8e1",text:"#f57f17",label:"Incompleto"}
-                : r.alerta==="sin_data"  ? {bg:"#f5f5f5",text:"#999",label:"Sin data"}
+                : r.alerta==="incompleto"? {bg:"#fff8e1",text:"#f57f17",label:"Incomplete"}
+                : r.alerta==="sin_data"  ? {bg:"#f5f5f5",text:"#999",label:"No data"}
                 : {bg:"#e8f5e9",text:"#2e7d32",label:"OK"};
               return (
                 <tr key={r.prof} style={{borderBottom:"0.5px solid #eee"}}>
@@ -441,11 +441,11 @@ function TabResumen({ state, mesNum }: { state: ImputState; mesNum: number }) {
       {conBench.length > 0 && (
         <div style={{marginTop:16,background:"#ffebee",borderRadius:8,padding:"12px 16px"}}>
           <div style={{fontSize:12,fontWeight:600,color:"#c62828",marginBottom:6}}>
-            ⚠ {conBench.length} persona(s) con bench — acción requerida
+            ⚠ {conBench.length} person(s) on bench — action required
           </div>
           {conBench.map(r=>(
             <div key={r.prof} style={{fontSize:12,color:"#b71c1c"}}>
-              {r.prof}: {r.diasBench} días bench · AR {(r.activityRate*100).toFixed(0)}%
+              {r.prof}: {r.diasBench} bench days · AR {(r.activityRate*100).toFixed(0)}%
             </div>
           ))}
         </div>
@@ -479,19 +479,19 @@ function CalendarioProfesional({
       <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
         <select style={{...S.input,width:"auto",minWidth:280}} value={proySel}
           onChange={e=>setProySel(e.target.value)}>
-          <option value="">▼ Seleccionar proyecto para asignar</option>
-          <optgroup label="Proyectos billables">
+          <option value="">▼ Select project to assign</option>
+          <optgroup label="Billable projects">
             {proyectos.filter(p=>esBillable(p)).map(p=>(
               <option key={p} value={p}>{p.length>60 ? p.slice(0,60)+"…" : p}</option>
             ))}
           </optgroup>
-          <optgroup label="Categorías especiales">
+          <optgroup label="Special categories">
             {[...CATEGORIAS_ESPECIALES,...CATEGORIAS_INTERNAS].map(p=>(
               <option key={p} value={p}>{p}</option>
             ))}
           </optgroup>
         </select>
-        <span style={{fontSize:11,color:"#666"}}>Clic en día hábil para asignar/quitar</span>
+        <span style={{fontSize:11,color:"#666"}}>Click on a working day to assign/remove</span>
       </div>
 
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
@@ -528,7 +528,7 @@ function CalendarioProfesional({
                 border: esHabil && proySel ? "0.5px solid #ccc" : "none",
                 minHeight:38, opacity:!esHabil?0.4:1,
               }}
-              title={proy || (!esHabil ? "Fin de semana" : "Sin imputación")}
+              title={proy || (!esHabil ? "Weekend" : "Not logged")}
             >
               <span>{dia}</span>
               {proy && <span style={{fontSize:8,marginTop:1,opacity:0.9}}>{proy.slice(0,6)}</span>}
@@ -595,7 +595,7 @@ function TabImputaciones({
   };
 
   const handleClearProf = (prof: string) => {
-    if (!window.confirm(`¿Limpiar todas las imputaciones de ${prof} en ${MESES_NOMBRES[mesNum]}?`)) return;
+    if (!window.confirm(`Clear all time entries for ${prof} in ${MESES_NOMBRES[mesNum]}?`)) return;
     onUpdate(prev => {
       const next: ImputState = JSON.parse(JSON.stringify(prev));
       if (next.meses[mesNum]?.profesionales?.[prof]) next.meses[mesNum].profesionales[prof] = {};
@@ -615,43 +615,43 @@ function TabImputaciones({
 
   return (
     <div>
-      <Sec>Profesional</Sec>
+      <Sec>Professional</Sec>
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:12}}>
         <select style={{...S.input,width:"auto",minWidth:220}} value={profSel}
           onChange={e=>setProfSel(e.target.value)}>
           {state.profesionales.map(p=><option key={p} value={p}>{p}</option>)}
         </select>
-        <button style={S.btn} onClick={()=>setShowAddProf(!showAddProf)}>+ Profesional</button>
-        <button style={S.btn} onClick={()=>setShowAddProy(!showAddProy)}>+ Proyecto</button>
+        <button style={S.btn} onClick={()=>setShowAddProf(!showAddProf)}>+ Professional</button>
+        <button style={S.btn} onClick={()=>setShowAddProy(!showAddProy)}>+ Project</button>
         {profSel && (
           <button style={{...S.btn,borderColor:"#ef9a9a",color:"#c62828"}}
-            onClick={()=>handleClearProf(profSel)}>Limpiar mes</button>
+            onClick={()=>handleClearProf(profSel)}>Clear month</button>
         )}
       </div>
 
       {showAddProf && (
         <div style={{display:"flex",gap:8,marginBottom:12}}>
-          <input style={{...S.input,maxWidth:280}} placeholder="Nombre profesional"
+          <input style={{...S.input,maxWidth:280}} placeholder="Professional name"
             value={newProf} onChange={e=>setNewProf(e.target.value)}
             onKeyDown={e=>e.key==="Enter"&&handleAddProf()}/>
-          <button style={S.btnP} onClick={handleAddProf}>Agregar</button>
+          <button style={S.btnP} onClick={handleAddProf}>Add</button>
         </div>
       )}
       {showAddProy && (
         <div style={{display:"flex",gap:8,marginBottom:12}}>
-          <input style={{...S.input,maxWidth:420}} placeholder="Código y nombre del proyecto (ej: SGC0003XXX - Nombre)"
+          <input style={{...S.input,maxWidth:420}} placeholder="Project code and name (e.g. SGC0003XXX - Name)"
             value={newProy} onChange={e=>setNewProy(e.target.value)}
             onKeyDown={e=>e.key==="Enter"&&handleAddProy()}/>
-          <button style={S.btnP} onClick={handleAddProy}>Agregar</button>
+          <button style={S.btnP} onClick={handleAddProy}>Add</button>
         </div>
       )}
 
       {profSel && (
         <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
           {([
-            ["Días hábiles", cal.habiles.length, ""],
-            ["Días imputados", diasTotal, ""],
-            ["Días billables", diasBillable, ""],
+            ["Working Days", cal.habiles.length, ""],
+            ["Days Logged", diasTotal, ""],
+            ["Billable Days", diasBillable, ""],
             ["Activity Rate", `${(ar*100).toFixed(0)}%`, arCol],
           ] as const).map(([l,v,c])=>(
             <div key={l} style={S.card}>
@@ -699,7 +699,7 @@ function TabProyectos({ state, mesNum }: { state: ImputState; mesNum: number }) 
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
           <thead>
             <tr style={{borderBottom:"0.5px solid #ccc"}}>
-              {["Proyecto","Tipo","Profesionales","Días totales"].map(h=>(
+              {["Project","Type","Professionals","Total Days"].map(h=>(
                 <th key={h} style={{textAlign:"left",padding:"6px 8px",color:"#666",fontWeight:500}}>{h}</th>
               ))}
             </tr>
@@ -709,8 +709,8 @@ function TabProyectos({ state, mesNum }: { state: ImputState; mesNum: number }) 
               const col = categoriaColor(proy);
               const tipo = esBillable(proy) ? "Billable"
                 : proy==="Bench" ? "Bench"
-                : proy==="Vacaciones" ? "Vacaciones"
-                : "Especial";
+                : proy==="Vacaciones" ? "Leave"
+                : "Special";
               return (
                 <tr key={proy} style={{borderBottom:"0.5px solid #eee"}}>
                   <td style={{padding:"7px 8px",maxWidth:320}}>
@@ -920,7 +920,7 @@ function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
                   padding:"4px 6px", fontSize:10, fontWeight:700,
                   border:"1px solid #1565c0", color:"#1565c0", background:"#e3f2fd",
                 }}>
-                  Total {profFiltro || (proyFiltro ? proyFiltro : "general")} — {MESES_NOMBRES[mesNum]}
+                  Total {profFiltro || (proyFiltro ? proyFiltro : "overall")} — {MESES_NOMBRES[mesNum]}
                 </td>
                 {Array.from({ length: cal.dias }, (_, j) => {
                   const dia = j + 1;
@@ -968,10 +968,10 @@ export default function ImputacionesView() {
 
   const cal = CALENDAR_2026[mesNum];
   const TABS = [
-    { id:"resumen",      label:"Resumen" },
-    { id:"imputaciones", label:"Imputar" },
-    { id:"proyectos",    label:"Por Proyecto" },
-    { id:"tabla",        label:"Vista Tabla" },
+    { id:"resumen",      label:"Summary" },
+    { id:"imputaciones", label:"Log Time" },
+    { id:"proyectos",    label:"By Project" },
+    { id:"tabla",        label:"Table View" },
   ];
 
   return (
@@ -982,14 +982,14 @@ export default function ImputacionesView() {
           <div style={{fontSize:11,fontWeight:500,color:"#666",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>
             SII Group Chile
           </div>
-          <h2 style={{fontSize:22,fontWeight:500,margin:"0 0 3px"}}>Imputaciones 2026</h2>
+          <h2 style={{fontSize:22,fontWeight:500,margin:"0 0 3px"}}>Time Logs 2026</h2>
           <p style={{fontSize:13,color:"#666",margin:0}}>
-            {state.profesionales.length} profesionales · {cal.habiles.length} días hábiles en {MESES_NOMBRES[mesNum]}
-            {saved && <span style={{marginLeft:8,fontSize:11,color:"#2e7d32"}}>✓ guardado</span>}
+            {state.profesionales.length} professionals · {cal.habiles.length} working days in {MESES_NOMBRES[mesNum]}
+            {saved && <span style={{marginLeft:8,fontSize:11,color:"#2e7d32"}}>✓ saved</span>}
           </p>
         </div>
         <button style={S.btn} onClick={()=>exportToExcel(state,mesNum)}>
-          ↓ Exportar Excel
+          ↓ Export Excel
         </button>
       </div>
 
