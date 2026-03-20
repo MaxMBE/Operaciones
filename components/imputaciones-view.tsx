@@ -781,73 +781,69 @@ function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
   for (const row of rows) rowsPorProf[row.prof] = (rowsPorProf[row.prof] || 0) + 1;
   const profVisto = new Set<string>();
 
-  const thStyle: React.CSSProperties = {
+  const th: React.CSSProperties = {
     background: "#1565c0", color: "#fff", fontWeight: 600,
-    fontSize: 11, padding: "5px 4px", textAlign: "center",
-    border: "0.5px solid #1e88e5", whiteSpace: "nowrap", position: "sticky",
+    fontSize: 10, padding: "4px 2px", textAlign: "center",
+    border: "0.5px solid #1e88e5", whiteSpace: "nowrap",
   };
-  const thLeft: React.CSSProperties = { ...thStyle, textAlign: "left", padding: "5px 8px" };
+  const thL: React.CSSProperties = { ...th, textAlign: "left", padding: "4px 6px" };
 
   return (
     <div>
-      {/* Filtros */}
+      {/* Filters */}
       <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:14, flexWrap:"wrap" }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <label style={{ fontSize:12, color:"#666", whiteSpace:"nowrap" }}>Profesional:</label>
-          <select style={{ ...S.input, width:"auto", minWidth:200 }}
+          <label style={{ fontSize:12, color:"#666", whiteSpace:"nowrap" }}>Professional:</label>
+          <select style={{ ...S.input, width:"auto", minWidth:180 }}
             value={profFiltro} onChange={e => setProfFiltro(e.target.value)}>
-            <option value="">Todos ({state.profesionales.length})</option>
+            <option value="">All ({state.profesionales.length})</option>
             {state.profesionales.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <label style={{ fontSize:12, color:"#666", whiteSpace:"nowrap" }}>Proyecto:</label>
-          <select style={{ ...S.input, width:"auto", minWidth:240 }}
+          <label style={{ fontSize:12, color:"#666", whiteSpace:"nowrap" }}>Project:</label>
+          <select style={{ ...S.input, width:"auto", minWidth:220 }}
             value={proyFiltro} onChange={e => setProyFiltro(e.target.value)}>
-            <option value="">Todos ({proyectosList.length})</option>
+            <option value="">All ({proyectosList.length})</option>
             {proyectosList.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
-        <span style={{ fontSize:11, color:"#999" }}>{rows.length} filas · {MESES_NOMBRES[mesNum]} 2026</span>
+        <span style={{ fontSize:11, color:"#999" }}>{rows.length} rows · {MESES_NOMBRES[mesNum]} 2026</span>
       </div>
 
-      <div style={{ overflowX:"auto", fontSize:11 }}>
-        <table style={{ borderCollapse:"collapse", tableLayout:"fixed" }}>
+      <div style={{ width:"100%", fontSize:10 }}>
+        <table style={{ borderCollapse:"collapse", tableLayout:"fixed", width:"100%" }}>
           <colgroup>
-            <col style={{ width:150 }}/>
-            <col style={{ width:200 }}/>
+            <col style={{ width:"11%" }}/>
+            <col style={{ width:"15%" }}/>
             {Array.from({ length: cal.dias }, (_, i) => (
-              <col key={i} style={{ width:24 }}/>
+              <col key={i} style={{ width:`${(74 / cal.dias).toFixed(2)}%` }}/>
             ))}
-            <col style={{ width:60 }}/>
-            <col style={{ width:40 }}/>
+            <col style={{ width:"3.5%" }}/>
+            <col style={{ width:"3%" }}/>
           </colgroup>
           <thead>
             <tr>
-              <th style={{ ...thLeft, top:0, left:0, zIndex:3 }}>Profesional</th>
-              <th style={{ ...thLeft, top:0, left:150, zIndex:3 }}>Proyecto</th>
+              <th style={thL}>Professional</th>
+              <th style={thL}>Project</th>
               {Array.from({ length: cal.dias }, (_, i) => {
                 const dia = i + 1;
                 const esHabil = cal.habiles.includes(dia);
                 return (
-                  <th key={dia} style={{
-                    ...thStyle, top:0, zIndex:1,
-                    background: esHabil ? "#1565c0" : "#7b9fc5",
-                    fontSize:10,
-                  }}>{dia}</th>
+                  <th key={dia} style={{ ...th, background: esHabil ? "#1565c0" : "#7b9fc5" }}>{dia}</th>
                 );
               })}
-              <th style={{ ...thStyle, top:0, zIndex:1, background:"#0d47a1" }}>Total días</th>
-              <th style={{ ...thStyle, top:0, zIndex:1, background:"#0d47a1" }}>hh</th>
+              <th style={{ ...th, background:"#0d47a1", fontSize:9 }}>Days</th>
+              <th style={{ ...th, background:"#0d47a1", fontSize:9 }}>hh</th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={cal.dias + 4} style={{ padding:"20px", textAlign:"center", color:"#999", fontSize:12 }}>
-                  Sin imputaciones en {MESES_NOMBRES[mesNum]} 2026
-                  {profFiltro ? ` para ${profFiltro}` : ""}
-                  {proyFiltro ? ` en ${proyFiltro}` : ""}
+                  No entries for {MESES_NOMBRES[mesNum]} 2026
+                  {profFiltro ? ` — ${profFiltro}` : ""}
+                  {proyFiltro ? ` — ${proyFiltro}` : ""}
                 </td>
               </tr>
             ) : rows.map((row, i) => {
@@ -856,92 +852,73 @@ function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
               const esPrimeroDeProf = !profVisto.has(row.prof);
               if (esPrimeroDeProf) profVisto.add(row.prof);
               const rowCount = rowsPorProf[row.prof] || 1;
-              const isLastOfProf = (() => {
-                // Check if this is the last row for this prof
-                const nextRow = rows[i + 1];
-                return !nextRow || nextRow.prof !== row.prof;
-              })();
+              const isLastOfProf = !rows[i + 1] || rows[i + 1].prof !== row.prof;
               const rowBg = i % 2 === 0 ? "#fff" : "#fafafa";
+              const borderB = isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0";
 
               return (
                 <tr key={`${row.prof}-${row.proy}`} style={{ background: rowBg }}>
-                  {/* Profesional - mostrar solo en primera fila del prof */}
                   {esPrimeroDeProf ? (
                     <td rowSpan={rowCount} style={{
-                      padding:"4px 8px", fontWeight:600, fontSize:11,
-                      border:"0.5px solid #e0e0e0",
-                      borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
-                      background:"#fff", position:"sticky", left:0, zIndex:1,
-                      verticalAlign:"top", paddingTop:6,
+                      padding:"3px 6px", fontWeight:600, fontSize:10,
+                      border:"0.5px solid #e0e0e0", borderBottom: borderB,
+                      background:"#fff", verticalAlign:"top", paddingTop:5,
+                      overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"normal",
+                      lineHeight:1.3,
                     }}>{row.prof}</td>
                   ) : null}
 
-                  {/* Proyecto */}
                   <td style={{
-                    padding:"4px 8px", fontSize:10, maxWidth:200, overflow:"hidden",
+                    padding:"3px 6px", fontSize:9, overflow:"hidden",
                     textOverflow:"ellipsis", whiteSpace:"nowrap",
-                    border:"0.5px solid #e0e0e0",
-                    borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
-                    background: rowBg, position:"sticky", left:150, zIndex:1,
+                    border:"0.5px solid #e0e0e0", borderBottom: borderB,
+                    background: rowBg,
                   }} title={row.proy}>
                     <span style={{
-                      display:"inline-block", width:8, height:8, borderRadius:2,
-                      background:col.bg, marginRight:5, flexShrink:0,
+                      display:"inline-block", width:6, height:6, borderRadius:1,
+                      background:col.bg, marginRight:4, flexShrink:0,
                     }}/>
-                    {row.proy.length > 30 ? row.proy.slice(0, 30) + "…" : row.proy}
+                    {row.proy.length > 28 ? row.proy.slice(0, 28) + "…" : row.proy}
                   </td>
 
-                  {/* Días */}
                   {Array.from({ length: cal.dias }, (_, j) => {
                     const dia = j + 1;
                     const imputed = row.dias.includes(dia);
                     const esHabil = cal.habiles.includes(dia);
                     return (
                       <td key={dia} style={{
-                        textAlign:"center", fontWeight: imputed ? 600 : 400,
-                        fontSize:11,
-                        padding:"3px 0",
-                        border:"0.5px solid #e0e0e0",
-                        borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
+                        textAlign:"center", fontWeight: imputed ? 700 : 400,
+                        fontSize:10, padding:"2px 0",
+                        border:"0.5px solid #e0e0e0", borderBottom: borderB,
                         background: imputed ? col.bg : !esHabil ? "#f0f0f0" : rowBg,
                         color: imputed ? col.text : !esHabil ? "#ccc" : "inherit",
-                        width:24,
                       }}>
                         {imputed ? "8" : ""}
                       </td>
                     );
                   })}
 
-                  {/* Total días */}
                   <td style={{
-                    textAlign:"center", fontWeight:600, fontSize:11,
-                    padding:"4px 4px",
+                    textAlign:"center", fontWeight:700, fontSize:10, padding:"2px",
                     background: isLastOfProf ? "#fff3e0" : rowBg,
-                    border:"0.5px solid #e0e0e0",
-                    borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
+                    border:"0.5px solid #e0e0e0", borderBottom: borderB,
                     color: totalDias > 0 ? "#e65100" : "#ccc",
                   }}>{totalDias || ""}</td>
 
-                  {/* hh */}
                   <td style={{
-                    textAlign:"center", fontSize:11,
-                    padding:"4px 4px",
-                    background: rowBg,
-                    border:"0.5px solid #e0e0e0",
-                    borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
+                    textAlign:"center", fontSize:10, padding:"2px",
+                    background: rowBg, border:"0.5px solid #e0e0e0", borderBottom: borderB,
                     color:"#666",
                   }}>{totalDias ? totalDias * 8 : ""}</td>
                 </tr>
               );
             })}
 
-            {/* Fila de totales globales */}
             {rows.length > 0 && (
               <tr style={{ background:"#e3f2fd", fontWeight:700 }}>
                 <td colSpan={2} style={{
-                  padding:"5px 8px", fontSize:11, fontWeight:700,
-                  border:"1px solid #1565c0", color:"#1565c0",
-                  position:"sticky", left:0, background:"#e3f2fd", zIndex:1,
+                  padding:"4px 6px", fontSize:10, fontWeight:700,
+                  border:"1px solid #1565c0", color:"#1565c0", background:"#e3f2fd",
                 }}>
                   Total {profFiltro || (proyFiltro ? proyFiltro : "general")} — {MESES_NOMBRES[mesNum]}
                 </td>
@@ -958,11 +935,11 @@ function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
                     }}>{count > 0 ? count : ""}</td>
                   );
                 })}
-                <td style={{ textAlign:"center", fontSize:11, fontWeight:700,
+                <td style={{ textAlign:"center", fontSize:10, fontWeight:700,
                   border:"1px solid #1565c0", background:"#fff3e0", color:"#e65100" }}>
                   {rows.reduce((a, r) => a + r.dias.filter(d => cal.habiles.includes(d)).length, 0)}
                 </td>
-                <td style={{ textAlign:"center", fontSize:11,
+                <td style={{ textAlign:"center", fontSize:10,
                   border:"1px solid #1565c0", background:"#e3f2fd", color:"#666" }}>
                   {rows.reduce((a, r) => a + r.dias.filter(d => cal.habiles.includes(d)).length, 0) * 8}
                 </td>
