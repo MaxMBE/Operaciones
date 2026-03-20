@@ -4,7 +4,23 @@
       "Bash(node -e:*)",
       "Bash(wc -l \"/Users/maxarancibia/Downloads/CaRMO \\(1\\).jsx\")",
       "Bash(npm install:*)",
-      "Bash(npm list:*)"
+      "Bash(npm list:*)",
+      "Skill(update-config)",
+      "Skill(update-config:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "prompt",
+            "statusMessage": "Revisando strings en español...",
+            "prompt": "You just edited a file in a Next.js project. Review the tool input in $ARGUMENTS to find the file path and the content that was written or the edit that was made.\n\nCheck if the changed code contains hardcoded Spanish UI strings: labels, button text, placeholder text, error/success messages, tooltip text, section titles, or any other user-visible text in Spanish.\n\nDO NOT flag: variable names, function names, CSS class names, code comments, data values (like people's names or project names stored as data), or Spanish words that are part of proper nouns or brand names.\n\nIf you find Spanish UI strings that should be in English, return additionalContext listing each one and its suggested English translation. Claude should then immediately fix them in the same file without asking.\n\nIf no Spanish UI strings are found, return empty additionalContext and do nothing."
+          }
+        ]
+      }
     ]
   }
 }
