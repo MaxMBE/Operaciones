@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { exportCarmoWord, type CarmoExportData } from "@/lib/carmo-export";
 import { FileText, FileSpreadsheet, ChevronDown } from "lucide-react";
+import ImputacionesView from "@/components/imputaciones-view";
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
 const IFS_UF = 148;
@@ -981,7 +982,7 @@ export default function FinanzasPage() {
   const menuRef=useRef<HTMLDivElement>(null);
   const reportRef=useRef<HTMLDivElement>(null);
 
-  const TABS=[{id:"carmo",label:"CaRMO Individual"},{id:"pricing",label:"Pricing Proyecto"},{id:"esc",label:"Simulador"}];
+  const TABS=[{id:"carmo",label:"CaRMO Individual"},{id:"pricing",label:"Pricing Proyecto"},{id:"esc",label:"Simulador"},{id:"imputaciones",label:"Imputaciones"}];
 
   const handleDataChange=useCallback((d:CarmoExportData|null)=>setExportData(d),[]);
 
@@ -1054,7 +1055,7 @@ export default function FinanzasPage() {
         <div ref={menuRef} style={{position:"relative"}}>
           <button
             onClick={()=>setMenuOpen(o=>!o)}
-            disabled={!exportData || exporting}
+            disabled={!exportData || exporting || tab==="imputaciones"}
             className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {exporting ? "Exportando…" : "Exportar"}
@@ -1093,6 +1094,7 @@ export default function FinanzasPage() {
       {tab==="carmo"&&<TabCaRMO onDataChange={handleDataChange}/>}
       {tab==="pricing"&&<TabPricing onDataChange={handleDataChange}/>}
       {tab==="esc"&&<TabEscenarios onDataChange={handleDataChange}/>}
+      {tab==="imputaciones"&&<ImputacionesView/>}
 
       {/* Hidden PDF report */}
       <div ref={reportRef} style={{display:"none",position:"fixed",top:0,left:0,width:794,background:"#fff",padding:"40px 48px",fontFamily:"system-ui,sans-serif",color:"#111"}}>
