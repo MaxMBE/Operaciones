@@ -737,8 +737,20 @@ function TabProyectos({ state, mesNum }: { state: ImputState; mesNum: number }) 
 // ─── TAB TABLA (vista estilo Excel) ──────────────────────────────────────────
 function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
   const [profFiltro, setProfFiltro] = useState("");
+  const [proyFiltro, setProyFiltro] = useState("");
   const cal = CALENDAR_2026[mesNum];
   const mesData = state.meses[mesNum] || { profesionales: {} };
+
+  // Lista única de proyectos en el mes
+  const proyectosList = useMemo(() => {
+    const set = new Set<string>();
+    for (const proyData of Object.values(mesData.profesionales || {})) {
+      for (const [proy, dias] of Object.entries(proyData)) {
+        if ((dias as number[]).length > 0) set.add(proy);
+      }
+    }
+    return Array.from(set).sort();
+  }, [mesData]);
 
   const rows = useMemo(() => {
     const result: Array<{ prof: string; proy: string; dias: number[] }> = [];
@@ -746,12 +758,13 @@ function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
       if (profFiltro && prof !== profFiltro) continue;
       for (const [proy, dias] of Object.entries(proyData)) {
         if (dias.length === 0) continue;
+        if (proyFiltro && proy !== proyFiltro) continue;
         result.push({ prof, proy, dias });
       }
     }
     // Ordenar por profesional, luego proyecto
     return result.sort((a, b) => a.prof.localeCompare(b.prof) || a.proy.localeCompare(b.proy));
-  }, [mesData, profFiltro]);
+  }, [mesData, profFiltro, proyFiltro]);
 
   // Calcular total de días por profesional para la celda de totales
   const totalesPorProf = useMemo(() => {
@@ -777,24 +790,34 @@ function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
 
   return (
     <div>
-      {/* Filtro profesional */}
-      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
-        <label style={{ fontSize:12, color:"#666" }}>Filtrar profesional:</label>
-        <select style={{ ...S.input, width:"auto", minWidth:200 }}
-          value={profFiltro} onChange={e => setProfFiltro(e.target.value)}>
-          <option value="">Todos ({state.profesionales.length})</option>
-          {state.profesionales.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
+      {/* Filtros */}
+      <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:14, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <label style={{ fontSize:12, color:"#666", whiteSpace:"nowrap" }}>Profesional:</label>
+          <select style={{ ...S.input, width:"auto", minWidth:200 }}
+            value={profFiltro} onChange={e => setProfFiltro(e.target.value)}>
+            <option value="">Todos ({state.profesionales.length})</option>
+            {state.profesionales.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <label style={{ fontSize:12, color:"#666", whiteSpace:"nowrap" }}>Proyecto:</label>
+          <select style={{ ...S.input, width:"auto", minWidth:240 }}
+            value={proyFiltro} onChange={e => setProyFiltro(e.target.value)}>
+            <option value="">Todos ({proyectosList.length})</option>
+            {proyectosList.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
         <span style={{ fontSize:11, color:"#999" }}>{rows.length} filas · {MESES_NOMBRES[mesNum]} 2026</span>
       </div>
 
       <div style={{ overflowX:"auto", fontSize:11 }}>
         <table style={{ borderCollapse:"collapse", tableLayout:"fixed" }}>
           <colgroup>
-            <col style={{ width:140 }}/>
-            <col style={{ width:260 }}/>
+            <col style={{ width:150 }}/>
+            <col style={{ width:200 }}/>
             {Array.from({ length: cal.dias }, (_, i) => (
-              <col key={i} style={{ width:22 }}/>
+              <col key={i} style={{ width:24 }}/>
             ))}
             <col style={{ width:60 }}/>
             <col style={{ width:40 }}/>
@@ -802,7 +825,7 @@ function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
           <thead>
             <tr>
               <th style={{ ...thLeft, top:0, left:0, zIndex:3 }}>Profesional</th>
-              <th style={{ ...thLeft, top:0, left:140, zIndex:3 }}>Proyecto</th>
+              <th style={{ ...thLeft, top:0, left:150, zIndex:3 }}>Proyecto</th>
               {Array.from({ length: cal.dias }, (_, i) => {
                 const dia = i + 1;
                 const esHabil = cal.habiles.includes(dia);
@@ -824,6 +847,7 @@ function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
                 <td colSpan={cal.dias + 4} style={{ padding:"20px", textAlign:"center", color:"#999", fontSize:12 }}>
                   Sin imputaciones en {MESES_NOMBRES[mesNum]} 2026
                   {profFiltro ? ` para ${profFiltro}` : ""}
+                  {proyFiltro ? ` en ${proyFiltro}` : ""}
                 </td>
               </tr>
             ) : rows.map((row, i) => {
@@ -854,17 +878,17 @@ function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
 
                   {/* Proyecto */}
                   <td style={{
-                    padding:"4px 8px", fontSize:10, maxWidth:260, overflow:"hidden",
+                    padding:"4px 8px", fontSize:10, maxWidth:200, overflow:"hidden",
                     textOverflow:"ellipsis", whiteSpace:"nowrap",
                     border:"0.5px solid #e0e0e0",
                     borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
-                    background: rowBg, position:"sticky", left:140, zIndex:1,
+                    background: rowBg, position:"sticky", left:150, zIndex:1,
                   }} title={row.proy}>
                     <span style={{
                       display:"inline-block", width:8, height:8, borderRadius:2,
                       background:col.bg, marginRight:5, flexShrink:0,
                     }}/>
-                    {row.proy.length > 50 ? row.proy.slice(0, 50) + "…" : row.proy}
+                    {row.proy.length > 30 ? row.proy.slice(0, 30) + "…" : row.proy}
                   </td>
 
                   {/* Días */}
@@ -881,7 +905,7 @@ function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
                         borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
                         background: imputed ? col.bg : !esHabil ? "#f0f0f0" : rowBg,
                         color: imputed ? col.text : !esHabil ? "#ccc" : "inherit",
-                        width:22,
+                        width:24,
                       }}>
                         {imputed ? "8" : ""}
                       </td>
@@ -919,7 +943,7 @@ function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
                   border:"1px solid #1565c0", color:"#1565c0",
                   position:"sticky", left:0, background:"#e3f2fd", zIndex:1,
                 }}>
-                  Total {profFiltro || "general"} — {MESES_NOMBRES[mesNum]}
+                  Total {profFiltro || (proyFiltro ? proyFiltro : "general")} — {MESES_NOMBRES[mesNum]}
                 </td>
                 {Array.from({ length: cal.dias }, (_, j) => {
                   const dia = j + 1;
@@ -974,7 +998,7 @@ export default function ImputacionesView() {
   ];
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:12}}>
         <div>
