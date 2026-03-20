@@ -734,6 +734,223 @@ function TabProyectos({ state, mesNum }: { state: ImputState; mesNum: number }) 
   );
 }
 
+// ─── TAB TABLA (vista estilo Excel) ──────────────────────────────────────────
+function TabTabla({ state, mesNum }: { state: ImputState; mesNum: number }) {
+  const [profFiltro, setProfFiltro] = useState("");
+  const cal = CALENDAR_2026[mesNum];
+  const mesData = state.meses[mesNum] || { profesionales: {} };
+
+  const rows = useMemo(() => {
+    const result: Array<{ prof: string; proy: string; dias: number[] }> = [];
+    for (const [prof, proyData] of Object.entries(mesData.profesionales || {})) {
+      if (profFiltro && prof !== profFiltro) continue;
+      for (const [proy, dias] of Object.entries(proyData)) {
+        if (dias.length === 0) continue;
+        result.push({ prof, proy, dias });
+      }
+    }
+    // Ordenar por profesional, luego proyecto
+    return result.sort((a, b) => a.prof.localeCompare(b.prof) || a.proy.localeCompare(b.proy));
+  }, [mesData, profFiltro]);
+
+  // Calcular total de días por profesional para la celda de totales
+  const totalesPorProf = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const row of rows) {
+      const d = row.dias.filter(x => cal.habiles.includes(x)).length;
+      map[row.prof] = (map[row.prof] || 0) + d;
+    }
+    return map;
+  }, [rows, cal]);
+
+  // Agrupar filas por profesional para fusionar la celda de nombre
+  const rowsPorProf: Record<string, number> = {};
+  for (const row of rows) rowsPorProf[row.prof] = (rowsPorProf[row.prof] || 0) + 1;
+  const profVisto = new Set<string>();
+
+  const thStyle: React.CSSProperties = {
+    background: "#1565c0", color: "#fff", fontWeight: 600,
+    fontSize: 11, padding: "5px 4px", textAlign: "center",
+    border: "0.5px solid #1e88e5", whiteSpace: "nowrap", position: "sticky",
+  };
+  const thLeft: React.CSSProperties = { ...thStyle, textAlign: "left", padding: "5px 8px" };
+
+  return (
+    <div>
+      {/* Filtro profesional */}
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+        <label style={{ fontSize:12, color:"#666" }}>Filtrar profesional:</label>
+        <select style={{ ...S.input, width:"auto", minWidth:200 }}
+          value={profFiltro} onChange={e => setProfFiltro(e.target.value)}>
+          <option value="">Todos ({state.profesionales.length})</option>
+          {state.profesionales.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <span style={{ fontSize:11, color:"#999" }}>{rows.length} filas · {MESES_NOMBRES[mesNum]} 2026</span>
+      </div>
+
+      <div style={{ overflowX:"auto", fontSize:11 }}>
+        <table style={{ borderCollapse:"collapse", tableLayout:"fixed" }}>
+          <colgroup>
+            <col style={{ width:140 }}/>
+            <col style={{ width:260 }}/>
+            {Array.from({ length: cal.dias }, (_, i) => (
+              <col key={i} style={{ width:22 }}/>
+            ))}
+            <col style={{ width:60 }}/>
+            <col style={{ width:40 }}/>
+          </colgroup>
+          <thead>
+            <tr>
+              <th style={{ ...thLeft, top:0, left:0, zIndex:3 }}>Profesional</th>
+              <th style={{ ...thLeft, top:0, left:140, zIndex:3 }}>Proyecto</th>
+              {Array.from({ length: cal.dias }, (_, i) => {
+                const dia = i + 1;
+                const esHabil = cal.habiles.includes(dia);
+                return (
+                  <th key={dia} style={{
+                    ...thStyle, top:0, zIndex:1,
+                    background: esHabil ? "#1565c0" : "#7b9fc5",
+                    fontSize:10,
+                  }}>{dia}</th>
+                );
+              })}
+              <th style={{ ...thStyle, top:0, zIndex:1, background:"#0d47a1" }}>Total días</th>
+              <th style={{ ...thStyle, top:0, zIndex:1, background:"#0d47a1" }}>hh</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={cal.dias + 4} style={{ padding:"20px", textAlign:"center", color:"#999", fontSize:12 }}>
+                  Sin imputaciones en {MESES_NOMBRES[mesNum]} 2026
+                  {profFiltro ? ` para ${profFiltro}` : ""}
+                </td>
+              </tr>
+            ) : rows.map((row, i) => {
+              const totalDias = row.dias.filter(d => cal.habiles.includes(d)).length;
+              const col = categoriaColor(row.proy);
+              const esPrimeroDeProf = !profVisto.has(row.prof);
+              if (esPrimeroDeProf) profVisto.add(row.prof);
+              const rowCount = rowsPorProf[row.prof] || 1;
+              const isLastOfProf = (() => {
+                // Check if this is the last row for this prof
+                const nextRow = rows[i + 1];
+                return !nextRow || nextRow.prof !== row.prof;
+              })();
+              const rowBg = i % 2 === 0 ? "#fff" : "#fafafa";
+
+              return (
+                <tr key={`${row.prof}-${row.proy}`} style={{ background: rowBg }}>
+                  {/* Profesional - mostrar solo en primera fila del prof */}
+                  {esPrimeroDeProf ? (
+                    <td rowSpan={rowCount} style={{
+                      padding:"4px 8px", fontWeight:600, fontSize:11,
+                      border:"0.5px solid #e0e0e0",
+                      borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
+                      background:"#fff", position:"sticky", left:0, zIndex:1,
+                      verticalAlign:"top", paddingTop:6,
+                    }}>{row.prof}</td>
+                  ) : null}
+
+                  {/* Proyecto */}
+                  <td style={{
+                    padding:"4px 8px", fontSize:10, maxWidth:260, overflow:"hidden",
+                    textOverflow:"ellipsis", whiteSpace:"nowrap",
+                    border:"0.5px solid #e0e0e0",
+                    borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
+                    background: rowBg, position:"sticky", left:140, zIndex:1,
+                  }} title={row.proy}>
+                    <span style={{
+                      display:"inline-block", width:8, height:8, borderRadius:2,
+                      background:col.bg, marginRight:5, flexShrink:0,
+                    }}/>
+                    {row.proy.length > 50 ? row.proy.slice(0, 50) + "…" : row.proy}
+                  </td>
+
+                  {/* Días */}
+                  {Array.from({ length: cal.dias }, (_, j) => {
+                    const dia = j + 1;
+                    const imputed = row.dias.includes(dia);
+                    const esHabil = cal.habiles.includes(dia);
+                    return (
+                      <td key={dia} style={{
+                        textAlign:"center", fontWeight: imputed ? 600 : 400,
+                        fontSize:11,
+                        padding:"3px 0",
+                        border:"0.5px solid #e0e0e0",
+                        borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
+                        background: imputed ? col.bg : !esHabil ? "#f0f0f0" : rowBg,
+                        color: imputed ? col.text : !esHabil ? "#ccc" : "inherit",
+                        width:22,
+                      }}>
+                        {imputed ? "8" : ""}
+                      </td>
+                    );
+                  })}
+
+                  {/* Total días */}
+                  <td style={{
+                    textAlign:"center", fontWeight:600, fontSize:11,
+                    padding:"4px 4px",
+                    background: isLastOfProf ? "#fff3e0" : rowBg,
+                    border:"0.5px solid #e0e0e0",
+                    borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
+                    color: totalDias > 0 ? "#e65100" : "#ccc",
+                  }}>{totalDias || ""}</td>
+
+                  {/* hh */}
+                  <td style={{
+                    textAlign:"center", fontSize:11,
+                    padding:"4px 4px",
+                    background: rowBg,
+                    border:"0.5px solid #e0e0e0",
+                    borderBottom: isLastOfProf ? "1.5px solid #1565c0" : "0.5px solid #e0e0e0",
+                    color:"#666",
+                  }}>{totalDias ? totalDias * 8 : ""}</td>
+                </tr>
+              );
+            })}
+
+            {/* Fila de totales globales */}
+            {rows.length > 0 && (
+              <tr style={{ background:"#e3f2fd", fontWeight:700 }}>
+                <td colSpan={2} style={{
+                  padding:"5px 8px", fontSize:11, fontWeight:700,
+                  border:"1px solid #1565c0", color:"#1565c0",
+                  position:"sticky", left:0, background:"#e3f2fd", zIndex:1,
+                }}>
+                  Total {profFiltro || "general"} — {MESES_NOMBRES[mesNum]}
+                </td>
+                {Array.from({ length: cal.dias }, (_, j) => {
+                  const dia = j + 1;
+                  const count = rows.filter(r => r.dias.includes(dia)).length;
+                  const esHabil = cal.habiles.includes(dia);
+                  return (
+                    <td key={dia} style={{
+                      textAlign:"center", fontSize:10, fontWeight:600,
+                      border:"1px solid #1565c0",
+                      background: count > 0 ? "#bbdefb" : !esHabil ? "#f0f0f0" : "#e3f2fd",
+                      color: count > 0 ? "#1565c0" : "#aaa",
+                    }}>{count > 0 ? count : ""}</td>
+                  );
+                })}
+                <td style={{ textAlign:"center", fontSize:11, fontWeight:700,
+                  border:"1px solid #1565c0", background:"#fff3e0", color:"#e65100" }}>
+                  {rows.reduce((a, r) => a + r.dias.filter(d => cal.habiles.includes(d)).length, 0)}
+                </td>
+                <td style={{ textAlign:"center", fontSize:11,
+                  border:"1px solid #1565c0", background:"#e3f2fd", color:"#666" }}>
+                  {rows.reduce((a, r) => a + r.dias.filter(d => cal.habiles.includes(d)).length, 0) * 8}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function ImputacionesView() {
   const [state, setState] = useState<ImputState>(() => buildInitialState());
@@ -753,6 +970,7 @@ export default function ImputacionesView() {
     { id:"resumen",      label:"Resumen" },
     { id:"imputaciones", label:"Imputar" },
     { id:"proyectos",    label:"Por Proyecto" },
+    { id:"tabla",        label:"Vista Tabla" },
   ];
 
   return (
@@ -813,6 +1031,7 @@ export default function ImputacionesView() {
       {tab==="resumen"      && <TabResumen state={state} mesNum={mesNum}/>}
       {tab==="imputaciones" && <TabImputaciones state={state} mesNum={mesNum} onUpdate={setState}/>}
       {tab==="proyectos"    && <TabProyectos state={state} mesNum={mesNum}/>}
+      {tab==="tabla"        && <TabTabla state={state} mesNum={mesNum}/>}
     </div>
   );
 }
