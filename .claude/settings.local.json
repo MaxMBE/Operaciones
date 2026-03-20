@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(wc -l \"/Users/maxarancibia/Downloads/CaRMO \\(1\\).jsx\")",
+      "Bash(npm install:*)",
+      "Bash(npm list:*)"
     ]
   }
 }

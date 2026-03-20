@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { exportCarmoWord, type CarmoExportData } from "@/lib/carmo-export";
+import { FileText, FileSpreadsheet, ChevronDown } from "lucide-react";
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
 const IFS_UF = 148;
@@ -336,7 +338,7 @@ const Badge = ({color,children}: {color:SemaforoColor;children:React.ReactNode})
 const Sec = ({children}: {children:React.ReactNode}) => <div style={S.sec}>{children}</div>;
 
 // ─── TAB CARMO INDIVIDUAL ─────────────────────────────────────────────────────
-function TabCaRMO() {
+function TabCaRMO({ onDataChange }: { onDataChange?: (d: CarmoExportData | null) => void }) {
   const [mes,setMes]=useState("Marzo"); const [anio,setAnio]=useState(2026);
   const [tipo,setTipo]=useState("colaborador");
   const [rutSel,setRutSel]=useState(""); const [perfilSel,setPerfilSel]=useState("");
@@ -356,6 +358,59 @@ function TabCaRMO() {
 
   const result = useMemo(()=>costoEmpresaMes?tarifaMinima(costoEmpresaMes,margenObj,uf):null,[costoEmpresaMes,margenObj,uf]);
   const mgnNeg = useMemo(()=>{const tf=parseFloat(tarifaNeg);return tf&&costoEmpresaMes?margenReal(tf,costoEmpresaMes,uf):null;},[tarifaNeg,costoEmpresaMes,uf]);
+
+  useEffect(()=>{
+    if (!onDataChange) return;
+    if (!result || !costoEmpresaMes) { onDataChange(null); return; }
+    const colab = COLABORADORES.find(c=>c.rut===rutSel);
+    const perfil = PERFILES.find(p=>p.perfil===perfilSel);
+    const nombreRecurso = tipo==="colaborador"
+      ? (colab?.nombre ?? "")
+      : tipo==="perfil" ? (perfil?.perfil ?? "") : `Manual ($${fmt(liqManual)} liq.)`;
+    const tipoLabel = tipo==="colaborador" ? "Colaborador SII" : tipo==="perfil" ? "Perfil genérico" : "Manual";
+    const sm = semaforoMargen(margenObj);
+    const smNeg = mgnNeg !== null ? semaforoMargen(mgnNeg) : null;
+    const badgeColor = (bg: string) => bg === "#1b5e20" || bg === "#388e3c" ? "green" : bg === "#8bc34a" || bg === "#fdd835" ? "amber" : bg === "#f44336" ? "red" : "black";
+    const sections = [
+      {
+        title: "Parámetros",
+        rows: [
+          { label: "Mes / Año", value: `${mes} ${anio}` },
+          { label: "Valor UF", value: `$${fmt(uf)}` },
+          { label: "Tipo de recurso", value: tipoLabel },
+          { label: "Recurso", value: nombreRecurso || "—" },
+          { label: "Costo empresa / mes", value: `$${fmt(costoEmpresaMes)}` },
+          { label: "Costo c/ vac.+fnq", value: `$${fmt(result.costoConFnq)}` },
+          { label: "Margen objetivo", value: fmtPct(margenObj) },
+        ],
+      },
+      {
+        title: "Resultado CaRMO",
+        badge: { label: sm.label, color: badgeColor(sm.bg) },
+        rows: [
+          { label: "Tarifa mínima día", value: `UF ${fmtUF(result.pvDiaUF)}  ·  $${fmt(result.pvDiaUF*uf)}/día`, bold: true },
+          { label: "Tarifa mínima mes", value: `UF ${fmtUF(result.pvMesUF)}  ·  $${fmt(result.pvMesCLP)}`, bold: true },
+        ],
+      },
+      ...(mgnNeg !== null && smNeg ? [{
+        title: "Tarifa negociada",
+        badge: { label: smNeg.label, color: badgeColor(smNeg.bg) },
+        rows: [
+          { label: "Tarifa acordada (UF/día)", value: `UF ${tarifaNeg}` },
+          { label: "Margen real obtenido", value: fmtPct(mgnNeg), bold: true },
+        ],
+      }] : []),
+      {
+        title: "Tabla de responsables validadores",
+        table: {
+          headers: ["Rango margen", "Responsable"],
+          rows: TABLA_VALIDADOR.map(r => [r.label.split("–")[0]?.trim() ?? r.label, r.label.split("–")[1]?.trim() ?? "—"]),
+        },
+      },
+    ];
+    onDataChange({ tab: "carmo", tabLabel: "CaRMO Individual", fecha: new Date().toLocaleDateString("es-CL", { day:"2-digit", month:"long", year:"numeric" }), sections });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[result, mgnNeg, mes, anio, uf, tipo, rutSel, perfilSel, liqManual, margenObj, tarifaNeg]);
 
   const filtColabs = useMemo(()=>busq.length<2?[]:COLABORADORES.filter(c=>
     c.nombre.toLowerCase().includes(busq.toLowerCase())||c.rut.includes(busq)).slice(0,8),[busq]);
@@ -599,7 +654,7 @@ function LineaPricing({linea,upL,rmL}: {linea:LineaRecurso;upL:(id:number,f:stri
   );
 }
 
-function TabPricing() {
+function TabPricing({ onDataChange }: { onDataChange?: (d: CarmoExportData | null) => void }) {
   const [proyecto,setProyecto]=useState(""); const [cliente,setCliente]=useState("");
   const [mes,setMes]=useState("Marzo"); const [anio,setAnio]=useState(2026);
   const [mesesProy,setMesesProy]=useState(1);
@@ -632,6 +687,70 @@ function TabPricing() {
   const margenNeg = tarifaNegUF>0&&costoTotal>0
     ? (tarifaNegUF*uf - costoTotal)/(tarifaNegUF*uf) : null;
   const mcNeg = margenNeg!==null ? semaforoMargen(margenNeg) : null;
+
+  useEffect(()=>{
+    if (!onDataChange) return;
+    if (costoTotal <= 0) { onDataChange(null); return; }
+    const badgeColor = (bg: string) => bg === "#1b5e20" || bg === "#388e3c" ? "green" : bg === "#8bc34a" || bg === "#fdd835" ? "amber" : bg === "#f44336" ? "red" : "black";
+    const sections = [
+      {
+        title: "Datos del proyecto",
+        rows: [
+          { label: "Proyecto", value: proyecto || "—" },
+          { label: "Cliente", value: cliente || "—" },
+          { label: "Mes inicio / Año", value: `${mes} ${anio}` },
+          { label: "Duración", value: `${mesesProy} mes(es)` },
+          { label: "Margen objetivo", value: fmtPct(margenObj) },
+          { label: "UF referencia", value: `$${fmt(uf)}` },
+        ],
+      },
+      {
+        title: "Recursos",
+        table: {
+          headers: ["Recurso", "Tipo", "Periodo", "Cant.", "% Asig.", "Costo línea"],
+          rows: lineas.filter(l=>l.costoDiario>0).map(l=>[
+            l.nombre||"—", l.tipo,
+            l.tipoPeriodo, String(l.cantidad), `${l.pct*100}%`,
+            `$${fmt(costoLineaFn(l.costoDiario,l.tipoPeriodo,l.cantidad,l.pct))}`,
+          ]),
+        },
+      },
+      ...(otros.length > 0 ? [{
+        title: "Otros costos",
+        table: {
+          headers: ["Descripción", "Meses", "Costo/mes", "Total"],
+          rows: otros.map(o=>[o.desc||"—", String(o.meses), `$${fmt(o.costoMes)}`, `$${fmt((o.costoMes||0)*(o.meses||0))}`]),
+        },
+      }] : []),
+      {
+        title: "Resumen financiero",
+        badge: { label: mc.label, color: badgeColor(mc.bg) },
+        rows: [
+          { label: "Costo recursos", value: `$${fmt(costoRec)}` },
+          { label: "Otros costos", value: `$${fmt(costoOtros)}` },
+          { label: "Costo total", value: `$${fmt(costoTotal)}`, bold: true },
+          { label: `Margen ${fmtPct(margenObj)}`, value: `$${fmt(pvCLP - costoTotal)}` },
+          { label: "Tarifa total neta", value: `UF ${fmtUF(pvUF)}  ·  $${fmt(pvCLP)}`, bold: true },
+          { label: "Tarifa mensual neta", value: `UF ${fmtUF(pvMesUF)}  (c/IVA: UF ${fmtUF(pvMesUF*1.19)})`, bold: true },
+        ],
+      },
+      ...(margenNeg !== null && mcNeg ? [{
+        title: "Tarifa negociada",
+        badge: { label: mcNeg.label, color: badgeColor(mcNeg.bg) },
+        rows: [
+          { label: "Tarifa ingresada (UF total)", value: `UF ${tarifaNeg}` },
+          { label: "Margen real obtenido", value: fmtPct(margenNeg), bold: true },
+        ],
+      }] : []),
+    ];
+    onDataChange({
+      tab: "pricing", tabLabel: "Pricing Proyecto",
+      titulo: proyecto ? `${proyecto}${cliente ? ` · ${cliente}` : ""}` : undefined,
+      fecha: new Date().toLocaleDateString("es-CL", { day:"2-digit", month:"long", year:"numeric" }),
+      sections,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[costoTotal, pvUF, pvMesUF, margenNeg, proyecto, cliente, mes, anio, mesesProy, margenObj]);
 
   return (
     <div>
@@ -759,7 +878,7 @@ function TabPricing() {
 }
 
 // ─── TAB ESCENARIOS ───────────────────────────────────────────────────────────
-function TabEscenarios() {
+function TabEscenarios({ onDataChange }: { onDataChange?: (d: CarmoExportData | null) => void }) {
   const [mes,setMes]=useState("Marzo"); const [anio,setAnio]=useState(2026);
   const [liqMin,setLiqMin]=useState(900000); const [liqMax,setLiqMax]=useState(3500000);
   const [paso,setPaso]=useState(200000); const [margenF,setMargenF]=useState(0.34);
@@ -778,6 +897,36 @@ function TabEscenarios() {
   },[liqMin,liqMax,paso,margenF,uf]);
 
   const mc=semaforoMargen(margenF);
+
+  useEffect(()=>{
+    if (!onDataChange || escenarios.length === 0) { onDataChange?.(null); return; }
+    onDataChange({
+      tab: "escenarios", tabLabel: "Simulador de Escenarios",
+      fecha: new Date().toLocaleDateString("es-CL", { day:"2-digit", month:"long", year:"numeric" }),
+      sections: [
+        {
+          title: "Configuración",
+          rows: [
+            { label: "Mes / Año", value: `${mes} ${anio}` },
+            { label: "UF referencia", value: `$${fmt(uf)}` },
+            { label: "Margen fijo", value: fmtPct(margenF) },
+            { label: "Rango liquidez", value: `$${fmt(liqMin)} – $${fmt(liqMax)}` },
+            { label: "Paso", value: `$${fmt(paso)}` },
+            { label: "Filas generadas", value: String(escenarios.length) },
+          ],
+        },
+        {
+          title: "Tabla de escenarios",
+          table: {
+            headers: ["Líquido", "CE/mes", "CE c/vac+fnq", "Tarifa día (UF)", "Tarifa mes (UF)", "PV mes (CLP)"],
+            rows: escenarios.map(e=>[`$${fmt(e.liquido)}`,`$${fmt(e.ce)}`,`$${fmt(e.costoConFnq)}`,fmtUF(e.pvDiaUF),fmtUF(e.pvMesUF),`$${fmt(e.pvMesCLP)}`]),
+          },
+        },
+      ],
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[escenarios, mes, anio, margenF]);
+
   return (
     <div>
       <Sec>Configuración</Sec>
@@ -826,17 +975,111 @@ function TabEscenarios() {
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function FinanzasPage() {
   const [tab,setTab]=useState("carmo");
+  const [exportData,setExportData]=useState<CarmoExportData|null>(null);
+  const [menuOpen,setMenuOpen]=useState(false);
+  const [exporting,setExporting]=useState(false);
+  const menuRef=useRef<HTMLDivElement>(null);
+  const reportRef=useRef<HTMLDivElement>(null);
+
   const TABS=[{id:"carmo",label:"CaRMO Individual"},{id:"pricing",label:"Pricing Proyecto"},{id:"esc",label:"Simulador"}];
+
+  const handleDataChange=useCallback((d:CarmoExportData|null)=>setExportData(d),[]);
+
+  useEffect(()=>{
+    const handler=(e:MouseEvent)=>{ if(menuRef.current&&!menuRef.current.contains(e.target as Node))setMenuOpen(false); };
+    document.addEventListener("mousedown",handler);
+    return ()=>document.removeEventListener("mousedown",handler);
+  },[]);
+
+  async function handleExportWord() {
+    if (!exportData) return;
+    setExporting(true);
+    try { await exportCarmoWord(exportData); }
+    finally { setExporting(false); setMenuOpen(false); }
+  }
+
+  async function handleExportPDF() {
+    if (!reportRef.current || !exportData) return;
+    setExporting(true);
+    setMenuOpen(false);
+    // Build the report HTML in the hidden div, then capture
+    await new Promise(r=>setTimeout(r,100)); // allow render
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const jsPDF = (await import("jspdf")).default;
+      const el = reportRef.current;
+      el.style.display = "block";
+      await new Promise(r=>setTimeout(r,50));
+      const canvas = await html2canvas(el, { scale:2, useCORS:true, backgroundColor:"#ffffff" });
+      el.style.display = "none";
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation:"p", unit:"mm", format:"a4" });
+      const pageW=210, pageH=297, margin=10;
+      const imgW=pageW-margin*2;
+      const imgH=(canvas.height*imgW)/canvas.width;
+      let y=margin;
+      if(imgH<=pageH-margin*2) {
+        pdf.addImage(imgData,"PNG",margin,y,imgW,imgH);
+      } else {
+        // Multi-page
+        let remaining=imgH;
+        let srcY=0;
+        const ratio=canvas.width/imgW;
+        while(remaining>0){
+          const sliceH=Math.min(pageH-margin*2, remaining);
+          const cvs=document.createElement("canvas");
+          cvs.width=canvas.width; cvs.height=sliceH*ratio;
+          cvs.getContext("2d")!.drawImage(canvas,0,srcY*ratio,canvas.width,sliceH*ratio,0,0,canvas.width,sliceH*ratio);
+          pdf.addImage(cvs.toDataURL("image/png"),"PNG",margin,margin,imgW,sliceH);
+          remaining-=sliceH; srcY+=sliceH;
+          if(remaining>0) pdf.addPage();
+        }
+      }
+      const fname=`CaRMO_${exportData.tabLabel.replace(/\s+/g,"_")}_${exportData.fecha.replace(/\s/g,"_")}.pdf`;
+      pdf.save(fname);
+    } finally { setExporting(false); }
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div style={{marginBottom:20}}>
-        <div style={{fontSize:11,fontWeight:500,color:"#666",
-          textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>SII Group Chile</div>
-        <h2 style={{fontSize:22,fontWeight:500,margin:"0 0 3px"}}>CaRMO – Calculadora de Rentabilidad</h2>
-        <p style={{fontSize:13,color:"#666",margin:0}}>
-          {COLABORADORES.length} colaboradores · {PERFILES.length} perfiles · GM mínima 34%
-        </p>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:12}}>
+        <div>
+          <div style={{fontSize:11,fontWeight:500,color:"#666",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>SII Group Chile</div>
+          <h2 style={{fontSize:22,fontWeight:500,margin:"0 0 3px"}}>CaRMO – Calculadora de Rentabilidad</h2>
+          <p style={{fontSize:13,color:"#666",margin:0}}>{COLABORADORES.length} colaboradores · {PERFILES.length} perfiles · GM mínima 34%</p>
+        </div>
+
+        {/* Export button */}
+        <div ref={menuRef} style={{position:"relative"}}>
+          <button
+            onClick={()=>setMenuOpen(o=>!o)}
+            disabled={!exportData || exporting}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {exporting ? "Exportando…" : "Exportar"}
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+          {menuOpen && exportData && (
+            <div style={{position:"absolute",right:0,top:"calc(100% + 6px)",zIndex:50,
+              background:"#fff",border:"0.5px solid #e5e7eb",borderRadius:8,
+              boxShadow:"0 4px 16px rgba(0,0,0,0.10)",minWidth:180,overflow:"hidden"}}>
+              <button onClick={handleExportWord}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-[12px] text-gray-700 hover:bg-gray-50 transition-colors">
+                <FileText className="w-3.5 h-3.5 text-blue-600" />
+                Exportar Word (.docx)
+              </button>
+              <button onClick={handleExportPDF}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-[12px] text-gray-700 hover:bg-gray-50 transition-colors">
+                <FileSpreadsheet className="w-3.5 h-3.5 text-red-500" />
+                Exportar PDF
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Tabs */}
       <div style={{display:"flex",gap:0,borderBottom:"0.5px solid #e0e0e0",marginBottom:20}}>
         {TABS.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)} style={{
@@ -846,9 +1089,95 @@ export default function FinanzasPage() {
             fontWeight:tab===t.id?500:400,marginBottom:-1}}>{t.label}</button>
         ))}
       </div>
-      {tab==="carmo"&&<TabCaRMO/>}
-      {tab==="pricing"&&<TabPricing/>}
-      {tab==="esc"&&<TabEscenarios/>}
+
+      {tab==="carmo"&&<TabCaRMO onDataChange={handleDataChange}/>}
+      {tab==="pricing"&&<TabPricing onDataChange={handleDataChange}/>}
+      {tab==="esc"&&<TabEscenarios onDataChange={handleDataChange}/>}
+
+      {/* Hidden PDF report */}
+      <div ref={reportRef} style={{display:"none",position:"fixed",top:0,left:0,width:794,background:"#fff",padding:"40px 48px",fontFamily:"system-ui,sans-serif",color:"#111"}}>
+        <CarmoReportPrint data={exportData}/>
+      </div>
+    </div>
+  );
+}
+
+// ─── REPORTE PARA PDF ─────────────────────────────────────────────────────────
+function CarmoReportPrint({ data }: { data: CarmoExportData | null }) {
+  if (!data) return null;
+  return (
+    <div>
+      {/* Encabezado */}
+      <div style={{borderBottom:"3px solid #4F46E5",paddingBottom:16,marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontSize:10,fontWeight:600,color:"#4F46E5",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4}}>
+              SII Group Chile · Operaciones
+            </div>
+            <div style={{fontSize:24,fontWeight:600,color:"#111"}}>CaRMO – Calculadora de Rentabilidad</div>
+            <div style={{fontSize:14,fontWeight:500,color:"#4F46E5",marginTop:4}}>{data.tabLabel}</div>
+            {data.titulo&&<div style={{fontSize:13,color:"#374151",marginTop:2}}>{data.titulo}</div>}
+          </div>
+          <img src="/sii-logo.png" alt="SII Group" style={{height:56,objectFit:"contain",opacity:0.9}}/>
+        </div>
+        <div style={{fontSize:11,color:"#6B7280",marginTop:12}}>Fecha: {data.fecha}</div>
+      </div>
+
+      {/* Secciones */}
+      {data.sections.map((sec,i)=>(
+        <div key={i} style={{marginBottom:20}}>
+          <div style={{fontSize:10,fontWeight:700,color:"#4F46E5",textTransform:"uppercase",
+            letterSpacing:"0.1em",borderBottom:"1px solid #E5E7EB",paddingBottom:4,marginBottom:10}}>
+            {sec.title}
+          </div>
+          {sec.badge&&(
+            <div style={{
+              display:"inline-block",padding:"4px 12px",borderRadius:6,marginBottom:10,
+              fontSize:12,fontWeight:700,
+              background:sec.badge.color==="green"?"#DCFCE7":sec.badge.color==="amber"?"#FEF3C7":sec.badge.color==="red"?"#FEE2E2":"#F3F4F6",
+              color:sec.badge.color==="green"?"#166534":sec.badge.color==="amber"?"#92400E":sec.badge.color==="red"?"#991B1B":"#111827",
+            }}>{sec.badge.label}</div>
+          )}
+          {sec.rows&&(
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <tbody>
+                {sec.rows.map((r,j)=>(
+                  <tr key={j} style={{background:j%2===0?"#F9FAFB":"#fff"}}>
+                    <td style={{padding:"5px 10px",color:"#6B7280",width:"40%"}}>{r.label}</td>
+                    <td style={{padding:"5px 10px",fontWeight:r.bold?600:400,color:"#111"}}>{r.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {sec.table&&(
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+              <thead>
+                <tr style={{background:"#4F46E5"}}>
+                  {sec.table.headers.map((h,j)=>(
+                    <th key={j} style={{padding:"5px 8px",color:"#fff",textAlign:"left",fontWeight:600}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sec.table.rows.map((row,j)=>(
+                  <tr key={j} style={{background:j%2===0?"#fff":"#F9FAFB"}}>
+                    {row.map((cell,k)=>(
+                      <td key={k} style={{padding:"4px 8px",borderBottom:"0.5px solid #E5E7EB",color:"#111"}}>{cell}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ))}
+
+      {/* Footer */}
+      <div style={{borderTop:"1px solid #E5E7EB",marginTop:32,paddingTop:12,
+        fontSize:10,color:"#9CA3AF",textAlign:"center"}}>
+        Documento confidencial · SII Group Chile · {data.fecha}
+      </div>
     </div>
   );
 }
