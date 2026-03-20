@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { LayoutDashboard, CalendarRange, Users, TrendingUp, Globe, PieChart, LogOut, ChevronLeft } from "lucide-react";
+import { LayoutDashboard, CalendarRange, Users, TrendingUp, Globe, PieChart, LogOut, ChevronLeft, Calculator } from "lucide-react";
 import { cn, getFiscalQuarter } from "@/lib/utils";
 import { useT, useLang } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase-client";
@@ -66,6 +66,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { href: "/gantt",         label: t.nav_gantt,         icon: CalendarRange   },
     { href: "/team",          label: t.nav_team,          icon: Users           },
     { href: "/oportunidades", label: t.nav_oportunidades, icon: TrendingUp      },
+    { href: "/finanzas",      label: "Finanzas",          icon: Calculator      },
   ];
 
   return (
