@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { exportCarmoWord, type CarmoExportData } from "@/lib/carmo-export";
 import { FileText, FileSpreadsheet, ChevronDown } from "lucide-react";
 import ImputacionesView from "@/components/imputaciones-view";
+import { useLang } from "@/lib/i18n";
 
 // ─── CONSTANTES ───────────────────────────────────────────────────────────────
 const IFS_UF = 148;
@@ -29,6 +30,8 @@ const UF_TABLE: Record<string, number> = {
 
 const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
                "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const MESES_EN = ["January","February","March","April","May","June",
+                  "July","August","September","October","November","December"];
 const ANIOS = [2024,2025,2026];
 
 function getUF(mes: string, anio: number): number {
@@ -302,7 +305,7 @@ const PERFILES: Perfil[] = [
 ];
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
-const fmt    = (n: number) => Math.round(n).toLocaleString("es-CL");
+const fmt    = (n: number, locale = "es-CL") => Math.round(n).toLocaleString(locale);
 const fmtUF  = (n: number) => Number(n).toFixed(2);
 const fmtPct = (n: number) => (n*100).toFixed(1)+"%";
 
@@ -340,6 +343,7 @@ const Sec = ({children}: {children:React.ReactNode}) => <div style={S.sec}>{chil
 
 // ─── TAB CARMO INDIVIDUAL ─────────────────────────────────────────────────────
 function TabCaRMO({ onDataChange }: { onDataChange?: (d: CarmoExportData | null) => void }) {
+  const { lang } = useLang();
   const [mes,setMes]=useState("Marzo"); const [anio,setAnio]=useState(2026);
   const [tipo,setTipo]=useState("colaborador");
   const [rutSel,setRutSel]=useState(""); const [perfilSel,setPerfilSel]=useState("");
@@ -409,7 +413,7 @@ function TabCaRMO({ onDataChange }: { onDataChange?: (d: CarmoExportData | null)
         },
       },
     ];
-    onDataChange({ tab: "carmo", tabLabel: "CaRMO Individual", fecha: new Date().toLocaleDateString("es-CL", { day:"2-digit", month:"long", year:"numeric" }), sections });
+    onDataChange({ tab: "carmo", tabLabel: "CaRMO Individual", fecha: new Date().toLocaleDateString(lang==="en"?"en-US":"es-CL", { day:"2-digit", month:"long", year:"numeric" }), sections });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[result, mgnNeg, mes, anio, uf, tipo, rutSel, perfilSel, liqManual, margenObj, tarifaNeg]);
 
@@ -422,17 +426,17 @@ function TabCaRMO({ onDataChange }: { onDataChange?: (d: CarmoExportData | null)
 
   return (
     <div>
-      <Sec>Mes de referencia UF</Sec>
+      <Sec>UF Reference Month</Sec>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <div><label style={S.label}>Mes inicio contrato</label>
+        <div><label style={S.label}>Contract start month</label>
           <select style={S.input} value={mes} onChange={e=>setMes(e.target.value)}>
-            {MESES.map(m=><option key={m}>{m}</option>)}</select></div>
-        <div><label style={S.label}>Año</label>
+            {MESES.map((m,i)=><option key={m} value={m}>{lang==="en"?MESES_EN[i]:m}</option>)}</select></div>
+        <div><label style={S.label}>Year</label>
           <select style={S.input} value={anio} onChange={e=>setAnio(+e.target.value)}>
             {ANIOS.map(a=><option key={a}>{a}</option>)}</select></div>
       </div>
       <div style={{fontSize:12,color:"#666",marginTop:6}}>
-        UF {mes} {anio}: <strong>${fmt(uf)}</strong>
+        UF {lang==="en"?MESES_EN[MESES.indexOf(mes)]:mes} {anio}: <strong>${fmt(uf)}</strong>
       </div>
 
       <Sec>Recurso</Sec>
@@ -656,6 +660,7 @@ function LineaPricing({linea,upL,rmL}: {linea:LineaRecurso;upL:(id:number,f:stri
 }
 
 function TabPricing({ onDataChange }: { onDataChange?: (d: CarmoExportData | null) => void }) {
+  const { lang } = useLang();
   const [proyecto,setProyecto]=useState(""); const [cliente,setCliente]=useState("");
   const [mes,setMes]=useState("Marzo"); const [anio,setAnio]=useState(2026);
   const [mesesProy,setMesesProy]=useState(1);
@@ -747,7 +752,7 @@ function TabPricing({ onDataChange }: { onDataChange?: (d: CarmoExportData | nul
     onDataChange({
       tab: "pricing", tabLabel: "Pricing Proyecto",
       titulo: proyecto ? `${proyecto}${cliente ? ` · ${cliente}` : ""}` : undefined,
-      fecha: new Date().toLocaleDateString("es-CL", { day:"2-digit", month:"long", year:"numeric" }),
+      fecha: new Date().toLocaleDateString(lang==="en"?"en-US":"es-CL", { day:"2-digit", month:"long", year:"numeric" }),
       sections,
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -763,9 +768,9 @@ function TabPricing({ onDataChange }: { onDataChange?: (d: CarmoExportData | nul
         <div><label style={S.label}>Cliente</label>
           <input style={S.input} value={cliente} onChange={e=>setCliente(e.target.value)}
             placeholder="Ej: Elecnor Chile"/></div>
-        <div><label style={S.label}>Mes inicio servicio</label>
+        <div><label style={S.label}>Service start month</label>
           <select style={S.input} value={mes} onChange={e=>setMes(e.target.value)}>
-            {MESES.map(m=><option key={m}>{m}</option>)}</select></div>
+            {MESES.map((m,i)=><option key={m} value={m}>{lang==="en"?MESES_EN[i]:m}</option>)}</select></div>
         <div><label style={S.label}>Año</label>
           <select style={S.input} value={anio} onChange={e=>setAnio(+e.target.value)}>
             {ANIOS.map(a=><option key={a}>{a}</option>)}</select></div>
@@ -880,6 +885,7 @@ function TabPricing({ onDataChange }: { onDataChange?: (d: CarmoExportData | nul
 
 // ─── TAB ESCENARIOS ───────────────────────────────────────────────────────────
 function TabEscenarios({ onDataChange }: { onDataChange?: (d: CarmoExportData | null) => void }) {
+  const { lang } = useLang();
   const [mes,setMes]=useState("Marzo"); const [anio,setAnio]=useState(2026);
   const [liqMin,setLiqMin]=useState(900000); const [liqMax,setLiqMax]=useState(3500000);
   const [paso,setPaso]=useState(200000); const [margenF,setMargenF]=useState(0.34);
@@ -903,7 +909,7 @@ function TabEscenarios({ onDataChange }: { onDataChange?: (d: CarmoExportData | 
     if (!onDataChange || escenarios.length === 0) { onDataChange?.(null); return; }
     onDataChange({
       tab: "escenarios", tabLabel: "Simulador de Escenarios",
-      fecha: new Date().toLocaleDateString("es-CL", { day:"2-digit", month:"long", year:"numeric" }),
+      fecha: new Date().toLocaleDateString(lang==="en"?"en-US":"es-CL", { day:"2-digit", month:"long", year:"numeric" }),
       sections: [
         {
           title: "Configuración",
@@ -932,9 +938,9 @@ function TabEscenarios({ onDataChange }: { onDataChange?: (d: CarmoExportData | 
     <div>
       <Sec>Configuración</Sec>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:12}}>
-        <div><label style={S.label}>Mes UF</label>
+        <div><label style={S.label}>UF Month</label>
           <select style={S.input} value={mes} onChange={e=>setMes(e.target.value)}>
-            {MESES.map(m=><option key={m}>{m}</option>)}</select></div>
+            {MESES.map((m,i)=><option key={m} value={m}>{lang==="en"?MESES_EN[i]:m}</option>)}</select></div>
         <div><label style={S.label}>Año</label>
           <select style={S.input} value={anio} onChange={e=>setAnio(+e.target.value)}>
             {ANIOS.map(a=><option key={a}>{a}</option>)}</select></div>

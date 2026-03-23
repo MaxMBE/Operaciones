@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useData } from "@/lib/data-context";
 import type { Oportunidad, OportunidadModelo } from "@/types";
 import { Search, X, Pencil, Trash2, Plus, Download, Check, ArrowUpDown, ArrowUp, ArrowDown, ImagePlus, Loader2, AlertCircle } from "lucide-react";
-import { useT } from "@/lib/i18n";
+import { useT, useLang } from "@/lib/i18n";
 
 const MODELOS: OportunidadModelo[] = ["Fixed Price", "Workpackage", "Time & Material", "Competence Center", "Service Center", "Other"];
 
@@ -523,6 +523,7 @@ function OportunidadModal({ open, mode, data, onChange, onSave, onClose }: {
 export default function OportunidadesPage() {
   const { oportunidades, addOportunidad, updateOportunidad, deleteOportunidad } = useData();
   const t = useT();
+  const { lang } = useLang();
 
   const HEADERS = [t.col_client, t.col_title, t.col_model, t.col_number, t.col_manager, t.col_prob, t.col_biz_manager, t.col_estado_protec, ""];
 
@@ -690,7 +691,7 @@ export default function OportunidadesPage() {
   @media print{body{padding:0}}
 </style></head><body>
 <h1>Oportunidades OPS</h1>
-<p class="sub">Generado el ${new Date().toLocaleDateString("es-CL",{day:"2-digit",month:"long",year:"numeric"})} · ${filtered.length} oportunidades</p>
+<p class="sub">Generated ${new Date().toLocaleDateString(lang === "en" ? "en-US" : "es-CL",{day:"2-digit",month:"long",year:"numeric"})} · ${filtered.length} ${t.oportunidades_subtitle}</p>
 <table>
   <thead><tr><th>Cliente</th><th>Título</th><th>Modelo</th><th>Nº</th><th>Encargado</th><th>Prob.</th><th>Business Manager</th><th>Estado Protec</th></tr></thead>
   <tbody>${rows}</tbody>

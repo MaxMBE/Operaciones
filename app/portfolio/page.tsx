@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { useData } from "@/lib/data-context";
-import { useT } from "@/lib/i18n";
+import { useT, useLang } from "@/lib/i18n";
 import {
   PieChart, Pie, Cell, Tooltip as ReTT,
   LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
@@ -207,7 +207,8 @@ function NumericInput({
 }: {
   label: string; value: string; onChange: (v: string) => void;
 }) {
-  const display = value ? parseInt(value, 10).toLocaleString("es-CL") : "";
+  const { lang } = useLang();
+  const display = value ? parseInt(value, 10).toLocaleString(lang === "en" ? "en-US" : "es-CL") : "";
   return (
     <div>
       <span className="text-[8px] text-muted-foreground uppercase tracking-wide block">{label}</span>
@@ -239,6 +240,7 @@ function ProjectDetailPanel({
   readOnly?: boolean;
 }) {
   const t = useT();
+  const { lang } = useLang();
   const { teamMembers } = useData();
 
   const [editMode, setEditMode] = useState(false);
@@ -433,7 +435,7 @@ function ProjectDetailPanel({
 
   function fmtCLP(v: number | null): string {
     if (v === null || v === 0) return "—";
-    return Math.round(v).toLocaleString("es-CL");
+    return Math.round(v).toLocaleString(lang === "en" ? "en-US" : "es-CL");
   }
   function fmtPct(v: number | null): string {
     if (v === null) return "—";
@@ -448,7 +450,7 @@ function ProjectDetailPanel({
     return v >= 0 ? "text-emerald-700" : "text-red-600";
   }
 
-  const fmtDate = (d: string) => d ? new Date(d + "T00:00:00").toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+  const fmtDate = (d: string) => d ? new Date(d + "T00:00:00").toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
   return (
     <div className="p-4 border-t border-indigo-200">
@@ -1071,6 +1073,7 @@ function ReportMonthLabel({ value, onChange, readOnly }: { value: string; onChan
 function CORView() {
   const { projects: liveProjects, teamMembers: liveTeamMembers, reportData: liveReportData, updateProject, updateReport, addProject, isDefaultData } = useData();
   const t = useT();
+  const { lang } = useLang();
   const WEATHER = useMemo(() => makeWeather(t), [t]);
 
   const [selectedId, setSelectedId]  = useState<string | null>(null);
@@ -1258,7 +1261,7 @@ function CORView() {
   }
   function setDM(k: keyof CORManual, v: string) { setDraftManual(d => ({ ...d, [k]: v })); }
 
-  const today = new Date().toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { day: "2-digit", month: "long", year: "numeric" });
 
   // ── Filter options ────────────────────────────────────────────────────
   const clientOpts  = useMemo(() => [...new Set(projects.map(p => p.client).filter(Boolean))].sort() as string[], [projects]);
@@ -2069,10 +2072,10 @@ function CORView() {
                           : <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-3 py-2 text-center text-muted-foreground whitespace-nowrap">
-                        {p.startDate ? new Date(p.startDate).toLocaleDateString("es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}
+                        {p.startDate ? new Date(p.startDate).toLocaleDateString(lang === "en" ? "en-US" : "es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}
                       </td>
                       <td className="px-3 py-2 text-center text-muted-foreground whitespace-nowrap">
-                        {p.endDate ? new Date(p.endDate).toLocaleDateString("es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}
+                        {p.endDate ? new Date(p.endDate).toLocaleDateString(lang === "en" ? "en-US" : "es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}
                       </td>
                       <td className="px-3 py-2 text-muted-foreground font-semibold tracking-wide">
                         {p.leader ? p.leader.split(" ").map((w: string) => w[0]?.toUpperCase()||"").join("") : "—"}
@@ -2251,9 +2254,10 @@ function TransformationView() {
 export default function PortfolioPage() {
   const { projects } = useData();
   const t = useT();
+  const { lang } = useLang();
   const [activeTab, setActiveTab] = useState<"cor" | "transformation">("cor");
 
-  const today = new Date().toLocaleDateString("es-CL", { day: "2-digit", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { day: "2-digit", month: "long", year: "numeric" });
 
   return (
     <div className="space-y-4">

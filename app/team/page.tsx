@@ -9,7 +9,7 @@ import {
   AlertTriangle, Clock, CheckCircle2, UserX, Search,
   Trash2, Download, UserPlus,
 } from "lucide-react";
-import { useT } from "@/lib/i18n";
+import { useT, useLang } from "@/lib/i18n";
 import { PrintButton } from "@/components/print-button";
 import { PrintHeader } from "@/components/print-header";
 
@@ -81,14 +81,16 @@ const RISK_STYLE: Record<BenchRisk, {
 function CapacityChart({ teamMembers, projects }: { teamMembers: TeamMember[]; projects: Project[] }) {
   const ACTIVE_STATUSES = new Set(["completed", "guarantee"]);
   const t = useT();
+  const { lang } = useLang();
 
   const data = useMemo(() => {
+    const locale = lang === "en" ? "en-US" : "es-CL";
     const today = new Date();
     const months: { month: string; assigned: number; unassigned: number }[] = [];
 
     for (let i = -1; i <= 5; i++) {
       const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
-      const label = d.toLocaleDateString("es-CL", { month: "short", year: "2-digit" });
+      const label = d.toLocaleDateString(locale, { month: "short", year: "2-digit" });
 
       let assigned = 0;
       let unassigned = 0;
@@ -111,7 +113,7 @@ function CapacityChart({ teamMembers, projects }: { teamMembers: TeamMember[]; p
     }
     return months;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamMembers, projects]);
+  }, [teamMembers, projects, lang]);
 
   return (
     <div className="bg-white border border-border rounded-xl p-4">
@@ -142,6 +144,7 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
   const projects    = projectsOverride    ?? liveProjects;
   const teamMembers = teamMembersOverride ?? liveTeamMembers;
   const t = useT();
+  const { lang } = useLang();
 
   const riskConfig: Record<BenchRisk, { label: string; bg: string; text: string; border: string; icon: React.ReactNode }> = {
     bench:    { label: t.bench_in_bench,      ...RISK_STYLE.bench    },
@@ -304,7 +307,7 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
       return `<tr>
         <td><strong>${m.name}</strong><br><span style="font-size:10px;color:#666">${m.role}</span></td>
         <td style="font-size:11px">${services}</td>
-        <td>${m.lastEndDate ? new Date(m.lastEndDate + "T00:00:00").toLocaleDateString("es-CL", { day:"2-digit", month:"short", year:"numeric" }) : "—"}</td>
+        <td>${m.lastEndDate ? new Date(m.lastEndDate + "T00:00:00").toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { day:"2-digit", month:"short", year:"numeric" }) : "—"}</td>
         <td style="text-align:center">${daysCell}</td>
         <td><span style="color:${riskColors[m.risk]};font-weight:600">${riskConfig[m.risk].label}</span></td>
         <td style="font-size:11px;color:#555">${m.comments || "—"}</td>
@@ -326,7 +329,7 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
   @media print{body{padding:0}}
 </style></head><body>
 <h1>${t.bench_pdf_title}</h1>
-<p class="sub">${t.bench_pdf_generated} ${new Date().toLocaleDateString("es-CL", { day:"2-digit", month:"long", year:"numeric" })} · ${filtered.length} ${t.bench_pdf_consultants_n}</p>
+<p class="sub">${t.bench_pdf_generated} ${new Date().toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { day:"2-digit", month:"long", year:"numeric" })} · ${filtered.length} ${t.bench_pdf_consultants_n}</p>
 <table>
   <thead><tr>
     <th>${t.bench_pdf_col1}</th>
@@ -346,7 +349,7 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
 
   const hasFilters = searchName || filterClient || filterRisk !== "all";
   const formatDate = (d: string) =>
-    new Date(d + "T00:00:00").toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
+    new Date(d + "T00:00:00").toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { day: "2-digit", month: "short", year: "numeric" });
 
   const modalMember = benchData.find(m => m.memberId === modalMemberId) ?? null;
 
@@ -754,6 +757,7 @@ const STATUS_STYLE: Record<ProjectStatus, { bg: string; text: string }> = {
 function LeadersView() {
   const { projects, updateProject } = useData();
   const t = useT();
+  const { lang } = useLang();
 
   const statusLabel: Record<ProjectStatus, string> = {
     "active":     t.status_in_progress,
@@ -810,7 +814,7 @@ function LeadersView() {
   }
 
   const formatDate = (d?: string) =>
-    d ? new Date(d + "T00:00:00").toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+    d ? new Date(d + "T00:00:00").toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
   if (!hasLeaders) {
     return (
@@ -1231,6 +1235,7 @@ interface SnapFull extends SnapMeta { projects: Project[]; cor_manual: { teamMem
 export default function TeamPage() {
   const { projects: liveProjects, teamMembers: liveTeamMembers, updateMember, addMember, deleteMember } = useData();
   const t = useT();
+  const { lang } = useLang();
 
   const [snapshots,        setSnapshots]        = useState<SnapMeta[]>([]);
   const [activeSnapId,     setActiveSnapId]     = useState<string>("live");
@@ -1311,7 +1316,7 @@ export default function TeamPage() {
   }, [] as { role: MemberRole; count: number }[]);
 
   const formatDate = (d: string) =>
-    new Date(d + "T00:00:00").toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
+    new Date(d + "T00:00:00").toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { day: "2-digit", month: "short", year: "numeric" });
 
   function handleSaveDate(projectId: string, memberId: string) {
     const member = teamMembers.find(m => m.id === memberId);
