@@ -1,5 +1,5 @@
 export type ProjectStatus = "active" | "completed" | "at-risk" | "on-hold" | "guarantee" | "delayed" | "terminated";
-export type OportunidadModelo = "Fixed Price" | "Workpackage" | "Time & Material" | "Competence Center" | "Service Center" | "Otro";
+export type OportunidadModelo = "Fixed Price" | "Workpackage" | "Time & Material" | "Competence Center" | "Service Center" | "Otro" | "Other";
 
 export interface Oportunidad {
   id: string;
