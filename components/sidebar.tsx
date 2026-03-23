@@ -48,7 +48,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           : u.user_metadata?.full_name ||
             u.user_metadata?.name ||
             u.email?.split("@")[0] ||
-            "Usuario";
+            "User";
       setUserName(name);
     });
   }, []);
@@ -66,7 +66,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
     { href: "/gantt",         label: t.nav_gantt,         icon: CalendarRange   },
     { href: "/team",          label: t.nav_team,          icon: Users           },
     { href: "/oportunidades", label: t.nav_oportunidades, icon: TrendingUp      },
-    { href: "/finanzas",      label: "Finanzas",          icon: Calculator      },
+    { href: "/finanzas",      label: "Finance",           icon: Calculator      },
   ];
 
   return (
@@ -79,12 +79,12 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       {/* Logo + collapse button */}
       <div className="flex flex-col items-center gap-1 px-4 py-4 border-b border-border relative">
         <img src="/sii-logo.png" alt="SII Group Chile" className="h-14 w-auto object-contain" />
-        <span className="text-[11px] font-semibold text-muted-foreground tracking-wide uppercase">Operaciones</span>
+        <span className="text-[11px] font-semibold text-muted-foreground tracking-wide uppercase">Operations</span>
         {/* Botón colapsar */}
         <button
           onClick={onToggle}
           className="absolute -right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-white border border-border rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50 transition-colors z-50"
-          title="Ocultar menú"
+          title="Hide menu"
         >
           <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
@@ -93,7 +93,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       {/* Bienvenida */}
       {userName && (
         <div className="px-4 py-3 border-b border-border bg-indigo-50/60">
-          <p className="text-[9px] text-indigo-400 uppercase tracking-wide font-semibold">Bienvenido</p>
+          <p className="text-[9px] text-indigo-400 uppercase tracking-wide font-semibold">Welcome</p>
           <p className="text-xs font-semibold text-indigo-800 truncate mt-0.5">{userName}</p>
         </div>
       )}
@@ -151,7 +151,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
           className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
         >
           <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
-          Cerrar sesión
+          Sign out
         </button>
       </div>
     </aside>

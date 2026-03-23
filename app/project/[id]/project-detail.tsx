@@ -82,7 +82,7 @@ function StatusDot({ value, editable, onChange }: {
       <select value={value} onChange={(e) => onChange?.(e.target.value as HealthStatus)}
         className="text-xs border border-border rounded px-1 py-0.5 bg-white focus:outline-none w-full">
         {(Object.keys(healthMeta) as HealthStatus[]).map((k) => (
-          <option key={k} value={k}>{healthMeta[k].label} — {k === "G" ? "Verde" : k === "A" ? "Ámbar" : k === "R" ? "Rojo" : k === "B" ? "Azul" : "Gris"}</option>
+          <option key={k} value={k}>{healthMeta[k].label} — {k === "G" ? "Green" : k === "A" ? "Amber" : k === "R" ? "Red" : k === "B" ? "Blue" : "Grey"}</option>
         ))}
       </select>
     );
@@ -165,10 +165,10 @@ function SectionModal({ title, onSave, onClose, children }: {
         </div>
         <div className="flex justify-end gap-2 px-6 py-4 border-t border-border bg-muted/20 rounded-b-2xl">
           <button onClick={onClose} className="px-4 py-2 text-xs border border-border rounded-lg text-muted-foreground hover:bg-muted transition-colors">
-            Cancelar
+            Cancel
           </button>
           <button onClick={onSave} className="flex items-center gap-1.5 px-4 py-2 text-xs bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium">
-            <Check className="w-3.5 h-3.5" /> Guardar cambios
+            <Check className="w-3.5 h-3.5" /> Save changes
           </button>
         </div>
       </div>
@@ -178,7 +178,7 @@ function SectionModal({ title, onSave, onClose, children }: {
 
 // ── EditBtn (hover pencil on sections) ───────────────────────────────────────
 
-function EditBtn({ onClick, label = "Editar sección" }: { onClick: () => void; label?: string }) {
+function EditBtn({ onClick, label = "Edit section" }: { onClick: () => void; label?: string }) {
   return (
     <button
       onClick={onClick}

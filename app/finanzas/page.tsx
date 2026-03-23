@@ -90,7 +90,7 @@ function TablaValidador({ margenActual }: { margenActual: number | null }) {
       <div>
         <div style={{fontSize:11,fontWeight:600,marginBottom:6,
           color:"#666",textTransform:"uppercase",letterSpacing:"0.06em"}}>
-          Responsable validador según margen
+          Approver by margin level
         </div>
         {TABLA_VALIDADOR.map((row,i)=>{
           const activo = margenActual!==null &&

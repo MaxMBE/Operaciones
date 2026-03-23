@@ -44,7 +44,7 @@ function isTuesdayToday(): boolean {
 function formatWeekLabel(isoDate: string): string {
   const [y, m, day] = isoDate.split("-").map(Number);
   const d = new Date(y, m - 1, day);
-  return `Semana del ${d.toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" })}`;
+  return `Week of ${d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ interface CORManual {
   teamMembers?: TeamMember[];
 }
 
-const EMPTY_MANUAL: CORManual = { revenue:"", cost:"", otd:"", oqd:"", customers:"", models:"", reportMonth:"Enero" };
+const EMPTY_MANUAL: CORManual = { revenue:"", cost:"", otd:"", oqd:"", customers:"", models:"", reportMonth:"January" };
 
 function parseCORCSV(text: string): Array<{name:string; value:number}> {
   return text.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
@@ -193,7 +193,7 @@ function SEF({
           <option value="R">⛈️ Critical</option>
           <option value="grey">☁️ N/A</option>
           <option value="B">🌤️ Stable</option>
-          <option value="done">✅ Terminado</option>
+          <option value="done">✅ Done</option>
         </select>
       ) : (
         <span className={`text-[10px] font-medium ${w.text}`}>{w.icon} {w.label}</span>
@@ -551,15 +551,15 @@ function ProjectDetailPanel({
             <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide mb-2">Financial KPIs</h4>
             {editMode ? (
               <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                <NumericInput label="Prod. del Mes"     value={draftP.revenueMonthly}    onChange={v => setP("revenueMonthly", v)} />
-                <NumericInput label="Costo del Mes"     value={draftP.costMonthly}        onChange={v => setP("costMonthly", v)} />
-                <NumericInput label="Producción YTD"    value={draftP.revenue}            onChange={v => setP("revenue", v)} />
-                <NumericInput label="Costo YTD"         value={draftP.spent}              onChange={v => setP("spent", v)} />
-                <NumericInput label="Proyec. FY Prod."  value={draftP.revenueProjection}  onChange={v => setP("revenueProjection", v)} />
-                <NumericInput label="Proyec. FY Costo"  value={draftP.costProjection}     onChange={v => setP("costProjection", v)} />
+                <NumericInput label="Revenue (Month)"    value={draftP.revenueMonthly}    onChange={v => setP("revenueMonthly", v)} />
+                <NumericInput label="Cost (Month)"      value={draftP.costMonthly}        onChange={v => setP("costMonthly", v)} />
+                <NumericInput label="Revenue YTD"       value={draftP.revenue}            onChange={v => setP("revenue", v)} />
+                <NumericInput label="Cost YTD"          value={draftP.spent}              onChange={v => setP("spent", v)} />
+                <NumericInput label="FY Revenue Proj."  value={draftP.revenueProjection}  onChange={v => setP("revenueProjection", v)} />
+                <NumericInput label="FY Cost Proj."     value={draftP.costProjection}     onChange={v => setP("costProjection", v)} />
                 {draftP.serviceType === "Fixed Price" && <>
-                  <EF label="Avance %"        value={draftP.progress}         editMode onChange={v => setP("progress", v)} />
-                  <EF label="Avance Plan %"   value={draftP.expectedProgress} editMode onChange={v => setP("expectedProgress", v)} />
+                  <EF label="Progress %"      value={draftP.progress}         editMode onChange={v => setP("progress", v)} />
+                  <EF label="Planned Progress %" value={draftP.expectedProgress} editMode onChange={v => setP("expectedProgress", v)} />
                 </>}
               </div>
             ) : (
@@ -766,7 +766,7 @@ function ProjectDetailPanel({
                         <option value="R">⛈️ Critical</option>
                         <option value="grey">☁️ N/A</option>
                         <option value="B">🌤️ Stable</option>
-                        <option value="done">✅ Terminado</option>
+                        <option value="done">✅ Done</option>
                       </select>
                     ) : (
                       <span className={`flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-medium border ${w.bg} ${w.text} ${w.border}`}>
@@ -1124,7 +1124,7 @@ function CORView() {
     let corManual: CORManual | null = null;
     try { const s = localStorage.getItem(COR_MANUAL_KEY); if (s) corManual = JSON.parse(s); } catch {}
 
-    setSnapshotStatus("Guardando snapshot semanal...");
+    setSnapshotStatus("Saving weekly snapshot...");
     fetch("/api/snapshots", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1474,7 +1474,7 @@ function CORView() {
             <option value="R">⛈️ Critical</option>
             <option value="grey">☁️ N/A</option>
             <option value="B">🌤️ Stable</option>
-            <option value="done">✅ Terminado</option>
+            <option value="done">✅ Done</option>
           </select>
         );
       }

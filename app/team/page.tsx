@@ -577,7 +577,7 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openModal(m)} title="Editar"
+                        <button onClick={() => openModal(m)} title="Edit"
                           className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -1070,7 +1070,7 @@ function PeopleDirectoryView() {
             value={newLeader}
             onChange={e => setNewLeader(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") handleAddLeader(); }}
-            placeholder="Nombre del Team Leader"
+            placeholder="Team Leader name"
             className={inputCls}
           />
           <button
@@ -1078,12 +1078,12 @@ function PeopleDirectoryView() {
             disabled={!newLeader.trim()}
             className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-40 transition-colors"
           >
-            Agregar
+            Add
           </button>
         </div>
         <div className="space-y-1.5">
           {knownLeaders.length === 0 && (
-            <p className="text-xs text-muted-foreground italic">Sin Team Leaders registrados</p>
+            <p className="text-xs text-muted-foreground italic">No Team Leaders registered</p>
           )}
           {knownLeaders.map(l => (
             <div key={l} className="flex items-center justify-between bg-indigo-50 rounded-lg px-3 py-2">
@@ -1096,7 +1096,7 @@ function PeopleDirectoryView() {
               <button
                 onClick={() => removeKnownLeader(l)}
                 className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                title="Eliminar"
+                title="Remove"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -1112,7 +1112,7 @@ function PeopleDirectoryView() {
             value={newManager}
             onChange={e => setNewManager(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") handleAddManager(); }}
-            placeholder="Nombre del BM"
+            placeholder="BM name"
             className={inputCls}
           />
           <button
@@ -1120,12 +1120,12 @@ function PeopleDirectoryView() {
             disabled={!newManager.trim()}
             className="px-3 py-1.5 text-xs bg-rose-600 text-white rounded-lg font-semibold hover:bg-rose-700 disabled:opacity-40 transition-colors"
           >
-            Agregar
+            Add
           </button>
         </div>
         <div className="space-y-1.5">
           {knownManagers.length === 0 && (
-            <p className="text-xs text-muted-foreground italic">Sin BMs registrados</p>
+            <p className="text-xs text-muted-foreground italic">No BMs registered</p>
           )}
           {knownManagers.map(m => (
             <div key={m} className="flex items-center justify-between bg-rose-50 rounded-lg px-3 py-2">
@@ -1138,7 +1138,7 @@ function PeopleDirectoryView() {
               <button
                 onClick={() => removeKnownManager(m)}
                 className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                title="Eliminar"
+                title="Remove"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -1148,13 +1148,13 @@ function PeopleDirectoryView() {
       </DirectorySection>
 
       {/* Consultores / FTEs */}
-      <DirectorySection title="Consultores / FTEs" color="border-violet-200">
+      <DirectorySection title="Consultants / FTEs" color="border-violet-200">
         <div className="flex gap-2">
           <input
             value={newConsultant}
             onChange={e => setNewConsultant(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") handleAddConsultant(); }}
-            placeholder="Nombre del consultor"
+            placeholder="Consultant name"
             className={inputCls}
           />
           <select
@@ -1169,12 +1169,12 @@ function PeopleDirectoryView() {
             disabled={!newConsultant.trim()}
             className="px-3 py-1.5 text-xs bg-violet-600 text-white rounded-lg font-semibold hover:bg-violet-700 disabled:opacity-40 transition-colors"
           >
-            Agregar
+            Add
           </button>
         </div>
         <div className="space-y-1.5">
           {teamMembers.length === 0 && (
-            <p className="text-xs text-muted-foreground italic">Sin consultores registrados</p>
+            <p className="text-xs text-muted-foreground italic">No consultants registered</p>
           )}
           {teamMembers.map(m => (
             <div key={m.id} className="flex items-center justify-between bg-violet-50 rounded-lg px-3 py-2">
@@ -1209,7 +1209,7 @@ function PeopleDirectoryView() {
               </div>
               {editConsultantId !== m.id && (
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => { setEditConsultantId(m.id); setEditConsultantName(m.name); }} className="p-1 rounded text-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => { setEditConsultantId(m.id); setEditConsultantName(m.name); }} className="p-1 rounded text-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
                   <button onClick={() => deleteMember(m.id)} className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               )}
@@ -1431,7 +1431,7 @@ export default function TeamPage() {
             </div>
           ) : (
             <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => startEdit(m.id, m.role)} title="Editar"
+              <button onClick={() => startEdit(m.id, m.role)} title="Edit"
                 className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                 <Pencil className="w-3.5 h-3.5" />
               </button>

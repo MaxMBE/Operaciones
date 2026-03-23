@@ -6,7 +6,7 @@ import type { Oportunidad, OportunidadModelo } from "@/types";
 import { Search, X, Pencil, Trash2, Plus, Download, Check, ArrowUpDown, ArrowUp, ArrowDown, ImagePlus, Loader2, AlertCircle } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
-const MODELOS: OportunidadModelo[] = ["Fixed Price", "Workpackage", "Time & Material", "Competence Center", "Service Center", "Otro"];
+const MODELOS: OportunidadModelo[] = ["Fixed Price", "Workpackage", "Time & Material", "Competence Center", "Service Center", "Other"];
 
 const ESTADOS_COMUNES = [
   "PENDIENTE INFO CLIENTE",
@@ -107,7 +107,7 @@ function ImageAnalysisModal({ open, oportunidades, onApply, onClose }: {
 
   function handleFile(file: File) {
     if (!file.type.startsWith("image/")) {
-      setError("Solo se admiten imágenes (JPEG, PNG, GIF, WEBP).");
+      setError("Only images are accepted (JPEG, PNG, GIF, WEBP).");
       return;
     }
     setImageFile(file);
@@ -174,8 +174,8 @@ function ImageAnalysisModal({ open, oportunidades, onApply, onClose }: {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-indigo-600 to-violet-600 flex-shrink-0">
           <div>
-            <h2 className="text-base font-semibold text-white">Analizar imagen</h2>
-            <p className="text-indigo-200 text-xs mt-0.5">Actualiza oportunidades desde una captura de pantalla o imagen</p>
+            <h2 className="text-base font-semibold text-white">Analyze image</h2>
+            <p className="text-indigo-200 text-xs mt-0.5">Update opportunities from a screenshot or image</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-white/70 hover:text-white hover:bg-white/20 transition-colors">
             <X className="w-4 h-4" />
@@ -196,7 +196,7 @@ function ImageAnalysisModal({ open, oportunidades, onApply, onClose }: {
                 onClick={() => fileInputRef.current?.click()}
               >
                 <ImagePlus className="w-10 h-10 text-indigo-300 mx-auto mb-3" />
-                <p className="text-sm font-medium text-gray-700">Arrastra una imagen o haz clic para seleccionar</p>
+                <p className="text-sm font-medium text-gray-700">Drag an image or click to select</p>
                 <p className="text-xs text-muted-foreground mt-1">JPEG · PNG · GIF · WEBP</p>
                 <input
                   ref={fileInputRef}

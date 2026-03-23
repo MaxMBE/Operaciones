@@ -194,7 +194,7 @@ export default function OverviewPage() {
               onClick={() => setMenuOpen(o => !o)}
               className="flex items-center gap-1.5 bg-white border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium px-3 py-1.5 rounded-lg text-xs transition-colors"
             >
-              Acciones
+              Actions
               <ChevronDown className="w-3 h-3" />
             </button>
             {menuOpen && (
@@ -476,11 +476,11 @@ export default function OverviewPage() {
               <AlertTriangle className="w-6 h-6 text-red-500" />
             </div>
             <div className="text-center">
-              <h2 className="text-base font-semibold text-foreground">Eliminar servicio</h2>
+              <h2 className="text-base font-semibold text-foreground">Delete service</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                ¿Estás seguro que deseas eliminar{" "}
+                Are you sure you want to delete{" "}
                 <span className="font-medium text-foreground">"{deleteTarget.name}"</span>?
-                Esta acción no se puede deshacer.
+                This action cannot be undone.
               </p>
             </div>
             <div className="flex gap-2 mt-1">
@@ -488,13 +488,13 @@ export default function OverviewPage() {
                 onClick={() => setDeleteTarget(null)}
                 className="flex-1 px-4 py-2 text-sm font-medium rounded-xl border border-border text-foreground hover:bg-muted/50 transition-colors"
               >
-                Cancelar
+                Cancel
               </button>
               <button
                 onClick={confirmDelete}
                 className="flex-1 px-4 py-2 text-sm font-medium rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
               >
-                Eliminar
+                Delete
               </button>
             </div>
           </div>
