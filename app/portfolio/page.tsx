@@ -47,6 +47,17 @@ function formatWeekLabel(isoDate: string): string {
   return `Week of ${d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`;
 }
 
+function translateWeekLabel(label: string): string {
+  const ES_MONTHS: Record<string, string> = {
+    enero:"January", febrero:"February", marzo:"March", abril:"April",
+    mayo:"May", junio:"June", julio:"July", agosto:"August",
+    septiembre:"September", octubre:"October", noviembre:"November", diciembre:"December",
+  };
+  const m = label.match(/^Semana del (\d+) de (\w+) de (\d+)$/i);
+  if (m) return `Week of ${ES_MONTHS[m[2].toLowerCase()] || m[2]} ${m[1]}, ${m[3]}`;
+  return label;
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 
@@ -503,7 +514,7 @@ function ProjectDetailPanel({
               <EF label="BM"                  value={draftP.manager}     editMode={editMode} onChange={v => setP("manager", v)} />
               <EF label="Team Leader"         value={draftP.leader}      editMode={editMode} onChange={v => setP("leader", v)} />
               <EF label={t.cor_phase_label}   value={draftR.phase}       editMode={editMode} onChange={v => setR("phase", v)} />
-              <EF label="Código IFS"          value={draftP.ifsCode}     editMode={editMode} onChange={v => setP("ifsCode", v)} />
+              <EF label={lang === "en" ? "IFS Code" : "Código IFS"} value={draftP.ifsCode}     editMode={editMode} onChange={v => setP("ifsCode", v)} />
               <EF label={t.cor_model_label}   value={draftP.serviceType} editMode={editMode} onChange={v => setP("serviceType", v)} />
               <EF label="FTEs"                value={draftR.ftes || draftP.teamSize} editMode={editMode} onChange={v => setR("ftes", v)} />
               <EF label="BU"                  value={draftP.bu}          editMode={editMode} onChange={v => setP("bu", v)} />
@@ -569,26 +580,26 @@ function ProjectDetailPanel({
                 <thead>
                   <tr>
                     <th className="text-left font-semibold text-muted-foreground py-1 pr-2 border-b border-gray-200">KPI</th>
-                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200">Mensual</th>
-                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200">Real YTD</th>
-                    <th className="text-right font-semibold text-muted-foreground py-1 pl-1 border-b border-gray-200">Proyección FY</th>
+                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200">{lang === "en" ? "Monthly" : "Mensual"}</th>
+                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200">{lang === "en" ? "YTD Actual" : "Real YTD"}</th>
+                    <th className="text-right font-semibold text-muted-foreground py-1 pl-1 border-b border-gray-200">{lang === "en" ? "FY Projection" : "Proyección FY"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   <tr>
-                    <td className="py-1 pr-2 font-medium">Producción</td>
+                    <td className="py-1 pr-2 font-medium">{lang === "en" ? "Revenue" : "Producción"}</td>
                     <td className="py-1 px-1 text-right">{fmtCLP(revMes||null)}</td>
                     <td className="py-1 px-1 text-right font-semibold">{fmtCLP(rev||null)}</td>
                     <td className="py-1 pl-1 text-right">{fmtCLP(revProj||null)}</td>
                   </tr>
                   <tr>
-                    <td className="py-1 pr-2 font-medium">Costo</td>
+                    <td className="py-1 pr-2 font-medium">{lang === "en" ? "Cost" : "Costo"}</td>
                     <td className="py-1 px-1 text-right">{fmtCLP(costMes||null)}</td>
                     <td className="py-1 px-1 text-right font-semibold">{fmtCLP(cost||null)}</td>
                     <td className="py-1 pl-1 text-right">{fmtCLP(costProj||null)}</td>
                   </tr>
                   <tr>
-                    <td className="py-1 pr-2 font-medium">Ganancia</td>
+                    <td className="py-1 pr-2 font-medium">{lang === "en" ? "Profit" : "Ganancia"}</td>
                     <td className={`py-1 px-1 text-right ${ganMes!==null&&ganMes<0?"text-red-600":""}`}>{fmtCLP(ganMes)}</td>
                     <td className={`py-1 px-1 text-right font-semibold ${ganYTD!==null&&ganYTD<0?"text-red-600":""}`}>{fmtCLP(ganYTD)}</td>
                     <td className={`py-1 pl-1 text-right ${ganProj!==null&&ganProj<0?"text-red-600":""}`}>{fmtCLP(ganProj)}</td>
@@ -1524,7 +1535,7 @@ function CORView() {
             >
               <option value="live">📡 {t.live_data}</option>
               {snapshots.map(s => (
-                <option key={s.id} value={s.id}>{s.week_label}</option>
+                <option key={s.id} value={s.id}>{lang === "en" ? translateWeekLabel(s.week_label) : s.week_label}</option>
               ))}
             </select>
             {snapshotLoading && <span className="text-[10px] text-muted-foreground animate-pulse">…</span>}
@@ -1583,7 +1594,7 @@ function CORView() {
         <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5 print:hidden">
           <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
           <div className="flex-1">
-            <span className="text-xs font-semibold text-amber-800">{t.historical_mode} — {snapshotData.week_label}</span>
+            <span className="text-xs font-semibold text-amber-800">{t.historical_mode} — {lang === "en" ? translateWeekLabel(snapshotData.week_label) : snapshotData.week_label}</span>
             <span className="text-[10px] text-amber-600 ml-2">{t.historical_readonly} {t.historical_banner_sub}</span>
           </div>
           <button
@@ -1911,7 +1922,7 @@ function CORView() {
         <h3 className="text-xs font-semibold mb-3">{t.cor_kpi_def_title}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
           {[
-            { name: "TMD",                formula: "Target Margin Deviation: Margen Real – Margen Plan (34%). + = ahorro / ganancia de margen · – = sobrecosto / pérdida de margen" },
+            { name: "TMD",                formula: lang === "en" ? "Target Margin Deviation: Actual Margin – Plan Margin (34%). + = savings / margin gain · – = overrun / margin loss" : "Target Margin Deviation: Margen Real – Margen Plan (34%). + = ahorro / ganancia de margen · – = sobrecosto / pérdida de margen" },
             { name: "Monthly Margin %",   formula: t.cor_formula_monthly },
             { name: "YTD Margin %",       formula: t.cor_formula_ytd     },
             { name: "OTD %",              formula: t.cor_formula_otd     },
@@ -2000,10 +2011,10 @@ function CORView() {
                 <th className="px-3 py-2 font-medium w-5"></th>
                 {([
                   { label: t.cor_client_label,    field: "client"      as const, align: ""        },
-                  { label: "Proyecto / Servicio", field: "name"        as const, align: ""        },
-                  { label: "Tipo",                field: "serviceType" as const, align: "center"  },
-                  { label: "Inicio",              field: "startDate"   as const, align: "center"  },
-                  { label: "Término",             field: "endDate"     as const, align: "center"  },
+                  { label: lang === "en" ? "Project / Service" : "Proyecto / Servicio", field: "name"        as const, align: ""        },
+                  { label: lang === "en" ? "Type" : "Tipo",                        field: "serviceType" as const, align: "center"  },
+                  { label: lang === "en" ? "Start" : "Inicio",                     field: "startDate"   as const, align: "center"  },
+                  { label: lang === "en" ? "End" : "Término",                      field: "endDate"     as const, align: "center"  },
                   { label: "TL",                  field: "leader"      as const, align: ""        },
                   { label: "FTEs",                field: "ftes"        as const, align: "center"  },
                   { label: "Revenue",             field: "revenue"     as const, align: "right"   },
