@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { FileText, FileSpreadsheet, RotateCcw, CheckCircle, AlertCircle } from "lucide-react";
 import { useData } from "@/lib/data-context";
 import { ExcelMapper } from "@/components/excel-mapper";
-import { useT } from "@/lib/i18n";
+import { useT, useLang } from "@/lib/i18n";
 
 /**
  * Renders CSV/Excel upload actions as dropdown menu items.
@@ -14,6 +14,7 @@ import { useT } from "@/lib/i18n";
 export function CsvUploadMenuItems({ onClose }: { onClose?: () => void }) {
   const { loadFromCSV, resetToDefault, isDefaultData } = useData();
   const t = useT();
+  const { lang } = useLang();
   const csvRef  = useRef<HTMLInputElement>(null);
   const xlsxRef = useRef<HTMLInputElement>(null);
 
@@ -25,13 +26,13 @@ export function CsvUploadMenuItems({ onClose }: { onClose?: () => void }) {
 
   function handleCsvFile(file: File) {
     if (!file.name.toLowerCase().endsWith(".csv")) {
-      setStatus("error"); setError("El archivo debe ser .csv"); return;
+      setStatus("error"); setError(lang === "en" ? "File must be .csv" : "El archivo debe ser .csv"); return;
     }
     const reader = new FileReader();
     reader.onload = e => {
       const result = loadFromCSV(e.target?.result as string, file.name);
       if (result.success) { setStatus("success"); setError(""); onClose?.(); }
-      else                { setStatus("error");   setError(result.error ?? "Error desconocido"); }
+      else                { setStatus("error");   setError(result.error ?? (lang === "en" ? "Unknown error" : "Error desconocido")); }
     };
     reader.readAsText(file, "UTF-8");
   }
@@ -39,7 +40,7 @@ export function CsvUploadMenuItems({ onClose }: { onClose?: () => void }) {
   function handleExcelFile(file: File) {
     const n = file.name.toLowerCase();
     if (!n.endsWith(".xlsx") && !n.endsWith(".xlsm") && !n.endsWith(".xls")) {
-      setStatus("error"); setError("Formato no soportado"); return;
+      setStatus("error"); setError(lang === "en" ? "Unsupported format" : "Formato no soportado"); return;
     }
     const reader = new FileReader();
     reader.onload = e => {
@@ -59,7 +60,7 @@ export function CsvUploadMenuItems({ onClose }: { onClose?: () => void }) {
     <>
       <div className="border-t border-border">
         <p className="px-4 pt-2 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-          Cargar datos
+          {lang === "en" ? "Load data" : "Cargar datos"}
         </p>
 
         <button
@@ -67,7 +68,7 @@ export function CsvUploadMenuItems({ onClose }: { onClose?: () => void }) {
           className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
         >
           <FileText className="w-3.5 h-3.5 text-indigo-500" />
-          Cargar CSV
+          {lang === "en" ? "Load CSV" : "Cargar CSV"}
         </button>
 
         <button
@@ -75,7 +76,7 @@ export function CsvUploadMenuItems({ onClose }: { onClose?: () => void }) {
           className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
         >
           <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-500" />
-          Cargar Excel
+          {lang === "en" ? "Load Excel" : "Cargar Excel"}
         </button>
 
         {!isDefaultData && (

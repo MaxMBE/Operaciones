@@ -1264,6 +1264,16 @@ function CORView() {
     setTimeout(() => setKpiSuccess(false), 3000);
   }
   function cancelOverride() { setOverrideMode(false); }
+  function handleReportMonthChange(v: string) {
+    const u = { ...manualData, reportMonth: v };
+    setManualData(u);
+    try { localStorage.setItem(COR_MANUAL_KEY, JSON.stringify(u)); } catch {}
+    fetch("/api/settings/cor-manual", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(u),
+    });
+  }
   function clearOverride() {
     setManualData(EMPTY_MANUAL);
     setDraftManual(EMPTY_MANUAL);
@@ -1721,7 +1731,7 @@ function CORView() {
           <p className="text-lg font-bold text-foreground leading-none">{formatClpToUsd(corKPIs.totalRevenue)}</p>
           <p className="text-[10px] text-muted-foreground mt-1">{t.cor_cost_label} {formatClpToUsd(corKPIs.totalCost)}</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={(v: string) => { const u={...manualData,reportMonth:v}; setManualData(u); try{localStorage.setItem(COR_MANUAL_KEY,JSON.stringify(u));}catch{} }} />
+            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={handleReportMonthChange} />
           </div>
         </div>
 
@@ -1736,7 +1746,7 @@ function CORView() {
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">{t.cor_target_40}</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={(v: string) => { const u={...manualData,reportMonth:v}; setManualData(u); try{localStorage.setItem(COR_MANUAL_KEY,JSON.stringify(u));}catch{} }} />
+            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={handleReportMonthChange} />
           </div>
         </div>
 
@@ -1751,7 +1761,7 @@ function CORView() {
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={(v: string) => { const u={...manualData,reportMonth:v}; setManualData(u); try{localStorage.setItem(COR_MANUAL_KEY,JSON.stringify(u));}catch{} }} />
+            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={handleReportMonthChange} />
           </div>
         </div>
 
@@ -1766,7 +1776,7 @@ function CORView() {
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={(v: string) => { const u={...manualData,reportMonth:v}; setManualData(u); try{localStorage.setItem(COR_MANUAL_KEY,JSON.stringify(u));}catch{} }} />
+            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={handleReportMonthChange} />
           </div>
         </div>
 
@@ -1784,7 +1794,7 @@ function CORView() {
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">{corKPIs.activeCount} {t.cor_active_services}</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={(v: string) => { const u={...manualData,reportMonth:v}; setManualData(u); try{localStorage.setItem(COR_MANUAL_KEY,JSON.stringify(u));}catch{} }} />
+            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={handleReportMonthChange} />
           </div>
         </div>
       </div>

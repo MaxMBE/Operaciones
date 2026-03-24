@@ -1,8 +1,11 @@
 "use client";
 
 import { FileDown } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
-export function PrintButton({ label = "Exportar PDF", asMenuItem = false }: { label?: string; asMenuItem?: boolean }) {
+export function PrintButton({ label, asMenuItem = false }: { label?: string; asMenuItem?: boolean }) {
+  const t = useT();
+  const btnLabel = label ?? t.action_export_pdf;
   if (asMenuItem) {
     return (
       <button
@@ -10,7 +13,7 @@ export function PrintButton({ label = "Exportar PDF", asMenuItem = false }: { la
         onClick={() => window.print()}
       >
         <FileDown className="w-3.5 h-3.5 text-indigo-500" />
-        {label}
+        {btnLabel}
       </button>
     );
   }
@@ -20,7 +23,7 @@ export function PrintButton({ label = "Exportar PDF", asMenuItem = false }: { la
       onClick={() => window.print()}
     >
       <FileDown className="w-3.5 h-3.5" />
-      {label}
+      {btnLabel}
     </button>
   );
 }
