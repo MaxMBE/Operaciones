@@ -2119,8 +2119,23 @@ function CORView() {
                       <td className="px-3 py-2 text-center text-muted-foreground whitespace-nowrap">
                         {p.startDate ? new Date(p.startDate).toLocaleDateString(lang === "en" ? "en-US" : "es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}
                       </td>
-                      <td className="px-3 py-2 text-center text-muted-foreground whitespace-nowrap">
-                        {p.endDate ? new Date(p.endDate).toLocaleDateString(lang === "en" ? "en-US" : "es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
+                        {(() => {
+                          if (!p.endDate) return <span className="text-muted-foreground">—</span>;
+                          const end = new Date(p.endDate);
+                          const now = new Date();
+                          const diffMs = end.getTime() - now.getTime();
+                          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                          const dot = diffDays < 0 ? null
+                            : diffDays <= 30  ? <span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-1 align-middle" title="Ends within 1 month" />
+                            : diffDays <= 60  ? <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1 align-middle" title="Ends within 2 months" />
+                            : <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1 align-middle" title="More than 2 months" />;
+                          const textColor = diffDays < 0 ? "text-muted-foreground"
+                            : diffDays <= 30 ? "text-red-600 font-semibold"
+                            : diffDays <= 60 ? "text-amber-600 font-semibold"
+                            : "text-muted-foreground";
+                          return <span className={textColor}>{dot}{end.toLocaleDateString(lang === "en" ? "en-US" : "es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"})}</span>;
+                        })()}
                       </td>
                       <td className="px-3 py-2 text-muted-foreground font-semibold tracking-wide">
                         {p.leader ? p.leader.split(" ").map((w: string) => w[0]?.toUpperCase()||"").join("") : "—"}
