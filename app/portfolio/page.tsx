@@ -1137,6 +1137,7 @@ function CORView() {
         const clearFields = {} as Partial<ProjectReport>;
         WEEKLY_CLEAR_FIELDS.forEach(f => { (clearFields as Record<string, string>)[f] = ""; });
         updateReport(p.id, clearFields);
+        updateProject(p.id, { shortComment: "" });
       });
       localStorage.setItem(WEEK_ANCHOR_KEY, currentMonday);
     }
