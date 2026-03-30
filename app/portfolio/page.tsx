@@ -1122,27 +1122,29 @@ function CORView() {
   }, []);
 
   // Auto-limpiar campos semanales al inicio de nueva semana (lunes)
-  const WEEK_ANCHOR_KEY = "cor_week_anchor";
+  // Detecta nueva semana comparando el último snapshot con el lunes actual
   const WEEKLY_CLEAR_FIELDS: Array<keyof ProjectReport> = [
     "achievements", "currentIssues", "actionsInProgress",
     "nextSteps", "marginImprovement", "keyRisks", "mitigation",
   ];
+  const weekClearedRef = useRef(false);
   useEffect(() => {
-    if (isDefaultData || liveProjects.length === 0) return;
+    if (isDefaultData || liveProjects.length === 0 || snapshots.length === 0) return;
+    if (weekClearedRef.current) return;
     const currentMonday = getLastMonday();
-    const stored = localStorage.getItem(WEEK_ANCHOR_KEY);
-    if (stored !== currentMonday) {
-      // Nueva semana — limpiar campos de todos los proyectos
+    const latestSnapshotDate = snapshots[0]?.snapshot_date ?? "";
+    // Si el snapshot más reciente es de una semana anterior → nueva semana, limpiar
+    if (latestSnapshotDate < currentMonday) {
+      weekClearedRef.current = true;
       liveProjects.forEach(p => {
         const clearFields = {} as Partial<ProjectReport>;
         WEEKLY_CLEAR_FIELDS.forEach(f => { (clearFields as Record<string, string>)[f] = ""; });
         updateReport(p.id, clearFields);
         updateProject(p.id, { shortComment: "" });
       });
-      localStorage.setItem(WEEK_ANCHOR_KEY, currentMonday);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveProjects.length, isDefaultData]);
+  }, [snapshots.length, liveProjects.length, isDefaultData]);
 
   // Auto-snapshot: cuando se carga un CSV (cualquier día) o cada lunes
   // Se dispara cuando cambian los proyectos o la lista de snapshots
@@ -1177,21 +1179,10 @@ function CORView() {
   }, [snapshots.length, liveProjects.length, isDefaultData]);
 
   // Al cambiar snapshot seleccionado, cargar datos completos
-  // "live" con snapshot de esta semana disponible → carga ese snapshot (son equivalentes)
+  // "live" siempre muestra datos en tiempo real (nunca carga snapshot)
   useEffect(() => {
     if (activeSnapshotId === "live") {
-      const currentWeekDate = getLastMonday();
-      const thisWeekSnap = snapshots.find(s => s.snapshot_date === currentWeekDate);
-      if (thisWeekSnap) {
-        setSnapshotLoading(true);
-        fetch(`/api/snapshots/${thisWeekSnap.id}`)
-          .then(r => r.json())
-          .then((d: SnapshotFull) => setSnapshotData(d))
-          .catch(() => setSnapshotData(null))
-          .finally(() => setSnapshotLoading(false));
-      } else {
-        setSnapshotData(null);
-      }
+      setSnapshotData(null);
       return;
     }
     setSnapshotLoading(true);
