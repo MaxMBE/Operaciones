@@ -1134,8 +1134,8 @@ function CORView() {
     if (stored !== currentMonday) {
       // Nueva semana — limpiar campos de todos los proyectos
       liveProjects.forEach(p => {
-        const clearFields: Partial<ProjectReport> = {};
-        WEEKLY_CLEAR_FIELDS.forEach(f => { clearFields[f] = ""; });
+        const clearFields = {} as Partial<ProjectReport>;
+        WEEKLY_CLEAR_FIELDS.forEach(f => { (clearFields as Record<string, string>)[f] = ""; });
         updateReport(p.id, clearFields);
       });
       localStorage.setItem(WEEK_ANCHOR_KEY, currentMonday);
