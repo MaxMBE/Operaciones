@@ -1312,13 +1312,14 @@ function CORView() {
   const managerOpts = useMemo(() => [...new Set(projects.map(p => p.manager).filter(Boolean))].sort() as string[], [projects]);
   const typeOpts    = useMemo(() => [...new Set(projects.map(p => p.serviceType).filter(Boolean))].sort() as string[], [projects]);
 
-  const weatherStatusOpts = [
-    { value: "G",    label: "🟢 Verde"     },
-    { value: "A",    label: "🟡 Amarillo"  },
-    { value: "R",    label: "🔴 Rojo"      },
-    { value: "grey", label: "⚪ Sin dato"  },
-    { value: "done", label: "✅ Terminado" },
-  ];
+  const weatherStatusOpts = useMemo(() => [
+    { value: "G",    label: `☀️ ${WEATHER.G.label}`    },
+    { value: "A",    label: `⛅ ${WEATHER.A.label}`    },
+    { value: "R",    label: `⛈️ ${WEATHER.R.label}`   },
+    { value: "B",    label: `🌤️ ${WEATHER.B.label}`   },
+    { value: "grey", label: `☁️ ${WEATHER.grey.label}` },
+    { value: "done", label: `✅ ${WEATHER.done.label}` },
+  ], [WEATHER]);
 
   const filteredProjects = useMemo(() => {
     const filtered = projects.filter(p => {
