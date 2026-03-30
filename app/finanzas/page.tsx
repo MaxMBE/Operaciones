@@ -439,9 +439,9 @@ function TabCaRMO({ onDataChange }: { onDataChange?: (d: CarmoExportData | null)
         UF {lang==="en"?MESES_EN[MESES.indexOf(mes)]:mes} {anio}: <strong>${fmt(uf)}</strong>
       </div>
 
-      <Sec>Recurso</Sec>
+      <Sec>{lang==="en" ? "Resource" : "Recurso"}</Sec>
       <div style={{display:"flex",gap:8,marginBottom:14}}>
-        {([["colaborador","Colaborador SII"],["perfil","Perfil Genérico"],["manual","Manual"]] as const).map(([v,l])=>(
+        {([["colaborador", lang==="en"?"SII Employee":"Colaborador SII"],["perfil", lang==="en"?"Generic Profile":"Perfil Genérico"],["manual","Manual"]] as [string,string][]).map(([v,l])=>(
           <button key={v} onClick={()=>{setTipo(v);setRutSel("");setPerfilSel("");setBusq("");}}
             style={{...S.btn,...(tipo===v?S.btnA:{})}}>{l}</button>
         ))}
@@ -449,8 +449,8 @@ function TabCaRMO({ onDataChange }: { onDataChange?: (d: CarmoExportData | null)
 
       {tipo==="colaborador"&&(
         <div style={{position:"relative"}}>
-          <label style={S.label}>Buscar colaborador (nombre o RUT)</label>
-          <input style={S.input} placeholder="Ej: Bastian Rozas o 16.879..."
+          <label style={S.label}>{lang==="en" ? "Search employee (name or ID)" : "Buscar colaborador (nombre o RUT)"}</label>
+          <input style={S.input} placeholder={lang==="en" ? "e.g.: Bastian Rozas or 16.879..." : "Ej: Bastian Rozas o 16.879..."}
             value={colab?colab.nombre:busq}
             onChange={e=>{setBusq(e.target.value);setRutSel("");}}/>
           {filtColabs.length>0&&!rutSel&&(
@@ -468,27 +468,27 @@ function TabCaRMO({ onDataChange }: { onDataChange?: (d: CarmoExportData | null)
             </div>
           )}
           {colab&&<button onClick={()=>{setRutSel("");setBusq("");}}
-            style={{fontSize:11,color:"#c62828",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}>✕ Limpiar</button>}
+            style={{fontSize:11,color:"#c62828",background:"none",border:"none",cursor:"pointer",padding:"4px 0"}}>✕ {lang==="en"?"Clear":"Limpiar"}</button>}
         </div>
       )}
 
       {tipo==="perfil"&&(
-        <div><label style={S.label}>Perfil genérico</label>
+        <div><label style={S.label}>{lang==="en" ? "Generic profile" : "Perfil genérico"}</label>
           <select style={S.input} value={perfilSel} onChange={e=>setPerfilSel(e.target.value)}>
-            <option value="">-- Seleccionar perfil --</option>
+            <option value="">{lang==="en" ? "-- Select profile --" : "-- Seleccionar perfil --"}</option>
             {PERFILES.map(p=><option key={p.perfil} value={p.perfil}>{p.perfil}</option>)}
           </select></div>
       )}
 
       {tipo==="manual"&&(
-        <div><label style={S.label}>Líquido mensual acordado (CLP)</label>
+        <div><label style={S.label}>{lang==="en" ? "Agreed monthly net salary (CLP)" : "Líquido mensual acordado (CLP)"}</label>
           <input style={S.input} type="number" step="50000"
             value={liqManual} onChange={e=>setLiqManual(+e.target.value)}/>
           <div style={{fontSize:11,color:"#666",marginTop:4}}>
-            CE estimado: ${fmt(costoEmpresaMes)}</div></div>
+            {lang==="en"?"Est. CE":"CE estimado"}: ${fmt(costoEmpresaMes)}</div></div>
       )}
 
-      <Sec>Margen objetivo</Sec>
+      <Sec>{lang==="en" ? "Target Margin" : "Margen objetivo"}</Sec>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
         {[0.34,0.32,0.30,0.28,0.25,0.20].map(m=>{
           const col=semaforoMargen(m);
@@ -499,26 +499,26 @@ function TabCaRMO({ onDataChange }: { onDataChange?: (d: CarmoExportData | null)
 
       {result&&costoEmpresaMes>0&&mc&&(
         <>
-          <Sec>Resultado CaRMO</Sec>
+          <Sec>{lang==="en" ? "Pricing Result" : "Resultado CaRMO"}</Sec>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
-            <MC label="Costo empresa / mes" value={`$${fmt(costoEmpresaMes)}`}/>
-            <MC label="Costo c/ vac.+fnq" value={`$${fmt(result.costoConFnq)}`}
+            <MC label={lang==="en"?"Company cost / month":"Costo empresa / mes"} value={`$${fmt(costoEmpresaMes)}`}/>
+            <MC label={lang==="en"?"Cost w/ leave+social":"Costo c/ vac.+fnq"} value={`$${fmt(result.costoConFnq)}`}
               sub={`ratio ${((RATIO_VAC*(1+INT_COSTOS_FNQ)-1)*100).toFixed(1)}%`}/>
-            <MC label="Tarifa mínima día" value={`UF ${fmtUF(result.pvDiaUF)}`}
-              sub={`$${fmt(result.pvDiaUF*uf)}/día`}/>
-            <MC label="Tarifa mínima mes" value={`UF ${fmtUF(result.pvMesUF)}`}
+            <MC label={lang==="en"?"Minimum daily rate":"Tarifa mínima día"} value={`UF ${fmtUF(result.pvDiaUF)}`}
+              sub={`$${fmt(result.pvDiaUF*uf)}/${lang==="en"?"day":"día"}`}/>
+            <MC label={lang==="en"?"Minimum monthly rate":"Tarifa mínima mes"} value={`UF ${fmtUF(result.pvMesUF)}`}
               sub={`$${fmt(result.pvMesCLP)}`}/>
           </div>
           <div style={{background:mc.bg,borderRadius:8,padding:"10px 14px",marginBottom:16,
             display:"flex",alignItems:"center",gap:10}}>
             <Badge color={mc}>{mc.label}</Badge>
             <span style={{fontSize:13,color:mc.text}}>
-              Margen {fmtPct(margenObj)} · mínimo <strong>UF {fmtUF(result.pvDiaUF)}/día</strong>
+              {lang==="en"?"Margin":"Margen"} {fmtPct(margenObj)} · {lang==="en"?"minimum":"mínimo"} <strong>UF {fmtUF(result.pvDiaUF)}/{lang==="en"?"day":"día"}</strong>
             </span>
           </div>
 
-          <Sec>Verificar tarifa negociada</Sec>
-          <div><label style={S.label}>Tarifa acordada con cliente (UF/día)</label>
+          <Sec>{lang==="en" ? "Check Negotiated Rate" : "Verificar tarifa negociada"}</Sec>
+          <div><label style={S.label}>{lang==="en" ? "Agreed rate with client (UF/day)" : "Tarifa acordada con cliente (UF/día)"}</label>
             <input style={{...S.input,maxWidth:200}} type="number" step="0.5"
               placeholder={`Mín: ${fmtUF(result.pvDiaUF)}`}
               value={tarifaNeg} onChange={e=>setTarifaNeg(e.target.value)}/></div>
@@ -527,7 +527,7 @@ function TabCaRMO({ onDataChange }: { onDataChange?: (d: CarmoExportData | null)
               padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
               <Badge color={mcN}>{mcN.label}</Badge>
               <span style={{fontSize:13,color:mcN.text}}>
-                Margen real: <strong>{fmtPct(mgnNeg)}</strong>
+                {lang==="en"?"Actual margin:":"Margen real:"} <strong>{fmtPct(mgnNeg)}</strong>
               </span>
             </div>
           )}
@@ -556,6 +556,7 @@ interface LineaRecurso {
 interface OtroCosto { id: number; desc: string; meses: number; costoMes: number; }
 
 function LineaPricing({linea,upL,rmL}: {linea:LineaRecurso;upL:(id:number,f:string,v:string|number)=>void;rmL:(id:number)=>void}) {
+  const { lang } = useLang();
   const filtColabs = useMemo(()=>linea.busq.length<2?[]:COLABORADORES.filter(c=>
     c.nombre.toLowerCase().includes(linea.busq.toLowerCase())||c.rut.includes(linea.busq)).slice(0,7),[linea.busq]);
 
@@ -567,7 +568,7 @@ function LineaPricing({linea,upL,rmL}: {linea:LineaRecurso;upL:(id:number,f:stri
       <div style={{display:"grid",gridTemplateColumns:"2.5fr 90px 80px 90px 36px",gap:8,alignItems:"end"}}>
         <div style={{position:"relative"}}>
           <div style={{display:"flex",gap:4,marginBottom:4}}>
-            {([["colaborador","Colab."],["perfil","Perfil"],["freelance","Honorarios"]] as const).map(([v,l])=>(
+            {([["colaborador", lang==="en"?"Empl.":"Colab."],["perfil","Profile"],["freelance", lang==="en"?"Freelance":"Honorarios"]] as [string,string][]).map(([v,l])=>(
               <button key={v} onClick={()=>upL(linea.id,"tipo",v)}
                 style={{fontSize:10,padding:"2px 6px",borderRadius:4,border:"0.5px solid",cursor:"pointer",
                   background:linea.tipo===v?"#e3f2fd":"transparent",
@@ -578,7 +579,7 @@ function LineaPricing({linea,upL,rmL}: {linea:LineaRecurso;upL:(id:number,f:stri
 
           {linea.tipo==="colaborador"&&(
             <>
-              <input style={{...S.input,fontSize:12}} placeholder="Buscar por nombre o RUT..."
+              <input style={{...S.input,fontSize:12}} placeholder={lang==="en"?"Search by name or ID...":"Buscar por nombre o RUT..."}
                 value={linea.rut?linea.nombre:linea.busq}
                 onChange={e=>{upL(linea.id,"busq",e.target.value);upL(linea.id,"rut","");
                   upL(linea.id,"nombre","");upL(linea.id,"costoDiario",0);upL(linea.id,"costoEmpresaMes",0);}}/>
@@ -596,7 +597,7 @@ function LineaPricing({linea,upL,rmL}: {linea:LineaRecurso;upL:(id:number,f:stri
                       }}>
                       <div style={{fontWeight:500}}>{c.nombre}</div>
                       <div style={{fontSize:10,color:"#666"}}>
-                        Diario IFS: ${fmt(c.costoDiario)} · CE/mes: ${fmt(c.costoEmpresaMes)}
+                        {lang==="en"?"IFS Daily":"Diario IFS"}: ${fmt(c.costoDiario)} · CE/{lang==="en"?"month":"mes"}: ${fmt(c.costoEmpresaMes)}
                       </div>
                     </div>
                   ))}
@@ -611,17 +612,17 @@ function LineaPricing({linea,upL,rmL}: {linea:LineaRecurso;upL:(id:number,f:stri
                 upL(linea.id,"nombre",e.target.value);
                 upL(linea.id,"costoDiario",p?p.costoDiario:0);
                 upL(linea.id,"costoEmpresaMes",p?p.costoEmpresaMes:0);}}>
-              <option value="">-- Perfil --</option>
+              <option value="">{lang==="en"?"-- Profile --":"-- Perfil --"}</option>
               {PERFILES.map(p=><option key={p.perfil} value={p.perfil}>{p.perfil}</option>)}
             </select>
           )}
 
           {linea.tipo==="freelance"&&(
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-              <input style={{...S.input,fontSize:12}} placeholder="Nombre"
+              <input style={{...S.input,fontSize:12}} placeholder={lang==="en"?"Name":"Nombre"}
                 value={linea.nombre} onChange={e=>upL(linea.id,"nombre",e.target.value)}/>
               <input style={{...S.input,fontSize:12}} type="number" step="50000"
-                placeholder="Líquido/mes"
+                placeholder={lang==="en"?"Net/month":"Líquido/mes"}
                 onChange={e=>{
                   const liq=parseFloat(e.target.value)||0;
                   upL(linea.id,"costoDiario",Math.round(liq*1.145/DIAS_MES));
@@ -631,19 +632,19 @@ function LineaPricing({linea,upL,rmL}: {linea:LineaRecurso;upL:(id:number,f:stri
           )}
         </div>
 
-        <div><label style={{...S.label,fontSize:10}}>Periodo</label>
+        <div><label style={{...S.label,fontSize:10}}>{lang==="en"?"Period":"Periodo"}</label>
           <select style={{...S.input,fontSize:12}} value={linea.tipoPeriodo}
             onChange={e=>upL(linea.id,"tipoPeriodo",e.target.value)}>
-            <option>Meses</option><option>Días</option></select></div>
+            <option value="Meses">{lang==="en"?"Months":"Meses"}</option><option value="Días">{lang==="en"?"Days":"Días"}</option></select></div>
 
-        <div><label style={{...S.label,fontSize:10}}>Cant.</label>
+        <div><label style={{...S.label,fontSize:10}}>{lang==="en"?"Qty.":"Cant."}</label>
           <input style={{...S.input,fontSize:12}} type="number" min="0.5" step="0.5"
             value={linea.cantidad} onChange={e=>upL(linea.id,"cantidad",+e.target.value)}/></div>
 
-        <div><label style={{...S.label,fontSize:10}}>% Asig.</label>
+        <div><label style={{...S.label,fontSize:10}}>{lang==="en"?"% Alloc.":"% Asig."}</label>
           <select style={{...S.input,fontSize:12}} value={linea.pct}
             onChange={e=>upL(linea.id,"pct",+e.target.value)}>
-            {[1,0.75,0.5,0.25].map(p=><option key={p} value={p}>{p*100}%</option>)}
+            {[1,0.75,0.5,0.25,0.20].map(p=><option key={p} value={p}>{p*100}%</option>)}
           </select></div>
 
         <button onClick={()=>rmL(linea.id)} style={{...S.btnD,alignSelf:"end"}}>✕</button>
@@ -651,8 +652,8 @@ function LineaPricing({linea,upL,rmL}: {linea:LineaRecurso;upL:(id:number,f:stri
 
       {costoLinea>0&&(
         <div style={{marginTop:6,fontSize:11,color:"#666"}}>
-          Costo línea: <strong>${fmt(costoLinea)}</strong>
-          {linea.costoDiario>0&&<span style={{marginLeft:8}}>· Diario: ${fmt(linea.costoDiario)}</span>}
+          {lang==="en"?"Line cost":"Costo línea"}: <strong>${fmt(costoLinea)}</strong>
+          {linea.costoDiario>0&&<span style={{marginLeft:8}}>· {lang==="en"?"Daily":"Diario"}: ${fmt(linea.costoDiario)}</span>}
         </div>
       )}
     </div>
@@ -760,88 +761,88 @@ function TabPricing({ onDataChange }: { onDataChange?: (d: CarmoExportData | nul
 
   return (
     <div>
-      <Sec>Datos del proyecto</Sec>
+      <Sec>{lang==="en"?"Project Data":"Datos del proyecto"}</Sec>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <div><label style={S.label}>Nombre proyecto</label>
+        <div><label style={S.label}>{lang==="en"?"Project name":"Nombre proyecto"}</label>
           <input style={S.input} value={proyecto} onChange={e=>setProyecto(e.target.value)}
-            placeholder="Ej: Elecnor – Migración"/></div>
-        <div><label style={S.label}>Cliente</label>
+            placeholder={lang==="en"?"e.g.: Elecnor – Migration":"Ej: Elecnor – Migración"}/></div>
+        <div><label style={S.label}>{lang==="en"?"Client":"Cliente"}</label>
           <input style={S.input} value={cliente} onChange={e=>setCliente(e.target.value)}
-            placeholder="Ej: Elecnor Chile"/></div>
-        <div><label style={S.label}>Service start month</label>
+            placeholder={lang==="en"?"e.g.: Elecnor Chile":"Ej: Elecnor Chile"}/></div>
+        <div><label style={S.label}>{lang==="en"?"Service start month":"Mes inicio servicio"}</label>
           <select style={S.input} value={mes} onChange={e=>setMes(e.target.value)}>
             {MESES.map((m,i)=><option key={m} value={m}>{lang==="en"?MESES_EN[i]:m}</option>)}</select></div>
-        <div><label style={S.label}>Año</label>
+        <div><label style={S.label}>{lang==="en"?"Year":"Año"}</label>
           <select style={S.input} value={anio} onChange={e=>setAnio(+e.target.value)}>
             {ANIOS.map(a=><option key={a}>{a}</option>)}</select></div>
-        <div><label style={S.label}>Duración (meses)</label>
+        <div><label style={S.label}>{lang==="en"?"Duration (months)":"Duración (meses)"}</label>
           <input style={S.input} type="number" min="1" value={mesesProy}
             onChange={e=>setMesesProy(+e.target.value)}/></div>
-        <div><label style={S.label}>Margen objetivo</label>
+        <div><label style={S.label}>{lang==="en"?"Target margin":"Margen objetivo"}</label>
           <select style={S.input} value={margenObj} onChange={e=>setMargenObj(+e.target.value)}>
             {[0.34,0.32,0.30,0.28,0.25,0.20].map(m=>(
               <option key={m} value={m}>{fmtPct(m)} {m<0.25?"⛔":m<0.30?"⚠️":m<0.34?"~":"✓"}</option>
             ))}</select></div>
       </div>
       <div style={{fontSize:12,color:"#666",marginTop:6}}>
-        UF {mes} {anio}: <strong>${fmt(uf)}</strong>
+        UF {lang==="en"?MESES_EN[MESES.indexOf(mes)]:mes} {anio}: <strong>${fmt(uf)}</strong>
       </div>
 
-      <Sec>(1a) Colaboradores SII Group Chile</Sec>
+      <Sec>{lang==="en"?"(1a) SII Group Chile Employees":"(1a) Colaboradores SII Group Chile"}</Sec>
       <div style={{display:"grid",gap:8}}>
         <div style={{display:"grid",gridTemplateColumns:"2.5fr 90px 80px 90px 36px",gap:8,
           fontSize:10,color:"#666",padding:"0 2px"}}>
-          <span>Colaborador</span><span>Periodo</span><span>Cant.</span><span>% Asig.</span><span/>
+          <span>{lang==="en"?"Employee":"Colaborador"}</span><span>{lang==="en"?"Period":"Periodo"}</span><span>{lang==="en"?"Qty.":"Cant."}</span><span>{lang==="en"?"% Alloc.":"% Asig."}</span><span/>
         </div>
         {lineas.map(l=><LineaPricing key={l.id} linea={l} upL={upL} rmL={rmL}/>)}
       </div>
-      <button onClick={addL} style={{...S.btn,fontSize:12,marginTop:8}}>+ Agregar recurso</button>
+      <button onClick={addL} style={{...S.btn,fontSize:12,marginTop:8}}>+ {lang==="en"?"Add resource":"Agregar recurso"}</button>
 
-      <Sec>(2) Otros costos</Sec>
+      <Sec>{lang==="en"?"(2) Other Costs":"(2) Otros costos"}</Sec>
       {otros.map(o=>(
         <div key={o.id} style={{display:"grid",gridTemplateColumns:"2fr 80px 1fr 36px",gap:8,alignItems:"end",marginBottom:8}}>
-          <div><label style={S.label}>Descripción</label>
+          <div><label style={S.label}>{lang==="en"?"Description":"Descripción"}</label>
             <input style={S.input} value={o.desc} onChange={e=>upO(o.id,"desc",e.target.value)} placeholder="Claude, AWS…"/></div>
-          <div><label style={S.label}>Meses</label>
+          <div><label style={S.label}>{lang==="en"?"Months":"Meses"}</label>
             <input style={S.input} type="number" min="1" value={o.meses} onChange={e=>upO(o.id,"meses",+e.target.value)}/></div>
-          <div><label style={S.label}>Costo/mes (CLP)</label>
+          <div><label style={S.label}>{lang==="en"?"Cost/month (CLP)":"Costo/mes (CLP)"}</label>
             <input style={S.input} type="number" step="10000" value={o.costoMes} onChange={e=>upO(o.id,"costoMes",+e.target.value)}/></div>
           <button onClick={()=>rmO(o.id)} style={{...S.btnD,alignSelf:"end"}}>✕</button>
         </div>
       ))}
-      <button onClick={addO} style={{...S.btn,fontSize:12}}>+ Agregar costo</button>
+      <button onClick={addO} style={{...S.btn,fontSize:12}}>+ {lang==="en"?"Add cost":"Agregar costo"}</button>
 
       {costoTotal>0&&(
         <>
-          <Sec>Resumen financiero</Sec>
+          <Sec>{lang==="en"?"Financial Summary":"Resumen financiero"}</Sec>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
-            <MC label="Costo total (1)+(2)" value={`$${fmt(costoTotal)}`}
-              sub={`Recursos: $${fmt(costoRec)} · Otros: $${fmt(costoOtros)}`}/>
-            <MC label="Margen objetivo" value={fmtPct(margenObj)}
-              sub={`Margen = (PV - Costo) / PV`}/>
-            <MC label="Tarifa total neta (UF)" value={`UF ${fmtUF(pvUF)}`}
+            <MC label={lang==="en"?"Total cost (1)+(2)":"Costo total (1)+(2)"} value={`$${fmt(costoTotal)}`}
+              sub={`${lang==="en"?"Resources":"Recursos"}: $${fmt(costoRec)} · ${lang==="en"?"Other":"Otros"}: $${fmt(costoOtros)}`}/>
+            <MC label={lang==="en"?"Target margin":"Margen objetivo"} value={fmtPct(margenObj)}
+              sub={lang==="en"?"Margin = (Price - Cost) / Price":"Margen = (PV - Costo) / PV"}/>
+            <MC label={lang==="en"?"Total net rate (UF)":"Tarifa total neta (UF)"} value={`UF ${fmtUF(pvUF)}`}
               sub={`$${fmt(pvCLP)}`}/>
-            <MC label="Tarifa mensual neta" value={`UF ${fmtUF(pvMesUF)}`}
-              sub={`con IVA: UF ${fmtUF(pvMesUF*1.19)} · ${mesesProy} mes(es)`}/>
+            <MC label={lang==="en"?"Monthly net rate":"Tarifa mensual neta"} value={`UF ${fmtUF(pvMesUF)}`}
+              sub={`${lang==="en"?"w/ VAT":"con IVA"}: UF ${fmtUF(pvMesUF*1.19)} · ${mesesProy} ${lang==="en"?"month(s)":"mes(es)"}`}/>
           </div>
           <div style={{background:mc.bg,borderRadius:8,padding:"12px 16px",marginBottom:12}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
               <Badge color={mc}>{mc.label}</Badge>
-              <span style={{fontSize:14,fontWeight:500,color:mc.text}}>Margen objetivo {fmtPct(margenObj)}</span>
+              <span style={{fontSize:14,fontWeight:500,color:mc.text}}>{lang==="en"?"Target margin":"Margen objetivo"} {fmtPct(margenObj)}</span>
             </div>
             <div style={{fontSize:13,color:mc.text}}>
-              Tarifa proyecto: <strong>UF {fmtUF(pvUF)} neto</strong> · <strong>UF {fmtUF(pvUF*1.19)} con IVA</strong>
+              {lang==="en"?"Project rate:":"Tarifa proyecto:"} <strong>UF {fmtUF(pvUF)} {lang==="en"?"net":"neto"}</strong> · <strong>UF {fmtUF(pvUF*1.19)} {lang==="en"?"w/ VAT":"con IVA"}</strong>
             </div>
             {margenObj<0.25&&<div style={{fontSize:12,fontWeight:700,color:"#b71c1c",marginTop:6}}>
-              ⛔ PROHIBIDO – GM &lt;25%: acción inmediata
+              ⛔ {lang==="en"?"FORBIDDEN – GM <25%: immediate action":"PROHIBIDO – GM <25%: acción inmediata"}
             </div>}
           </div>
           <div style={{fontSize:12,borderTop:"0.5px solid #e0e0e0",paddingTop:10}}>
             {[
-              ["Costo recursos",costoRec],
-              ["Otros costos",costoOtros],
-              [`Margen ${fmtPct(margenObj)}`,pvCLP-costoTotal],
-            ].map(([l,v])=>(
+              [lang==="en"?"Resource cost":"Costo recursos",costoRec],
+              [lang==="en"?"Other costs":"Otros costos",costoOtros],
+              [`${lang==="en"?"Margin":"Margen"} ${fmtPct(margenObj)}`,pvCLP-costoTotal],
+            ].map(([l,v])=>( // eslint-disable-line
               <div key={String(l)} style={{display:"flex",justifyContent:"space-between",
                 marginBottom:3,color:"#666"}}>
                 <span>{l}</span><span>${fmt(Number(v))}</span>
@@ -849,28 +850,28 @@ function TabPricing({ onDataChange }: { onDataChange?: (d: CarmoExportData | nul
             ))}
             <div style={{display:"flex",justifyContent:"space-between",fontWeight:600,
               borderTop:"0.5px solid #e0e0e0",paddingTop:4,marginTop:4}}>
-              <span>PV total neto</span><span>UF {fmtUF(pvUF)} / ${fmt(pvCLP)}</span>
+              <span>{lang==="en"?"Total net price":"PV total neto"}</span><span>UF {fmtUF(pvUF)} / ${fmt(pvCLP)}</span>
             </div>
           </div>
 
-          <Sec>Calculadora Margen</Sec>
+          <Sec>{lang==="en"?"Margin Calculator":"Calculadora Margen"}</Sec>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,alignItems:"start"}}>
             <div>
-              <label style={S.label}>Ingresar tarifa manual (UF total)</label>
+              <label style={S.label}>{lang==="en"?"Enter manual rate (total UF)":"Ingresar tarifa manual (UF total)"}</label>
               <input style={{...S.input,maxWidth:200}} type="number" step="1"
-                placeholder={`Sugerida: ${fmtUF(pvUF)}`}
+                placeholder={`${lang==="en"?"Suggested":"Sugerida"}: ${fmtUF(pvUF)}`}
                 value={tarifaNeg} onChange={e=>setTarifaNeg(e.target.value)}/>
               {tarifaNegUF>0&&<div style={{fontSize:11,color:"#666",marginTop:4}}>
-                Tarifa (CLP): ${fmt(tarifaNegUF*uf)}
+                {lang==="en"?"Rate (CLP)":"Tarifa (CLP)"}: ${fmt(tarifaNegUF*uf)}
               </div>}
             </div>
             {mcNeg&&margenNeg!==null&&(
               <div style={{background:mcNeg.bg,borderRadius:8,padding:"12px 14px"}}>
-                <div style={{fontSize:11,color:mcNeg.text,marginBottom:4}}>Margen obtenido</div>
+                <div style={{fontSize:11,color:mcNeg.text,marginBottom:4}}>{lang==="en"?"Obtained margin":"Margen obtenido"}</div>
                 <div style={{fontSize:22,fontWeight:600,color:mcNeg.text}}>{fmtPct(margenNeg)}</div>
                 <Badge color={mcNeg}>{mcNeg.label}</Badge>
                 {margenNeg<0.25&&<div style={{fontSize:11,fontWeight:700,color:"#b71c1c",marginTop:4}}>
-                  ⛔ Margen &lt;25%: debe aprobación Country Manager
+                  ⛔ {lang==="en"?"Margin <25%: requires Country Manager approval":"Margen <25%: debe aprobación Country Manager"}
                 </div>}
               </div>
             )}
@@ -936,31 +937,33 @@ function TabEscenarios({ onDataChange }: { onDataChange?: (d: CarmoExportData | 
 
   return (
     <div>
-      <Sec>Configuración</Sec>
+      <Sec>{lang==="en"?"Configuration":"Configuración"}</Sec>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:12}}>
-        <div><label style={S.label}>UF Month</label>
+        <div><label style={S.label}>{lang==="en"?"UF Month":"Mes UF"}</label>
           <select style={S.input} value={mes} onChange={e=>setMes(e.target.value)}>
             {MESES.map((m,i)=><option key={m} value={m}>{lang==="en"?MESES_EN[i]:m}</option>)}</select></div>
-        <div><label style={S.label}>Año</label>
+        <div><label style={S.label}>{lang==="en"?"Year":"Año"}</label>
           <select style={S.input} value={anio} onChange={e=>setAnio(+e.target.value)}>
             {ANIOS.map(a=><option key={a}>{a}</option>)}</select></div>
-        <div><label style={S.label}>Margen fijo</label>
+        <div><label style={S.label}>{lang==="en"?"Fixed margin":"Margen fijo"}</label>
           <select style={S.input} value={margenF} onChange={e=>setMargenF(+e.target.value)}>
             {[0.34,0.32,0.30,0.28,0.25,0.20].map(m=><option key={m} value={m}>{fmtPct(m)}</option>)}</select></div>
-        <div><label style={S.label}>Líquido mínimo</label>
+        <div><label style={S.label}>{lang==="en"?"Minimum net salary":"Líquido mínimo"}</label>
           <input style={S.input} type="number" step="100000" value={liqMin} onChange={e=>setLiqMin(+e.target.value)}/></div>
-        <div><label style={S.label}>Líquido máximo</label>
+        <div><label style={S.label}>{lang==="en"?"Maximum net salary":"Líquido máximo"}</label>
           <input style={S.input} type="number" step="100000" value={liqMax} onChange={e=>setLiqMax(+e.target.value)}/></div>
-        <div><label style={S.label}>Paso</label>
+        <div><label style={S.label}>{lang==="en"?"Step":"Paso"}</label>
           <input style={S.input} type="number" step="50000" value={paso} onChange={e=>setPaso(+e.target.value)}/></div>
       </div>
       <div style={{fontSize:12,color:"#666",marginBottom:14}}>
-        UF {mes} {anio}: <strong>${fmt(uf)}</strong> · {escenarios.length} filas · <Badge color={mc}>{mc.label}</Badge>
+        UF {lang==="en"?MESES_EN[MESES.indexOf(mes)]:mes} {anio}: <strong>${fmt(uf)}</strong> · {escenarios.length} {lang==="en"?"rows":"filas"} · <Badge color={mc}>{mc.label}</Badge>
       </div>
       <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
           <thead><tr style={{borderBottom:"0.5px solid #ccc"}}>
-            {["Líquido","CE/mes","CE c/vac+fnq","Tarifa día (UF)","Tarifa mes (UF)","PV mes (CLP)"].map(h=>(
+            {(lang==="en"
+              ? ["Net Salary","CE/month","CE w/leave+social","Daily Rate (UF)","Monthly Rate (UF)","Monthly Price (CLP)"]
+              : ["Líquido","CE/mes","CE c/vac+fnq","Tarifa día (UF)","Tarifa mes (UF)","PV mes (CLP)"]).map(h=>(
               <th key={h} style={{textAlign:"left",padding:"6px 8px",color:"#666",fontWeight:500}}>{h}</th>
             ))}</tr></thead>
           <tbody>{escenarios.map((e,i)=>(
@@ -981,6 +984,7 @@ function TabEscenarios({ onDataChange }: { onDataChange?: (d: CarmoExportData | 
 
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function FinanzasPage() {
+  const { lang } = useLang();
   const [tab,setTab]=useState("carmo");
   const [exportData,setExportData]=useState<CarmoExportData|null>(null);
   const [menuOpen,setMenuOpen]=useState(false);
@@ -988,7 +992,12 @@ export default function FinanzasPage() {
   const menuRef=useRef<HTMLDivElement>(null);
   const reportRef=useRef<HTMLDivElement>(null);
 
-  const TABS=[{id:"carmo",label:"CaRMO Individual"},{id:"pricing",label:"Pricing Proyecto"},{id:"esc",label:"Simulador"},{id:"imputaciones",label:"Imputaciones"}];
+  const TABS=[
+    {id:"carmo",    label: lang==="en" ? "Pricing Individual" : "CaRMO Individual"},
+    {id:"pricing",  label: lang==="en" ? "Project Pricing"    : "Pricing Proyecto"},
+    {id:"esc",      label: lang==="en" ? "Simulator"          : "Simulador"},
+    {id:"imputaciones", label: lang==="en" ? "Timesheets"     : "Imputaciones"},
+  ];
 
   const handleDataChange=useCallback((d:CarmoExportData|null)=>setExportData(d),[]);
 
@@ -1053,8 +1062,8 @@ export default function FinanzasPage() {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20,flexWrap:"wrap",gap:12}}>
         <div>
           <div style={{fontSize:11,fontWeight:500,color:"#666",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:3}}>SII Group Chile</div>
-          <h2 style={{fontSize:22,fontWeight:500,margin:"0 0 3px"}}>CaRMO – Calculadora de Rentabilidad</h2>
-          <p style={{fontSize:13,color:"#666",margin:0}}>{COLABORADORES.length} colaboradores · {PERFILES.length} perfiles · GM mínima 34%</p>
+          <h2 style={{fontSize:22,fontWeight:500,margin:"0 0 3px"}}>{lang==="en" ? "Pricing – Profitability Calculator" : "CaRMO – Calculadora de Rentabilidad"}</h2>
+          <p style={{fontSize:13,color:"#666",margin:0}}>{COLABORADORES.length} {lang==="en"?"employees":"colaboradores"} · {PERFILES.length} {lang==="en"?"profiles":"perfiles"} · {lang==="en"?"min GM":"GM mínima"} 34%</p>
         </div>
 
         {/* Export button */}
@@ -1064,7 +1073,7 @@ export default function FinanzasPage() {
             disabled={!exportData || exporting || tab==="imputaciones"}
             className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            {exporting ? "Exportando…" : "Exportar"}
+            {exporting ? (lang==="en"?"Exporting…":"Exportando…") : (lang==="en"?"Export":"Exportar")}
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
           {menuOpen && exportData && (
@@ -1074,12 +1083,12 @@ export default function FinanzasPage() {
               <button onClick={handleExportWord}
                 className="w-full flex items-center gap-2 px-4 py-2.5 text-[12px] text-gray-700 hover:bg-gray-50 transition-colors">
                 <FileText className="w-3.5 h-3.5 text-blue-600" />
-                Exportar Word (.docx)
+                {lang==="en" ? "Export Word (.docx)" : "Exportar Word (.docx)"}
               </button>
               <button onClick={handleExportPDF}
                 className="w-full flex items-center gap-2 px-4 py-2.5 text-[12px] text-gray-700 hover:bg-gray-50 transition-colors">
                 <FileSpreadsheet className="w-3.5 h-3.5 text-red-500" />
-                Exportar PDF
+                {lang==="en" ? "Export PDF" : "Exportar PDF"}
               </button>
             </div>
           )}
@@ -1122,13 +1131,13 @@ function CarmoReportPrint({ data }: { data: CarmoExportData | null }) {
             <div style={{fontSize:10,fontWeight:600,color:"#4F46E5",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4}}>
               SII Group Chile · Operaciones
             </div>
-            <div style={{fontSize:24,fontWeight:600,color:"#111"}}>CaRMO – Calculadora de Rentabilidad</div>
+            <div style={{fontSize:24,fontWeight:600,color:"#111"}}>Pricing – Profitability Calculator</div>
             <div style={{fontSize:14,fontWeight:500,color:"#4F46E5",marginTop:4}}>{data.tabLabel}</div>
             {data.titulo&&<div style={{fontSize:13,color:"#374151",marginTop:2}}>{data.titulo}</div>}
           </div>
           <img src="/sii-logo.png" alt="SII Group" style={{height:56,objectFit:"contain",opacity:0.9}}/>
         </div>
-        <div style={{fontSize:11,color:"#6B7280",marginTop:12}}>Fecha: {data.fecha}</div>
+        <div style={{fontSize:11,color:"#6B7280",marginTop:12}}>Date: {data.fecha}</div>
       </div>
 
       {/* Secciones */}

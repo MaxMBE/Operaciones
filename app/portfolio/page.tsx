@@ -24,21 +24,20 @@ interface SnapshotMeta { id: string; snapshot_date: string; week_label: string; 
 interface SnapshotFull extends SnapshotMeta { projects: Project[]; report_data: Record<string, ProjectReport>; cor_manual: CORManual | null; }
 
 // ── Helpers de fecha para snapshots ──────────────────────────────────────────
-function getLastTuesday(from = new Date()): string {
+function getLastMonday(from = new Date()): string {
   const d = new Date(from);
-  // day 0=Dom, 1=Lun, 2=Mar ... 6=Sab
+  // day 0=Dom, 1=Lun ... 6=Sab
   const day = d.getDay();
-  const diff = day >= 2 ? day - 2 : day + 5; // días hacia atrás hasta el martes
+  const diff = day === 0 ? 6 : day - 1; // días hacia atrás hasta el lunes
   d.setDate(d.getDate() - diff);
-  // Usar fecha local para evitar desfase de zona horaria (no usar toISOString que es UTC)
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${dd}`;
 }
 
-function isTuesdayToday(): boolean {
-  return new Date().getDay() === 2;
+function isMondayToday(): boolean {
+  return new Date().getDay() === 1;
 }
 
 function formatWeekLabel(isoDate: string): string {
@@ -1112,7 +1111,7 @@ function CORView() {
   // Datos activos: live o snapshot
   const projects    = snapshotData ? snapshotData.projects    : liveProjects;
   const reportData  = snapshotData ? snapshotData.report_data : liveReportData;
-  const isHistorical = activeSnapshotId !== "live" && snapshots.some(s => s.id === activeSnapshotId && s.snapshot_date !== getLastTuesday());
+  const isHistorical = activeSnapshotId !== "live" && snapshots.some(s => s.id === activeSnapshotId && s.snapshot_date !== getLastMonday());
 
   // Cargar lista de snapshots al montar
   useEffect(() => {
@@ -1122,14 +1121,36 @@ function CORView() {
       .catch(() => {});
   }, []);
 
-  // Auto-snapshot: cuando se carga un CSV (cualquier día) o cada martes
+  // Auto-limpiar campos semanales al inicio de nueva semana (lunes)
+  const WEEK_ANCHOR_KEY = "cor_week_anchor";
+  const WEEKLY_CLEAR_FIELDS: Array<keyof ProjectReport> = [
+    "achievements", "currentIssues", "actionsInProgress",
+    "nextSteps", "marginImprovement", "keyRisks", "mitigation",
+  ];
+  useEffect(() => {
+    if (isDefaultData || liveProjects.length === 0) return;
+    const currentMonday = getLastMonday();
+    const stored = localStorage.getItem(WEEK_ANCHOR_KEY);
+    if (stored !== currentMonday) {
+      // Nueva semana — limpiar campos de todos los proyectos
+      liveProjects.forEach(p => {
+        const clearFields: Partial<ProjectReport> = {};
+        WEEKLY_CLEAR_FIELDS.forEach(f => { clearFields[f] = ""; });
+        updateReport(p.id, clearFields);
+      });
+      localStorage.setItem(WEEK_ANCHOR_KEY, currentMonday);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveProjects.length, isDefaultData]);
+
+  // Auto-snapshot: cuando se carga un CSV (cualquier día) o cada lunes
   // Se dispara cuando cambian los proyectos o la lista de snapshots
   const prevProjectsLenRef = useRef(0);
   useEffect(() => {
     if (isDefaultData || liveProjects.length === 0) return;
-    const todayDate = getLastTuesday();
+    const todayDate = getLastMonday();
     const alreadyExists = snapshots.some(s => s.snapshot_date === todayDate);
-    // Crear snapshot si: es martes sin snapshot, O si se cargó un CSV nuevo (proyectos cambiaron)
+    // Crear snapshot si: es lunes sin snapshot, O si se cargó un CSV nuevo (proyectos cambiaron)
     const csvJustLoaded = liveProjects.length !== prevProjectsLenRef.current;
     prevProjectsLenRef.current = liveProjects.length;
     if (alreadyExists && !csvJustLoaded) return;
@@ -1158,7 +1179,7 @@ function CORView() {
   // "live" con snapshot de esta semana disponible → carga ese snapshot (son equivalentes)
   useEffect(() => {
     if (activeSnapshotId === "live") {
-      const currentWeekDate = getLastTuesday();
+      const currentWeekDate = getLastMonday();
       const thisWeekSnap = snapshots.find(s => s.snapshot_date === currentWeekDate);
       if (thisWeekSnap) {
         setSnapshotLoading(true);
@@ -1398,12 +1419,22 @@ function CORView() {
     return Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([name,value]) => ({ name, value, pct: total>0?Math.round(value/total*100):0 }));
   }, [projects]);
 
+  const translateSvcType = (s: string) => {
+    if (lang !== "en") return s;
+    const svcMap: Record<string, string> = {
+      "Soporte": "Support", "Otro": "Other", "Desarrollo": "Development",
+      "Consultoría": "Consulting", "Implementación": "Implementation",
+    };
+    return svcMap[s] || s;
+  };
+
   const modelDataCalc = useMemo(() => {
     const map: Record<string,number> = {};
-    projects.forEach(p => { const k = p.serviceType||"Otro"; map[k] = (map[k]||0)+(p.revenue||0); });
+    projects.forEach(p => { const k = translateSvcType(p.serviceType||"Otro"); map[k] = (map[k]||0)+(p.revenue||0); });
     const total = Object.values(map).reduce((s,v)=>s+v,0);
     return Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([name,value]) => ({ name, value, pct: total>0?Math.round(value/total*100):0 }));
-  }, [projects]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects, lang]);
 
   const marginBarDataCalc = useMemo(() =>
     [...projects].filter(p=>p.revenue>0)
