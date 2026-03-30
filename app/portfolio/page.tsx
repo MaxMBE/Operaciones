@@ -825,20 +825,20 @@ function ProjectDetailPanel({
       {confirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-indigo-100">
-            <h3 className="text-sm font-bold text-gray-800 mb-1">¿Confirmar cambios?</h3>
-            <p className="text-xs text-muted-foreground mb-5">Se guardarán todos los cambios realizados en <strong>{p.name}</strong>.</p>
+            <h3 className="text-sm font-bold text-gray-800 mb-1">{lang === "en" ? "Confirm changes?" : "¿Confirmar cambios?"}</h3>
+            <p className="text-xs text-muted-foreground mb-5">{lang === "en" ? <>All changes to <strong>{p.name}</strong> will be saved.</> : <>Se guardarán todos los cambios realizados en <strong>{p.name}</strong>.</>}</p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmOpen(false)}
                 className="px-4 py-2 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
               >
-                Cancelar
+                {lang === "en" ? "Cancel" : "Cancelar"}
               </button>
               <button
                 onClick={handleConfirmSave}
                 className="px-4 py-2 text-xs bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
               >
-                Confirmar y guardar
+                {lang === "en" ? "Confirm & save" : "Confirmar y guardar"}
               </button>
             </div>
           </div>
@@ -848,7 +848,7 @@ function ProjectDetailPanel({
       {/* ── Toast éxito ─────────────────────────────────────────────────── */}
       {saveSuccess && (
         <div className="fixed top-5 right-5 z-50 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-          <CheckCircle2 className="w-4 h-4" /> ¡Cambios guardados con éxito!
+          <CheckCircle2 className="w-4 h-4" /> {lang === "en" ? "Changes saved successfully!" : "¡Cambios guardados con éxito!"}
         </div>
       )}
     </div>
@@ -1717,20 +1717,20 @@ function CORView() {
       {confirmKPI && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-indigo-100">
-            <h3 className="text-sm font-bold text-gray-800 mb-1">¿Confirmar KPIs manuales?</h3>
-            <p className="text-xs text-muted-foreground mb-5">Se guardarán los valores de override del COR en Supabase.</p>
+            <h3 className="text-sm font-bold text-gray-800 mb-1">{lang === "en" ? "Confirm manual KPIs?" : "¿Confirmar KPIs manuales?"}</h3>
+            <p className="text-xs text-muted-foreground mb-5">{lang === "en" ? "COR override values will be saved to Supabase." : "Se guardarán los valores de override del COR en Supabase."}</p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmKPI(false)}
                 className="px-4 py-2 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
               >
-                Cancelar
+                {lang === "en" ? "Cancel" : "Cancelar"}
               </button>
               <button
                 onClick={handleConfirmKPI}
                 className="px-4 py-2 text-xs bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
               >
-                Confirmar y guardar
+                {lang === "en" ? "Confirm & save" : "Confirmar y guardar"}
               </button>
             </div>
           </div>
@@ -1740,7 +1740,7 @@ function CORView() {
       {/* ── Toast éxito KPIs ────────────────────────────────────────────── */}
       {kpiSuccess && (
         <div className="fixed top-5 right-5 z-50 bg-emerald-500 text-white px-5 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" /> ¡KPIs guardados con éxito!
+          <CheckCircle2 className="w-4 h-4" /> {lang === "en" ? "KPIs saved successfully!" : "¡KPIs guardados con éxito!"}
         </div>
       )}
 
