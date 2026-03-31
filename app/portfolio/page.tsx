@@ -2309,13 +2309,391 @@ function TransformationView() {
   );
 }
 
+// ── Financial KPI types ───────────────────────────────────────────────────────
+interface ActividadCatalogo { cliente: string; codigo: string; descripcion: string; }
+interface HeadcountEntry { nombre: string; dias: number; fte: number; costoDiario: number; costoMes: number; }
+interface ActividadMes { mes: string; produccion: number; costos: number; margen: number; diasActividad: number; uf: number; workingDays: number; tarifaUF: number; costoNorm: number; irm: string; cliente: string; headcount: HeadcountEntry[]; }
+
+// ── Financial KPI View ────────────────────────────────────────────────────────
+
+const FY_MESES = ["2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02"];
+const PROY_MES = "2026-03";
+const MES_LABEL: Record<string,string> = {
+  "2025-04":"Apr-25","2025-05":"May-25","2025-06":"Jun-25","2025-07":"Jul-25",
+  "2025-08":"Aug-25","2025-09":"Sep-25","2025-10":"Oct-25","2025-11":"Nov-25",
+  "2025-12":"Dec-25","2026-01":"Jan-26","2026-02":"Feb-26","2026-03":"Mar-26",
+};
+
+const margenBg   = (p: number) => p >= 0.34 ? "#1b5e20" : p >= 0.30 ? "#8bc34a" : p >= 0.25 ? "#fdd835" : p >= 0 ? "#f44336" : "#b71c1c";
+const margenTxt  = (p: number) => (p >= 0.25 && p < 0.30) ? "#333" : "#fff";
+const fmtPctSgn  = (p: number) => p === 0 ? "" : `${p>0?"+":""}${(p*100).toFixed(1)}%`;
+const fmtNum     = (n: number) => n === 0 ? "" : Math.abs(Math.round(n)).toLocaleString("es-CL");
+const fmtNeg     = (n: number) => n === 0 ? "" : `(${Math.abs(Math.round(n)).toLocaleString("es-CL")})`;
+
+function BuscadorActividad({ onSelect, selected, catalogo }: { onSelect: (a: ActividadCatalogo) => void; selected: ActividadCatalogo | null; catalogo: ActividadCatalogo[]; }) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const results = useMemo(() => {
+    if (q.length < 2) return [];
+    const lq = q.toLowerCase();
+    return catalogo.filter(a =>
+      a.codigo.toLowerCase().includes(lq) || a.descripcion.toLowerCase().includes(lq) || a.cliente.toLowerCase().includes(lq)
+    ).slice(0, 10);
+  }, [q, catalogo]);
+  return (
+    <div style={{position:"relative",maxWidth:640}}>
+      <input
+        className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-blue-500"
+        placeholder="Search by IFS code, client or description..."
+        value={selected && !q ? `${selected.codigo} — ${selected.descripcion}` : q}
+        onFocus={() => { setQ(""); setOpen(true); }}
+        onChange={e => { setQ(e.target.value); setOpen(true); }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && results.length > 0 && (
+        <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:500,
+          background:"#fff",border:"1px solid #e2e8f0",borderRadius:8,
+          maxHeight:300,overflowY:"auto",boxShadow:"0 4px 20px rgba(0,0,0,0.15)"}}>
+          {results.map(a => (
+            <div key={a.codigo} onMouseDown={() => { onSelect(a); setQ(""); setOpen(false); }}
+              style={{padding:"9px 14px",cursor:"pointer",
+                borderBottom:"0.5px solid #eee",
+                background:selected?.codigo===a.codigo?"#e3f2fd":"transparent"}}>
+              <div style={{fontFamily:"monospace",fontSize:12,fontWeight:700,color:"#1565c0"}}>{a.codigo}</div>
+              <div style={{fontSize:12,marginTop:1}}>{a.descripcion}</div>
+              <div style={{fontSize:11,color:"#666",marginTop:1}}>{a.cliente}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap }: {
+  actividad: ActividadCatalogo; proyTarifa: string; onProyChange: (v: string) => void;
+  actividadesMap: Record<string, ActividadMes[]>;
+}) {
+  const historico: ActividadMes[] = actividadesMap[actividad.codigo] || [];
+  const byMes: Record<string, ActividadMes> = {};
+  historico.forEach(m => { byMes[m.mes] = m; });
+
+  const refMes = byMes["2026-02"] || historico[historico.length - 1];
+  const proyUF    = parseFloat(proyTarifa) || 0;
+  const proyRef   = refMes?.uf || 39875;
+  const proyProd  = proyUF > 0 ? proyUF * proyRef : 0;
+  const proyCostoNorm = refMes?.costoNorm || 0;
+  const proyMargen = proyProd > 0 ? proyProd - proyCostoNorm : 0;
+  const proyPct    = proyProd > 0 ? proyMargen / proyProd : 0;
+
+  const conData = historico.filter(m => m.produccion !== 0 || m.costos !== 0);
+  const acProd  = conData.reduce((a, m) => a + m.produccion, 0);
+  const acCosto = conData.reduce((a, m) => a + m.costos, 0);
+  const acMgn   = conData.reduce((a, m) => a + m.margen, 0);
+  const acPct   = acProd > 0 ? acMgn / acProd : 0;
+
+  const consultoresOrden: string[] = [];
+  const seen = new Set<string>();
+  [...historico].reverse().forEach(m =>
+    m.headcount?.forEach(h => { if (!seen.has(h.nombre)) { seen.add(h.nombre); consultoresOrden.push(h.nombre); } })
+  );
+
+  const BG_HDR  = "#17375e";
+  const BG_REAL = "#2e6da4";
+  const BG_PROY = "#5b9bd5";
+  const BG_ACUM = "#17375e";
+  const BG_EMPTY= "#dce6f4";
+  const BG_HC   = "#1a3a5c";
+
+  const thS = (bg = BG_HDR): React.CSSProperties => ({padding:"5px 8px",fontSize:10,fontWeight:700,color:"#fff",
+    background:bg,border:"1px solid rgba(255,255,255,0.15)",whiteSpace:"nowrap",textAlign:"center"});
+  const tdS = (bg: string|null, bold: boolean, align: "right"|"center" = "right"): React.CSSProperties => ({
+    padding:"4px 8px",fontSize:11,fontWeight:bold?700:400,background:bg||"transparent",
+    textAlign:align,borderRight:"0.5px solid #ddd",borderBottom:"0.5px solid #ddd",
+    whiteSpace:"nowrap",color:"#111"});
+  const labelS: React.CSSProperties = {padding:"5px 10px",fontSize:11,fontWeight:500,
+    background:"#e8edf5",textAlign:"right",color:"#17375e",
+    borderRight:"1px solid #c5cfe0",borderBottom:"0.5px solid #ddd",
+    whiteSpace:"nowrap",minWidth:190};
+
+  const KPI_ROWS = [
+    {key:"uf",          label:"UF",                       bold:false},
+    {key:"workingDays", label:"Working Days",              bold:false},
+    {key:"produccion",  label:"Production (CLP)",          bold:false},
+    {key:"tarifaUF",    label:"Approx. Rate in UF (Net)",  bold:false},
+    {key:"costoNorm",   label:"Normalized Cost 20.75",     bold:false},
+    {key:"margen",      label:"Margin",                    bold:true},
+    {key:"margenPct",   label:"Margin %",                  bold:true},
+  ];
+
+  const renderCell = (mes: string, key: string) => {
+    const d = byMes[mes];
+    if (!d) return <td key={mes} style={{...tdS(BG_EMPTY,false)}}></td>;
+    let txt: React.ReactNode = "";
+    let bg: string|null = null;
+    let color = "#111";
+    let bold = false;
+    const pct = d.produccion > 0 ? d.margen / d.produccion : 0;
+
+    switch (key) {
+      case "uf":          txt = d.uf > 0 ? Math.round(d.uf).toLocaleString("es-CL") : ""; break;
+      case "workingDays": txt = d.workingDays > 0 ? `${d.workingDays.toFixed(1)}` : ""; break;
+      case "produccion":  txt = d.produccion !== 0 ? fmtNum(d.produccion) : ""; break;
+      case "tarifaUF":    txt = d.tarifaUF > 0 ? d.tarifaUF.toFixed(1) : ""; break;
+      case "costoNorm":   txt = d.costoNorm !== 0 ? fmtNeg(d.costoNorm) : ""; color = "#666"; break;
+      case "margen":
+        txt = d.margen !== 0 ? fmtNum(d.margen) : "";
+        color = d.margen >= 0 ? "#1b5e20" : "#b71c1c"; bold = true; break;
+      case "margenPct":
+        if (pct !== 0) {
+          txt = fmtPctSgn(pct);
+          bg = margenBg(pct); color = margenTxt(pct); bold = true;
+        }
+        break;
+    }
+    return <td key={mes} style={{...tdS(bg,bold,key==="margenPct"?"center":"right"),color}}>{txt}</td>;
+  };
+
+  return (
+    <div style={{overflowX:"auto"}}>
+      <table style={{borderCollapse:"collapse",fontSize:11,width:"100%"}}>
+        <thead>
+          <tr>
+            <th style={{...thS(),textAlign:"left",minWidth:190}} rowSpan={2}>KPI</th>
+            <th style={{...thS(BG_REAL)}} colSpan={FY_MESES.length}>Real FY 25-26</th>
+            <th style={{...thS(BG_PROY),minWidth:80}}>Projection FY 25-26</th>
+            <th style={{...thS(BG_ACUM)}} colSpan={2}>Accumulated</th>
+          </tr>
+          <tr>
+            {FY_MESES.map(m => <th key={m} style={{...thS(BG_HDR),fontSize:10}}>{MES_LABEL[m]}</th>)}
+            <th style={{...thS(BG_PROY),fontSize:10}}>{MES_LABEL[PROY_MES]}</th>
+            <th style={{...thS(BG_ACUM),fontSize:10}}>Real to {MES_LABEL["2026-01"]}</th>
+            <th style={{...thS(BG_ACUM),fontSize:10,background:"#ffc000",color:"#333"}}>Real + Proj.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {KPI_ROWS.map(row => (
+            <tr key={row.key}>
+              <td style={labelS}>{row.label}</td>
+              {FY_MESES.map(mes => renderCell(mes, row.key))}
+              {/* Projection column */}
+              <td style={{...tdS("#bdd7ee",false,row.key==="margenPct"?"center":"right")}}>
+                {row.key === "tarifaUF" ? (
+                  <input type="number" step="0.5" value={proyTarifa}
+                    onChange={e => onProyChange(e.target.value)}
+                    style={{width:58,border:"1px solid #2e75b6",borderRadius:3,
+                      padding:"1px 4px",fontSize:11,textAlign:"right",
+                      background:"#fff",color:"#1565c0",fontWeight:700}}/>
+                ) : row.key === "uf" ? Math.round(proyRef).toLocaleString("es-CL")
+                  : row.key === "workingDays" ? "22.0"
+                  : row.key === "produccion" ? (proyProd > 0 ? fmtNum(proyProd) : "")
+                  : row.key === "costoNorm"   ? (proyCostoNorm > 0 ? fmtNeg(proyCostoNorm) : "")
+                  : row.key === "margen" ? (
+                    proyMargen !== 0
+                      ? <span style={{color:proyMargen>=0?"#1b5e20":"#b71c1c",fontWeight:700}}>{fmtNum(proyMargen)}</span>
+                      : ""
+                  ) : row.key === "margenPct" ? (
+                    proyPct !== 0
+                      ? <span style={{padding:"1px 6px",borderRadius:3,
+                          background:margenBg(proyPct),color:margenTxt(proyPct),fontWeight:700}}>
+                          {fmtPctSgn(proyPct)}
+                        </span>
+                      : ""
+                  ) : ""}
+              </td>
+              {/* Accumulated real */}
+              <td style={{...tdS("#f0f0f0",row.bold,row.key==="margenPct"?"center":"right")}}>
+                {row.key==="produccion" ? fmtNum(acProd)
+                 :row.key==="costoNorm" ? fmtNeg(acCosto)
+                 :row.key==="margen"    ? <span style={{color:acMgn>=0?"#1b5e20":"#b71c1c",fontWeight:700}}>{fmtNum(acMgn)}</span>
+                 :row.key==="margenPct" ? <span style={{padding:"1px 6px",borderRadius:3,fontWeight:700,
+                   background:margenBg(acPct),color:margenTxt(acPct)}}>{fmtPctSgn(acPct)}</span>
+                 : ""}
+              </td>
+              {/* Accumulated real + projection */}
+              <td style={{...tdS(row.key==="margenPct"?margenBg(acPct):"#ffc000",row.bold,row.key==="margenPct"?"center":"right"),
+                color:row.key==="margenPct"?margenTxt(acPct):"#333"}}>
+                {row.key==="produccion" ? fmtNum(acProd+proyProd)
+                 :row.key==="costoNorm" ? fmtNeg(acCosto)
+                 :row.key==="margen"    ? <span style={{fontWeight:700}}>{fmtNum(acMgn+proyMargen)}</span>
+                 :row.key==="margenPct" ? <span style={{fontWeight:700}}>{fmtPctSgn(acPct)}</span>
+                 : ""}
+              </td>
+            </tr>
+          ))}
+
+          {/* Separator */}
+          <tr><td colSpan={FY_MESES.length+4} style={{height:6,background:"#f0f0f0"}}/></tr>
+
+          {/* Headcount header row */}
+          <tr>
+            <td style={{...labelS,background:BG_HC,color:"#fff",textAlign:"center",fontWeight:700}}>Headcount</td>
+            {FY_MESES.map(mes => {
+              const d = byMes[mes];
+              const n = d?.headcount?.length || 0;
+              return <td key={mes} style={{...tdS(BG_HC,true),color:"#fff",textAlign:"center"}}>{n}</td>;
+            })}
+            <td style={{...tdS(BG_PROY,true),color:"#fff",textAlign:"center"}}>{refMes?.headcount?.length||0}</td>
+            <td colSpan={2} style={{background:BG_HC,borderBottom:"0.5px solid #ddd"}}/>
+          </tr>
+
+          {/* FTE row */}
+          <tr>
+            <td style={{...labelS,background:BG_HC,color:"#fff",textAlign:"center",fontWeight:700}}>FTE</td>
+            {FY_MESES.map(mes => {
+              const d = byMes[mes];
+              const fte = d?.headcount?.reduce((a,h)=>a+h.fte,0)||0;
+              return <td key={mes} style={{...tdS(BG_HC,false),color:"#fff",textAlign:"center"}}>{fte>0?fte.toFixed(1):"0.0"}</td>;
+            })}
+            <td style={{...tdS(BG_PROY,false),color:"#fff",textAlign:"center"}}>
+              {(refMes?.headcount?.reduce((a,h)=>a+h.fte,0)||0).toFixed(1)}
+            </td>
+            <td colSpan={2} style={{background:BG_HC,borderBottom:"0.5px solid #ddd"}}/>
+          </tr>
+
+          {/* Consultant rows */}
+          {consultoresOrden.map((nombre, idx) => (
+            <tr key={nombre} style={{background:idx%2===0?"#f5f7fa":"transparent"}}>
+              <td style={{padding:"4px 10px 4px 16px",fontSize:11,
+                borderRight:"1px solid #ddd",borderBottom:"0.5px solid #eee",
+                whiteSpace:"nowrap",color:"#111"}}>
+                {nombre}
+              </td>
+              {FY_MESES.map(mes => {
+                const d = byMes[mes];
+                const hc = d?.headcount?.find(h=>h.nombre===nombre);
+                return (
+                  <td key={mes} style={{padding:"4px 8px",fontSize:11,textAlign:"center",
+                    borderRight:"0.5px solid #ddd",borderBottom:"0.5px solid #eee",
+                    background:!d?BG_EMPTY:"transparent",
+                    color:hc&&hc.dias>0?"#1565c0":"#bbb",
+                    fontWeight:hc&&hc.dias>0?700:400}}>
+                    {hc ? hc.dias : (d ? "0" : "")}
+                  </td>
+                );
+              })}
+              <td style={{padding:"4px 8px",fontSize:11,textAlign:"center",
+                background:"#bdd7ee",borderRight:"0.5px solid #ddd",borderBottom:"0.5px solid #eee",
+                color:"#888"}}>—</td>
+              <td colSpan={2}/>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function FinancialKPIView() {
+  const [actSel, setActSel]         = useState<ActividadCatalogo | null>(null);
+  const [proyTarifa, setProyTarifa] = useState("");
+  const [catalogo, setCatalogo]     = useState<ActividadCatalogo[]>([]);
+  const [actMap, setActMap]         = useState<Record<string, ActividadMes[]>>({});
+  const [loading, setLoading]       = useState(true);
+
+  useEffect(() => {
+    fetch("/actividades-data.json")
+      .then(r => r.json())
+      .then(d => {
+        setCatalogo(d.CATALOGO_ACTIVIDADES || []);
+        setActMap(d.ACTIVIDADES_FULL || {});
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const historico: ActividadMes[] = actSel ? (actMap[actSel.codigo] || []) : [];
+  const ultimo = historico[historico.length - 1];
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="bg-white rounded-xl border border-border p-5">
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">SII Group Chile</div>
+        <h2 className="text-xl font-medium text-foreground mb-1">Activity Detail & Calculator</h2>
+        <p className="text-sm text-muted-foreground">
+          {loading ? "Loading..." : `${catalogo.length} activities · FY 2025-2026 · Margin spreadsheet replica`}
+        </p>
+      </div>
+
+      {/* Search */}
+      <div className="bg-white rounded-xl border border-border p-5">
+        <div className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Activity</div>
+        <BuscadorActividad onSelect={a => { setActSel(a); setProyTarifa(""); }} selected={actSel} catalogo={catalogo} />
+        {actSel && (
+          <button className="mt-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => setActSel(null)}>
+            × Clear
+          </button>
+        )}
+      </div>
+
+      {!actSel ? (
+        <div className="bg-white rounded-xl border border-border p-12 text-center">
+          <p className="text-sm text-muted-foreground mb-4">
+            {loading ? "Loading activity data..." : "Select an activity to view monthly KPIs with headcount and projection"}
+          </p>
+          {!loading && (
+            <div className="flex gap-2 justify-center flex-wrap">
+              {catalogo.slice(0, 6).map(a => (
+                <button key={a.codigo}
+                  onClick={() => setActSel(a)}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted/40 transition-colors">
+                  {a.codigo.slice(-10)} · {a.cliente.slice(0, 22)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-border overflow-hidden">
+          {/* Activity header */}
+          <div style={{background:"#17375e",color:"#fff",padding:"12px 18px",
+            display:"flex",gap:24,alignItems:"center",flexWrap:"wrap"}}>
+            <div>
+              <div style={{fontSize:9,opacity:0.65,textTransform:"uppercase",letterSpacing:"0.06em"}}>IFS Code</div>
+              <div style={{fontFamily:"monospace",fontSize:13,fontWeight:700}}>{actSel.codigo}</div>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:11,opacity:0.7}}>{actSel.cliente}</div>
+              <div style={{fontSize:14,fontWeight:500,marginTop:2}}>{actSel.descripcion}</div>
+            </div>
+            {ultimo && (
+              <div style={{fontSize:11,opacity:0.75,textAlign:"right"}}>
+                <div>IRM: {ultimo.irm}</div>
+                <div>Last: {MES_LABEL[ultimo.mes] || ultimo.mes}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Projection notice */}
+          <div style={{background:"#fff3cd",borderBottom:"0.5px solid #ffc107",
+            padding:"6px 14px",fontSize:11,color:"#856404"}}>
+            ⚡ Column <strong>{MES_LABEL[PROY_MES]}</strong> — enter UF rate to project next month&apos;s margin.
+          </div>
+
+          {historico.length === 0 ? (
+            <div className="p-10 text-center text-sm text-muted-foreground">
+              No FY 2025-2026 data available for this activity.
+            </div>
+          ) : (
+            <div className="p-4">
+              <TablaActividad actividad={actSel} proyTarifa={proyTarifa} onProyChange={setProyTarifa} actividadesMap={actMap} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PortfolioPage() {
   const { projects } = useData();
   const t = useT();
   const { lang } = useLang();
-  const [activeTab, setActiveTab] = useState<"cor" | "transformation">("cor");
+  const [activeTab, setActiveTab] = useState<"cor" | "transformation" | "financial-kpi">("cor");
 
   const today = new Date().toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { day: "2-digit", month: "long", year: "numeric" });
 
@@ -2324,7 +2702,7 @@ export default function PortfolioPage() {
 
       {/* ── Tab Navigation ──────────────────────────────────────────────── */}
       <div className="flex items-center gap-1 border-b border-border">
-        {(["cor","transformation"] as const).map(tab => (
+        {(["cor","transformation","financial-kpi"] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -2334,7 +2712,7 @@ export default function PortfolioPage() {
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
             }`}
           >
-            {tab==="cor" ? "COR" : "Transformation"}
+            {tab==="cor" ? "COR" : tab==="transformation" ? "Transformation" : "Financial KPI"}
           </button>
         ))}
       </div>
@@ -2344,6 +2722,9 @@ export default function PortfolioPage() {
 
       {/* ── Transformation Tab ───────────────────────────────────────────── */}
       {activeTab === "transformation" && <TransformationView />}
+
+      {/* ── Financial KPI Tab ────────────────────────────────────────────── */}
+      {activeTab === "financial-kpi" && <FinancialKPIView />}
 
     </div>
   );
