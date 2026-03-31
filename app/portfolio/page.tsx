@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { formatCurrency, formatClpToUsd } from "@/lib/utils";
 import { PrintButton } from "@/components/print-button";
+import CareerPathTab from "@/components/career-path-tab";
 import { PrintHeader } from "@/components/print-header";
 import { MultiFilter } from "@/components/multi-filter";
 import { CsvUploadMenuItems } from "@/components/csv-upload-menu-items";
@@ -2693,7 +2694,7 @@ export default function PortfolioPage() {
   const { projects } = useData();
   const t = useT();
   const { lang } = useLang();
-  const [activeTab, setActiveTab] = useState<"cor" | "transformation" | "financial-kpi">("cor");
+  const [activeTab, setActiveTab] = useState<"cor" | "transformation" | "financial-kpi" | "career-path">("cor");
 
   const today = new Date().toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { day: "2-digit", month: "long", year: "numeric" });
 
@@ -2702,7 +2703,7 @@ export default function PortfolioPage() {
 
       {/* ── Tab Navigation ──────────────────────────────────────────────── */}
       <div className="flex items-center gap-1 border-b border-border">
-        {(["cor","transformation","financial-kpi"] as const).map(tab => (
+        {(["cor","transformation","financial-kpi","career-path"] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -2712,7 +2713,7 @@ export default function PortfolioPage() {
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
             }`}
           >
-            {tab==="cor" ? "COR" : tab==="transformation" ? "Transformation" : "Financial KPI"}
+            {tab==="cor" ? "COR" : tab==="transformation" ? "Transformation" : tab==="financial-kpi" ? "Financial KPI" : "Career Path"}
           </button>
         ))}
       </div>
@@ -2725,6 +2726,9 @@ export default function PortfolioPage() {
 
       {/* ── Financial KPI Tab ────────────────────────────────────────────── */}
       {activeTab === "financial-kpi" && <FinancialKPIView />}
+
+      {/* ── Career Path Tab ──────────────────────────────────────────────── */}
+      {activeTab === "career-path" && <CareerPathTab />}
 
     </div>
   );
