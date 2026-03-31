@@ -2371,11 +2371,67 @@ function BuscadorActividad({ onSelect, selected, catalogo }: { onSelect: (a: Act
   );
 }
 
-function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap }: {
+// ── Inline consultant search for edit mode ────────────────────────────────────
+function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
+  allConsultants: Array<{nombre: string; costoDiario: number}>;
+  existingNames: string[];
+  onAdd: (nombre: string, costoDiario: number) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const results = useMemo(() => {
+    if (q.length < 2) return [];
+    const lq = q.toLowerCase();
+    return allConsultants
+      .filter(c => !existingNames.includes(c.nombre) && c.nombre.toLowerCase().includes(lq))
+      .slice(0, 8);
+  }, [q, allConsultants, existingNames]);
+  return (
+    <div style={{ position:"relative", display:"inline-block" }}>
+      <input
+        value={q}
+        onChange={e => { setQ(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder="Search consultant to add..."
+        style={{ width:280, border:"1px solid #2e75b6", borderRadius:4, padding:"4px 8px",
+          fontSize:11, background:"#fff", color:"#1565c0" }}
+      />
+      {open && results.length > 0 && (
+        <div style={{ position:"absolute", top:"100%", left:0, zIndex:600, background:"#fff",
+          border:"1px solid #ccc", borderRadius:6, maxHeight:200, overflowY:"auto",
+          boxShadow:"0 4px 12px rgba(0,0,0,0.12)", minWidth:340 }}>
+          {results.map(c => (
+            <div key={c.nombre} onMouseDown={() => { onAdd(c.nombre, c.costoDiario); setQ(""); setOpen(false); }}
+              style={{ padding:"7px 12px", cursor:"pointer", borderBottom:"0.5px solid #eee",
+                fontSize:11, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <span>{c.nombre}</span>
+              <span style={{ fontSize:10, color:"#888", marginLeft:8 }}>
+                ${Math.round(c.costoDiario).toLocaleString("es-CL")}/day
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap,
+  editMode = false, editRows = [], allConsultants = [],
+  onChangeProduccion, onChangeDias, onAddConsultant, onRemoveConsultant,
+}: {
   actividad: ActividadCatalogo; proyTarifa: string; onProyChange: (v: string) => void;
   actividadesMap: Record<string, ActividadMes[]>;
+  editMode?: boolean;
+  editRows?: ActividadMes[];
+  allConsultants?: Array<{nombre: string; costoDiario: number}>;
+  onChangeProduccion?: (mes: string, val: number) => void;
+  onChangeDias?: (mes: string, nombre: string, dias: number) => void;
+  onAddConsultant?: (nombre: string, costoDiario: number) => void;
+  onRemoveConsultant?: (nombre: string) => void;
 }) {
-  const historico: ActividadMes[] = actividadesMap[actividad.codigo] || [];
+  const historico: ActividadMes[] = editMode ? editRows : (actividadesMap[actividad.codigo] || []);
   const byMes: Record<string, ActividadMes> = {};
   historico.forEach(m => { byMes[m.mes] = m; });
 
@@ -2405,6 +2461,7 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap }:
   const BG_ACUM = "#17375e";
   const BG_EMPTY= "#dce6f4";
   const BG_HC   = "#1a3a5c";
+  const EDIT_BG = "#fffde7";
 
   const thS = (bg = BG_HDR): React.CSSProperties => ({padding:"5px 8px",fontSize:10,fontWeight:700,color:"#fff",
     background:bg,border:"1px solid rgba(255,255,255,0.15)",whiteSpace:"nowrap",textAlign:"center"});
@@ -2416,11 +2473,13 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap }:
     background:"#e8edf5",textAlign:"right",color:"#17375e",
     borderRight:"1px solid #c5cfe0",borderBottom:"0.5px solid #ddd",
     whiteSpace:"nowrap",minWidth:190};
+  const inputS: React.CSSProperties = {border:"1px solid #2e75b6",borderRadius:3,
+    padding:"1px 4px",fontSize:11,textAlign:"right",background:"#fff",color:"#1565c0",fontWeight:600};
 
   const KPI_ROWS = [
     {key:"uf",          label:"UF",                       bold:false},
     {key:"workingDays", label:"Working Days",              bold:false},
-    {key:"produccion",  label:"Production (CLP)",          bold:false},
+    {key:"produccion",  label:"Production (CLP)",          bold:false, editable:true},
     {key:"tarifaUF",    label:"Approx. Rate in UF (Net)",  bold:false},
     {key:"costoNorm",   label:"Normalized Cost 20.75",     bold:false},
     {key:"margen",      label:"Margin",                    bold:true},
@@ -2430,11 +2489,22 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap }:
   const renderCell = (mes: string, key: string) => {
     const d = byMes[mes];
     if (!d) return <td key={mes} style={{...tdS(BG_EMPTY,false)}}></td>;
+    const pct = d.produccion > 0 ? d.margen / d.produccion : 0;
+
+    if (editMode && key === "produccion" && onChangeProduccion) {
+      return (
+        <td key={mes} style={{...tdS(EDIT_BG, false), padding:"2px 4px"}}>
+          <input type="number" value={d.produccion || ""}
+            onChange={e => onChangeProduccion(mes, Number(e.target.value))}
+            style={{...inputS, width:88}} />
+        </td>
+      );
+    }
+
     let txt: React.ReactNode = "";
     let bg: string|null = null;
     let color = "#111";
     let bold = false;
-    const pct = d.produccion > 0 ? d.margen / d.produccion : 0;
 
     switch (key) {
       case "uf":          txt = d.uf > 0 ? Math.round(d.uf).toLocaleString("es-CL") : ""; break;
@@ -2446,10 +2516,7 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap }:
         txt = d.margen !== 0 ? fmtNum(d.margen) : "";
         color = d.margen >= 0 ? "#1b5e20" : "#b71c1c"; bold = true; break;
       case "margenPct":
-        if (pct !== 0) {
-          txt = fmtPctSgn(pct);
-          bg = margenBg(pct); color = margenTxt(pct); bold = true;
-        }
+        if (pct !== 0) { txt = fmtPctSgn(pct); bg = margenBg(pct); color = margenTxt(pct); bold = true; }
         break;
     }
     return <td key={mes} style={{...tdS(bg,bold,key==="margenPct"?"center":"right"),color}}>{txt}</td>;
@@ -2475,43 +2542,27 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap }:
         <tbody>
           {KPI_ROWS.map(row => (
             <tr key={row.key}>
-              <td style={labelS}>{row.label}</td>
+              <td style={labelS}>{row.label}{editMode && row.editable && <span style={{marginLeft:4,fontSize:9,color:"#2e75b6",fontWeight:700}}>✎</span>}</td>
               {FY_MESES.map(mes => renderCell(mes, row.key))}
-              {/* Projection column */}
               <td style={{...tdS("#bdd7ee",false,row.key==="margenPct"?"center":"right")}}>
                 {row.key === "tarifaUF" ? (
-                  <input type="number" step="0.5" value={proyTarifa}
-                    onChange={e => onProyChange(e.target.value)}
-                    style={{width:58,border:"1px solid #2e75b6",borderRadius:3,
-                      padding:"1px 4px",fontSize:11,textAlign:"right",
-                      background:"#fff",color:"#1565c0",fontWeight:700}}/>
+                  <input type="number" step="0.5" value={proyTarifa} onChange={e => onProyChange(e.target.value)}
+                    style={{...inputS,width:58}}/>
                 ) : row.key === "uf" ? Math.round(proyRef).toLocaleString("es-CL")
                   : row.key === "workingDays" ? "22.0"
                   : row.key === "produccion" ? (proyProd > 0 ? fmtNum(proyProd) : "")
                   : row.key === "costoNorm"   ? (proyCostoNorm > 0 ? fmtNeg(proyCostoNorm) : "")
-                  : row.key === "margen" ? (
-                    proyMargen !== 0
-                      ? <span style={{color:proyMargen>=0?"#1b5e20":"#b71c1c",fontWeight:700}}>{fmtNum(proyMargen)}</span>
-                      : ""
-                  ) : row.key === "margenPct" ? (
-                    proyPct !== 0
-                      ? <span style={{padding:"1px 6px",borderRadius:3,
-                          background:margenBg(proyPct),color:margenTxt(proyPct),fontWeight:700}}>
-                          {fmtPctSgn(proyPct)}
-                        </span>
-                      : ""
-                  ) : ""}
+                  : row.key === "margen" ? (proyMargen !== 0 ? <span style={{color:proyMargen>=0?"#1b5e20":"#b71c1c",fontWeight:700}}>{fmtNum(proyMargen)}</span> : "")
+                  : row.key === "margenPct" ? (proyPct !== 0 ? <span style={{padding:"1px 6px",borderRadius:3,background:margenBg(proyPct),color:margenTxt(proyPct),fontWeight:700}}>{fmtPctSgn(proyPct)}</span> : "")
+                  : ""}
               </td>
-              {/* Accumulated real */}
               <td style={{...tdS("#f0f0f0",row.bold,row.key==="margenPct"?"center":"right")}}>
                 {row.key==="produccion" ? fmtNum(acProd)
                  :row.key==="costoNorm" ? fmtNeg(acCosto)
                  :row.key==="margen"    ? <span style={{color:acMgn>=0?"#1b5e20":"#b71c1c",fontWeight:700}}>{fmtNum(acMgn)}</span>
-                 :row.key==="margenPct" ? <span style={{padding:"1px 6px",borderRadius:3,fontWeight:700,
-                   background:margenBg(acPct),color:margenTxt(acPct)}}>{fmtPctSgn(acPct)}</span>
+                 :row.key==="margenPct" ? <span style={{padding:"1px 6px",borderRadius:3,fontWeight:700,background:margenBg(acPct),color:margenTxt(acPct)}}>{fmtPctSgn(acPct)}</span>
                  : ""}
               </td>
-              {/* Accumulated real + projection */}
               <td style={{...tdS(row.key==="margenPct"?margenBg(acPct):"#ffc000",row.bold,row.key==="margenPct"?"center":"right"),
                 color:row.key==="margenPct"?margenTxt(acPct):"#333"}}>
                 {row.key==="produccion" ? fmtNum(acProd+proyProd)
@@ -2523,10 +2574,9 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap }:
             </tr>
           ))}
 
-          {/* Separator */}
           <tr><td colSpan={FY_MESES.length+4} style={{height:6,background:"#f0f0f0"}}/></tr>
 
-          {/* Headcount header row */}
+          {/* Headcount header */}
           <tr>
             <td style={{...labelS,background:BG_HC,color:"#fff",textAlign:"center",fontWeight:700}}>Headcount</td>
             {FY_MESES.map(mes => {
@@ -2555,14 +2605,31 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap }:
           {/* Consultant rows */}
           {consultoresOrden.map((nombre, idx) => (
             <tr key={nombre} style={{background:idx%2===0?"#f5f7fa":"transparent"}}>
-              <td style={{padding:"4px 10px 4px 16px",fontSize:11,
+              <td style={{padding:"4px 6px 4px 12px",fontSize:11,
                 borderRight:"1px solid #ddd",borderBottom:"0.5px solid #eee",
-                whiteSpace:"nowrap",color:"#111"}}>
-                {nombre}
+                whiteSpace:"nowrap",color:"#111",display:"flex",alignItems:"center",gap:4}}>
+                {editMode && onRemoveConsultant && (
+                  <button onClick={() => onRemoveConsultant(nombre)}
+                    style={{flexShrink:0,width:16,height:16,borderRadius:"50%",border:"none",
+                      background:"#fee2e2",color:"#dc2626",cursor:"pointer",fontSize:10,
+                      display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700}}>×</button>
+                )}
+                <span>{nombre}</span>
               </td>
               {FY_MESES.map(mes => {
                 const d = byMes[mes];
-                const hc = d?.headcount?.find(h=>h.nombre===nombre);
+                const hc = d?.headcount?.find(h => h.nombre === nombre);
+                if (editMode && d && onChangeDias) {
+                  return (
+                    <td key={mes} style={{padding:"2px 4px",borderRight:"0.5px solid #ddd",
+                      borderBottom:"0.5px solid #eee",background:EDIT_BG,textAlign:"center"}}>
+                      <input type="number" min={0} max={d.workingDays||23}
+                        value={hc ? hc.dias : 0}
+                        onChange={e => onChangeDias(mes, nombre, Number(e.target.value))}
+                        style={{...inputS, width:42, textAlign:"center"}} />
+                    </td>
+                  );
+                }
                 return (
                   <td key={mes} style={{padding:"4px 8px",fontSize:11,textAlign:"center",
                     borderRight:"0.5px solid #ddd",borderBottom:"0.5px solid #eee",
@@ -2579,6 +2646,20 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap }:
               <td colSpan={2}/>
             </tr>
           ))}
+
+          {/* Add consultant row (edit mode) */}
+          {editMode && onAddConsultant && (
+            <tr>
+              <td colSpan={FY_MESES.length+4} style={{padding:"8px 12px",background:"#f0f7ff",
+                borderTop:"1px dashed #2e75b6"}}>
+                <ConsultantPicker
+                  allConsultants={allConsultants}
+                  existingNames={consultoresOrden}
+                  onAdd={onAddConsultant}
+                />
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
@@ -2591,6 +2672,9 @@ function FinancialKPIView() {
   const [catalogo, setCatalogo]     = useState<ActividadCatalogo[]>([]);
   const [actMap, setActMap]         = useState<Record<string, ActividadMes[]>>({});
   const [loading, setLoading]       = useState(true);
+  const [editMode, setEditMode]     = useState(false);
+  const [editRows, setEditRows]     = useState<ActividadMes[]>([]);
+  const [allConsultants, setAllConsultants] = useState<Array<{nombre: string; costoDiario: number}>>([]);
 
   useEffect(() => {
     fetch("/actividades-data.json")
@@ -2598,13 +2682,74 @@ function FinancialKPIView() {
       .then(d => {
         setCatalogo(d.CATALOGO_ACTIVIDADES || []);
         setActMap(d.ACTIVIDADES_FULL || {});
+        // Extract all unique consultants
+        const consultMap = new Map<string, number>();
+        Object.values(d.ACTIVIDADES_FULL || {}).forEach((months) => {
+          (months as ActividadMes[]).forEach(m => {
+            m.headcount?.forEach(h => {
+              if (!consultMap.has(h.nombre) && h.costoDiario > 0) consultMap.set(h.nombre, h.costoDiario);
+            });
+          });
+        });
+        setAllConsultants([...consultMap.entries()]
+          .map(([nombre, costoDiario]) => ({ nombre, costoDiario }))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre)));
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
 
+  // Reset edit mode when activity changes
+  useEffect(() => { setEditMode(false); setEditRows([]); }, [actSel]);
+
   const historico: ActividadMes[] = actSel ? (actMap[actSel.codigo] || []) : [];
-  const ultimo = historico[historico.length - 1];
+  const displayRows = editMode ? editRows : historico;
+  const ultimo = displayRows[displayRows.length - 1];
+
+  function startEdit() {
+    setEditRows(JSON.parse(JSON.stringify(historico)));
+    setEditMode(true);
+  }
+  function cancelEdit() { setEditMode(false); setEditRows([]); }
+  function saveEdit() {
+    if (!actSel) return;
+    setActMap(prev => ({ ...prev, [actSel.codigo]: editRows }));
+    setEditMode(false);
+    setEditRows([]);
+  }
+  function handleChangeProduccion(mes: string, val: number) {
+    setEditRows(rows => rows.map(r => {
+      if (r.mes !== mes) return r;
+      const costoNorm = r.headcount.reduce((s, h) => s + h.costoMes, 0);
+      return { ...r, produccion: val, margen: val - costoNorm, costos: -costoNorm };
+    }));
+  }
+  function handleChangeDias(mes: string, nombre: string, dias: number) {
+    setEditRows(rows => rows.map(r => {
+      if (r.mes !== mes) return r;
+      const hc = r.headcount.map(h => {
+        if (h.nombre !== nombre) return h;
+        const costoMes = Math.round(dias * h.costoDiario);
+        const fte = r.workingDays > 0 ? parseFloat((dias / r.workingDays).toFixed(2)) : 0;
+        return { ...h, dias, costoMes, fte };
+      });
+      const costoNorm = hc.reduce((s, h) => s + h.costoMes, 0);
+      return { ...r, headcount: hc, costoNorm, margen: r.produccion - costoNorm, costos: -costoNorm };
+    }));
+  }
+  function handleAddConsultant(nombre: string, costoDiario: number) {
+    setEditRows(rows => rows.map(r => {
+      if (r.headcount.find(h => h.nombre === nombre)) return r;
+      return { ...r, headcount: [...r.headcount, { nombre, dias: 0, fte: 0, costoDiario, costoMes: 0 }] };
+    }));
+  }
+  function handleRemoveConsultant(nombre: string) {
+    setEditRows(rows => rows.map(r => {
+      const hc = r.headcount.filter(h => h.nombre !== nombre);
+      const costoNorm = hc.reduce((s, h) => s + h.costoMes, 0);
+      return { ...r, headcount: hc, costoNorm, margen: r.produccion - costoNorm, costos: -costoNorm };
+    }));
+  }
 
   return (
     <div className="space-y-4">
@@ -2623,9 +2768,7 @@ function FinancialKPIView() {
         <BuscadorActividad onSelect={a => { setActSel(a); setProyTarifa(""); }} selected={actSel} catalogo={catalogo} />
         {actSel && (
           <button className="mt-2 text-xs text-muted-foreground hover:text-foreground"
-            onClick={() => setActSel(null)}>
-            × Clear
-          </button>
+            onClick={() => setActSel(null)}>× Clear</button>
         )}
       </div>
 
@@ -2637,8 +2780,7 @@ function FinancialKPIView() {
           {!loading && (
             <div className="flex gap-2 justify-center flex-wrap">
               {catalogo.slice(0, 6).map(a => (
-                <button key={a.codigo}
-                  onClick={() => setActSel(a)}
+                <button key={a.codigo} onClick={() => setActSel(a)}
                   className="px-3 py-1.5 text-xs rounded-lg border border-border hover:bg-muted/40 transition-colors">
                   {a.codigo.slice(-10)} · {a.cliente.slice(0, 22)}
                 </button>
@@ -2665,13 +2807,43 @@ function FinancialKPIView() {
                 <div>Last: {MES_LABEL[ultimo.mes] || ultimo.mes}</div>
               </div>
             )}
+            {/* Edit controls */}
+            <div style={{display:"flex",gap:8}}>
+              {!editMode ? (
+                <button onClick={startEdit}
+                  style={{padding:"5px 14px",background:"#fff",color:"#17375e",border:"none",
+                    borderRadius:6,fontWeight:700,fontSize:12,cursor:"pointer"}}>
+                  ✎ Edit
+                </button>
+              ) : (
+                <>
+                  <button onClick={saveEdit}
+                    style={{padding:"5px 14px",background:"#16a34a",color:"#fff",border:"none",
+                      borderRadius:6,fontWeight:700,fontSize:12,cursor:"pointer"}}>
+                    ✓ Save
+                  </button>
+                  <button onClick={cancelEdit}
+                    style={{padding:"5px 14px",background:"rgba(255,255,255,0.15)",color:"#fff",
+                      border:"1px solid rgba(255,255,255,0.4)",borderRadius:6,fontWeight:600,fontSize:12,cursor:"pointer"}}>
+                    Cancel
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* Projection notice */}
-          <div style={{background:"#fff3cd",borderBottom:"0.5px solid #ffc107",
-            padding:"6px 14px",fontSize:11,color:"#856404"}}>
-            ⚡ Column <strong>{MES_LABEL[PROY_MES]}</strong> — enter UF rate to project next month&apos;s margin.
-          </div>
+          {editMode && (
+            <div style={{background:"#fffde7",borderBottom:"0.5px solid #ffc107",
+              padding:"6px 14px",fontSize:11,color:"#856404"}}>
+              ✎ Edit mode — modify production values and consultant days. Margin recalculates automatically.
+            </div>
+          )}
+          {!editMode && (
+            <div style={{background:"#fff3cd",borderBottom:"0.5px solid #ffc107",
+              padding:"6px 14px",fontSize:11,color:"#856404"}}>
+              ⚡ Column <strong>{MES_LABEL[PROY_MES]}</strong> — enter UF rate to project next month&apos;s margin.
+            </div>
+          )}
 
           {historico.length === 0 ? (
             <div className="p-10 text-center text-sm text-muted-foreground">
@@ -2679,7 +2851,15 @@ function FinancialKPIView() {
             </div>
           ) : (
             <div className="p-4">
-              <TablaActividad actividad={actSel} proyTarifa={proyTarifa} onProyChange={setProyTarifa} actividadesMap={actMap} />
+              <TablaActividad
+                actividad={actSel} proyTarifa={proyTarifa} onProyChange={setProyTarifa}
+                actividadesMap={actMap}
+                editMode={editMode} editRows={editRows} allConsultants={allConsultants}
+                onChangeProduccion={handleChangeProduccion}
+                onChangeDias={handleChangeDias}
+                onAddConsultant={handleAddConsultant}
+                onRemoveConsultant={handleRemoveConsultant}
+              />
             </div>
           )}
         </div>
