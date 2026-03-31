@@ -50,5 +50,5 @@ export function getFiscalQuarter(date: Date = new Date()) {
   const q = m >= 4 ? (m <= 6 ? 1 : m <= 9 ? 2 : 3) : 4;
   const ranges = [["Abr", "Jun"], ["Jul", "Sep"], ["Oct", "Dic"], ["Ene", "Mar"]];
   const [start, end] = ranges[q - 1];
-  return { quarter: q, fyYear, label: `Q${q} · FY${fyYear}`, range: `${start}–${end}` };
+  return { quarter: q, fyYear, label: `Q${q} · ${y}`, range: `${start}–${end}` };
 }
