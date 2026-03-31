@@ -201,12 +201,12 @@ function AssessmentTab() {
             border:`2px solid ${activeAxis===a.id?C.navy:C.blueLight}`,
             borderRadius:6, fontWeight:600, fontSize:13, cursor:"pointer",
           }}>
-            {a.icon} {a.id}. {a.title}
+            {a.id}. {a.title}
           </button>
         ))}
       </div>
       <div style={{ background:C.white, borderRadius:8, padding:"20px 24px", boxShadow:"0 1px 4px rgba(0,0,0,0.07)", marginBottom:16 }}>
-        <div style={{ fontSize:15, fontWeight:700, color:C.navy, marginBottom:6 }}>{axis.icon} {axis.title}</div>
+        <div style={{ fontSize:15, fontWeight:700, color:C.navy, marginBottom:6 }}>{axis.title}</div>
         <div style={{ fontSize:13, color:C.gray600, marginBottom:16 }}>{axis.desc}</div>
         <table style={S.table}>
           <thead><tr><th style={th("160px")}>Level</th><th style={th()}>Expected Behavior</th></tr></thead>
@@ -315,10 +315,10 @@ function CMSTab() {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const TABS = [
-  { id:"roles",       label:"🏛 Role Hierarchy",      component:RolesTab },
-  { id:"assessment",  label:"📊 Assessment Criteria",  component:AssessmentTab },
-  { id:"kpis",        label:"📋 KPIs",                 component:KPIsTab },
-  { id:"cms",         label:"⚙ CMS Cross-Reference",   component:CMSTab },
+  { id:"roles",       label:"Role Hierarchy",     component:RolesTab },
+  { id:"assessment",  label:"Assessment Criteria", component:AssessmentTab },
+  { id:"kpis",        label:"KPIs",                component:KPIsTab },
+  { id:"cms",         label:"CMS Cross-Reference", component:CMSTab },
 ];
 
 export default function CareerPathTab() {
