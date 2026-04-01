@@ -1147,37 +1147,41 @@ function CORView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snapshots.length, liveProjects.length, isDefaultData]);
 
-  // Auto-snapshot: cuando se carga un CSV (cualquier día) o cada lunes
-  // Se dispara cuando cambian los proyectos o la lista de snapshots
-  const prevProjectsLenRef = useRef(0);
+  // Auto-snapshot: crea/actualiza snapshot de la semana actual con los datos en vivo
+  // Se dispara al cargar la app, al cargar un CSV, o cuando cambian revenue/cost de proyectos
+  const snapshotDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevSnapshotHashRef = useRef("");
+  const projectsHash = useMemo(
+    () => liveProjects.reduce((h, p) => h + (p.revenue || 0) + (p.spent || 0) + (p.id || "").length, 0).toString() + liveProjects.length,
+    [liveProjects]
+  );
   useEffect(() => {
     if (isDefaultData || liveProjects.length === 0) return;
-    const todayDate = getLastMonday();
-    const alreadyExists = snapshots.some(s => s.snapshot_date === todayDate);
-    // Crear snapshot si: es lunes sin snapshot, O si se cargó un CSV nuevo (proyectos cambiaron)
-    const csvJustLoaded = liveProjects.length !== prevProjectsLenRef.current;
-    prevProjectsLenRef.current = liveProjects.length;
-    if (alreadyExists && !csvJustLoaded) return;
-
-    const week_label = formatWeekLabel(todayDate);
-    let corManual: CORManual | null = null;
-    try { const s = localStorage.getItem(COR_MANUAL_KEY); if (s) corManual = JSON.parse(s); } catch {}
-
-    setSnapshotStatus("Saving weekly snapshot...");
-    fetch("/api/snapshots", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ snapshot_date: todayDate, week_label, projects: liveProjects, report_data: liveReportData, cor_manual: { ...(corManual ?? {}), teamMembers: liveTeamMembers } }),
-    })
-      .then(r => r.json())
-      .then((newSnap: SnapshotMeta) => {
-        setSnapshots(prev => [newSnap, ...prev.filter(s => s.snapshot_date !== newSnap.snapshot_date)]);
-        setSnapshotStatus("✓ Snapshot guardado");
-        setTimeout(() => setSnapshotStatus(""), 3000);
+    if (projectsHash === prevSnapshotHashRef.current) return;
+    if (snapshotDebounceRef.current) clearTimeout(snapshotDebounceRef.current);
+    snapshotDebounceRef.current = setTimeout(() => {
+      prevSnapshotHashRef.current = projectsHash;
+      const todayDate = getLastMonday();
+      const week_label = formatWeekLabel(todayDate);
+      let corManual: CORManual | null = null;
+      try { const s = localStorage.getItem(COR_MANUAL_KEY); if (s) corManual = JSON.parse(s); } catch {}
+      setSnapshotStatus("Saving weekly snapshot...");
+      fetch("/api/snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ snapshot_date: todayDate, week_label, projects: liveProjects, report_data: liveReportData, cor_manual: { ...(corManual ?? {}), teamMembers: liveTeamMembers } }),
       })
-      .catch(() => setSnapshotStatus(""));
+        .then(r => r.json())
+        .then((newSnap: SnapshotMeta) => {
+          setSnapshots(prev => [newSnap, ...prev.filter(s => s.snapshot_date !== newSnap.snapshot_date)]);
+          setSnapshotStatus("✓ Snapshot guardado");
+          setTimeout(() => setSnapshotStatus(""), 3000);
+        })
+        .catch(() => setSnapshotStatus(""));
+    }, 8000); // 8s debounce — waits for Supabase sync to settle before saving snapshot
+    return () => { if (snapshotDebounceRef.current) clearTimeout(snapshotDebounceRef.current); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snapshots.length, liveProjects.length, isDefaultData]);
+  }, [projectsHash, isDefaultData]);
 
   // Al cambiar snapshot seleccionado, cargar datos completos
   // "live" siempre muestra datos en tiempo real (nunca carga snapshot)
