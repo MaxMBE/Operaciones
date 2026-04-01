@@ -2324,8 +2324,8 @@ interface ActividadMes { mes: string; produccion: number; costos: number; margen
 
 // ── Financial KPI View ────────────────────────────────────────────────────────
 
-const FY_MESES = ["2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02","2026-03"];
-const PROY_MESES = ["2026-04","2026-05","2026-06"];
+const FY_MESES = ["2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02"];
+const PROY_MESES = ["2026-03","2026-04","2026-05","2026-06"];
 const MES_LABEL: Record<string,string> = {
   "2025-04":"Apr-25","2025-05":"May-25","2025-06":"Jun-25","2025-07":"Jul-25",
   "2025-08":"Aug-25","2025-09":"Sep-25","2025-10":"Oct-25","2025-11":"Nov-25",
@@ -2447,11 +2447,13 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
   );
 }
 
-function TablaActividad({ actividad, proyTarifas, onProyChange, actividadesMap,
+// proyDias: { "2026-03": { "Claudio": 20, "Brahin": 20 }, "2026-04": {...} }
+function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProyDiasChange, actividadesMap,
   editMode = false, editRows = [], allConsultants = [],
   onChangeProduccion, onChangeDias, onAddConsultant, onRemoveConsultant,
 }: {
   actividad: ActividadCatalogo; proyTarifas: Record<string,string>; onProyChange: (mes: string, v: string) => void;
+  proyDias: Record<string, Record<string,number>>; onProyDiasChange: (mes: string, nombre: string, dias: number) => void;
   actividadesMap: Record<string, ActividadMes[]>;
   editMode?: boolean;
   editRows?: ActividadMes[];
@@ -2469,13 +2471,24 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, actividadesMap,
   const lastRealMes = [...FY_MESES].reverse().find(m => byMes[m]?.produccion) || FY_MESES[FY_MESES.length - 1];
   const refMes = byMes[lastRealMes] || historico[historico.length - 1];
 
-  // Per-projection-month calculations
+  // Per-projection-month calculations — costoNorm uses simulated dias if provided
   const proyCalc = PROY_MESES.map(pm => {
-    const uf    = parseFloat(proyTarifas[pm] || "") || 0;
-    const prod  = uf > 0 ? uf * (refMes?.uf || 39875) : 0;
-    const costo = refMes?.costoNorm || 0;
-    const mgn   = prod > 0 ? prod - costo : 0;
-    const pct   = prod > 0 ? mgn / prod : 0;
+    const uf         = parseFloat(proyTarifas[pm] || "") || 0;
+    const prod       = uf > 0 ? uf * (refMes?.uf || 39875) : 0;
+    const diasPm     = proyDias[pm] || {};
+    const hasDias    = Object.keys(diasPm).length > 0;
+    let costo = refMes?.costoNorm || 0;
+    if (hasDias && refMes?.headcount?.length) {
+      // Recalculate costoNorm from simulated dias × each consultant's daily rate
+      const wd = refMes.workingDays > 0 ? refMes.workingDays : 20.75;
+      const totalCostos = refMes.headcount.reduce((s, h) => {
+        const d = diasPm[h.nombre] ?? h.dias;
+        return s + Math.round(d * h.costoDiario);
+      }, 0);
+      costo = Math.round(totalCostos * 20.75 / wd);
+    }
+    const mgn = prod > 0 ? prod - costo : 0;
+    const pct = prod > 0 ? mgn / prod : 0;
     return { mes: pm, uf, prod, costo, mgn, pct };
   });
   const proyTotalProd = proyCalc.reduce((s, p) => s + p.prod, 0);
@@ -2684,11 +2697,20 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, actividadesMap,
                   </td>
                 );
               })}
-              {PROY_MESES.map(pm => (
-                <td key={pm} style={{padding:"4px 8px",fontSize:11,textAlign:"center",
-                  background:"#bdd7ee",borderRight:"0.5px solid #ddd",borderBottom:"0.5px solid #eee",
-                  color:"#888"}}>—</td>
-              ))}
+              {PROY_MESES.map(pm => {
+                const refHc = refMes?.headcount?.find(h => h.nombre === nombre);
+                const simDias = proyDias[pm]?.[nombre] ?? refHc?.dias ?? 0;
+                return (
+                  <td key={pm} style={{padding:"2px 4px",borderRight:"0.5px solid #ddd",
+                    borderBottom:"0.5px solid #eee",background:"#e8f0fb",textAlign:"center"}}>
+                    <input type="number" min={0} max={31} value={simDias}
+                      onChange={e => onProyDiasChange(pm, nombre, Number(e.target.value))}
+                      style={{border:"1px solid #5b9bd5",borderRadius:3,padding:"1px 4px",
+                        fontSize:11,textAlign:"center",background:"#fff",color:"#1565c0",
+                        fontWeight:600,width:42}} />
+                  </td>
+                );
+              })}
               <td colSpan={2}/>
             </tr>
           ))}
@@ -2713,6 +2735,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, actividadesMap,
 function FinancialKPIView() {
   const [actSel, setActSel]         = useState<ActividadCatalogo | null>(null);
   const [proyTarifas, setProyTarifas] = useState<Record<string,string>>({});
+  const [proyDias,    setProyDias]    = useState<Record<string,Record<string,number>>>({});
   const [catalogo, setCatalogo]     = useState<ActividadCatalogo[]>([]);
   const [actMap, setActMap]         = useState<Record<string, ActividadMes[]>>({});
   const [loading, setLoading]       = useState(true);
@@ -2818,7 +2841,7 @@ function FinancialKPIView() {
       {/* Search */}
       <div className="bg-white rounded-xl border border-border p-5">
         <div className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Activity</div>
-        <BuscadorActividad onSelect={a => { setActSel(a); setProyTarifas({}); }} selected={actSel} catalogo={catalogo} />
+        <BuscadorActividad onSelect={a => { setActSel(a); setProyTarifas({}); setProyDias({}); }} selected={actSel} catalogo={catalogo} />
         {actSel && (
           <button className="mt-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setActSel(null)}>× Clear</button>
@@ -2906,6 +2929,7 @@ function FinancialKPIView() {
             <div className="p-4">
               <TablaActividad
                 actividad={actSel} proyTarifas={proyTarifas} onProyChange={(mes, v) => setProyTarifas(prev => ({...prev, [mes]: v}))}
+                proyDias={proyDias} onProyDiasChange={(mes, nombre, dias) => setProyDias(prev => ({...prev, [mes]: {...(prev[mes]||{}), [nombre]: dias}}))}
                 actividadesMap={actMap}
                 editMode={editMode} editRows={editRows} allConsultants={allConsultants}
                 onChangeProduccion={handleChangeProduccion}
