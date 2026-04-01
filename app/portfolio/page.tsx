@@ -2708,16 +2708,23 @@ function FinancialKPIView() {
       .then(r => r.json())
       .then(d => {
         setCatalogo(d.CATALOGO_ACTIVIDADES || []);
-        setActMap(d.ACTIVIDADES_FULL || {});
-        // Extract all unique consultants
+        // Recalculate costoNorm and margen with the correct formula for all stored months
+        // costoNorm = totalCostos * 20.75 / workingDays  (NOT / sum_consultant_days)
+        // margen    = produccion - costoNorm
+        const rawMap = d.ACTIVIDADES_FULL || {};
+        const fixedMap: Record<string, ActividadMes[]> = {};
         const consultMap = new Map<string, number>();
-        Object.values(d.ACTIVIDADES_FULL || {}).forEach((months) => {
-          (months as ActividadMes[]).forEach(m => {
-            m.headcount?.forEach(h => {
-              if (!consultMap.has(h.nombre) && h.costoDiario > 0) consultMap.set(h.nombre, h.costoDiario);
-            });
+        for (const [code, months] of Object.entries(rawMap)) {
+          fixedMap[code] = (months as ActividadMes[]).map(m => {
+            const hc = m.headcount || [];
+            const totalCostos = hc.reduce((s, h) => s + h.costoMes, 0);
+            const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
+            const costoNorm = Math.round(totalCostos * 20.75 / wd);
+            hc.forEach(h => { if (!consultMap.has(h.nombre) && h.costoDiario > 0) consultMap.set(h.nombre, h.costoDiario); });
+            return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
           });
-        });
+        }
+        setActMap(fixedMap);
         setAllConsultants([...consultMap.entries()]
           .map(([nombre, costoDiario]) => ({ nombre, costoDiario }))
           .sort((a, b) => a.nombre.localeCompare(b.nombre)));
