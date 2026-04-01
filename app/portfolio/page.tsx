@@ -2386,27 +2386,49 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
       .filter(c => !existingNames.includes(c.nombre) && c.nombre.toLowerCase().includes(lq))
       .slice(0, 8);
   }, [q, allConsultants, existingNames]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dropPos, setDropPos] = useState<{top:number;left:number;width:number}|null>(null);
+
+  function handleFocus() {
+    setOpen(true);
+    if (containerRef.current) {
+      const r = containerRef.current.getBoundingClientRect();
+      setDropPos({ top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: Math.max(r.width, 340) });
+    }
+  }
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setQ(e.target.value);
+    setOpen(true);
+    if (containerRef.current) {
+      const r = containerRef.current.getBoundingClientRect();
+      setDropPos({ top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: Math.max(r.width, 340) });
+    }
+  }
+
   return (
-    <div style={{ position:"relative", display:"inline-block" }}>
+    <div ref={containerRef} style={{ position:"relative", display:"inline-block" }}>
       <input
         value={q}
-        onChange={e => { setQ(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onChange={handleChange}
+        onFocus={handleFocus}
+        onBlur={() => setTimeout(() => setOpen(false), 180)}
         placeholder="Search consultant to add..."
-        style={{ width:280, border:"1px solid #2e75b6", borderRadius:4, padding:"4px 8px",
-          fontSize:11, background:"#fff", color:"#1565c0" }}
+        style={{ width:300, border:"1px solid #2e75b6", borderRadius:6, padding:"6px 10px",
+          fontSize:12, background:"#fff", color:"#1565c0" }}
       />
-      {open && results.length > 0 && (
-        <div style={{ position:"absolute", top:"100%", left:0, zIndex:600, background:"#fff",
-          border:"1px solid #ccc", borderRadius:6, maxHeight:200, overflowY:"auto",
-          boxShadow:"0 4px 12px rgba(0,0,0,0.12)", minWidth:340 }}>
+      {open && results.length > 0 && dropPos && (
+        <div style={{ position:"fixed", top: dropPos.top + 2, left: dropPos.left,
+          width: dropPos.width, zIndex:9999, background:"#fff",
+          border:"1px solid #2e75b6", borderRadius:8, maxHeight:240, overflowY:"auto",
+          boxShadow:"0 8px 24px rgba(0,0,0,0.15)" }}>
           {results.map(c => (
             <div key={c.nombre} onMouseDown={() => { onAdd(c.nombre, c.costoDiario); setQ(""); setOpen(false); }}
-              style={{ padding:"7px 12px", cursor:"pointer", borderBottom:"0.5px solid #eee",
-                fontSize:11, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-              <span>{c.nombre}</span>
-              <span style={{ fontSize:10, color:"#888", marginLeft:8 }}>
+              style={{ padding:"8px 14px", cursor:"pointer", borderBottom:"0.5px solid #eee",
+                fontSize:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}
+              onMouseEnter={e => (e.currentTarget.style.background="#e3f2fd")}
+              onMouseLeave={e => (e.currentTarget.style.background="transparent")}>
+              <span style={{fontWeight:500}}>{c.nombre}</span>
+              <span style={{ fontSize:10, color:"#888", marginLeft:8, flexShrink:0 }}>
                 ${Math.round(c.costoDiario).toLocaleString("es-CL")}/day
               </span>
             </div>
@@ -2647,21 +2669,19 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap,
             </tr>
           ))}
 
-          {/* Add consultant row (edit mode) */}
-          {editMode && onAddConsultant && (
-            <tr>
-              <td colSpan={FY_MESES.length+4} style={{padding:"8px 12px",background:"#f0f7ff",
-                borderTop:"1px dashed #2e75b6"}}>
-                <ConsultantPicker
-                  allConsultants={allConsultants}
-                  existingNames={consultoresOrden}
-                  onAdd={onAddConsultant}
-                />
-              </td>
-            </tr>
-          )}
         </tbody>
       </table>
+      {/* Consultant picker OUTSIDE the scrollable table to avoid overflow clipping */}
+      {editMode && onAddConsultant && (
+        <div style={{padding:"10px 0 4px",borderTop:"1px dashed #2e75b6",marginTop:4}}>
+          <div style={{fontSize:11,color:"#2e75b6",fontWeight:600,marginBottom:6}}>+ Add consultant</div>
+          <ConsultantPicker
+            allConsultants={allConsultants}
+            existingNames={consultoresOrden}
+            onAdd={onAddConsultant}
+          />
+        </div>
+      )}
     </div>
   );
 }
