@@ -2448,14 +2448,16 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
 }
 
 // proyDias: { "2026-03": { "Claudio": 20, "Brahin": 20 }, "2026-04": {...} }
-// proyWD: { "2026-03": 21, "2026-04": 20, ... }
-function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProyDiasChange, proyWD, onProyWDChange, actividadesMap,
+// proyWD:   { "2026-03": 21, "2026-04": 20, ... }
+// proyUFVal:{ "2026-03": 39900, ... }
+function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProyDiasChange, proyWD, onProyWDChange, proyUFVal, onProyUFChange, actividadesMap,
   editMode = false, editRows = [], allConsultants = [],
   onChangeProduccion, onChangeDias, onAddConsultant, onRemoveConsultant,
 }: {
   actividad: ActividadCatalogo; proyTarifas: Record<string,string>; onProyChange: (mes: string, v: string) => void;
   proyDias: Record<string, Record<string,number>>; onProyDiasChange: (mes: string, nombre: string, dias: number) => void;
   proyWD: Record<string,number>; onProyWDChange: (mes: string, wd: number) => void;
+  proyUFVal: Record<string,number>; onProyUFChange: (mes: string, uf: number) => void;
   actividadesMap: Record<string, ActividadMes[]>;
   editMode?: boolean;
   editRows?: ActividadMes[];
@@ -2476,7 +2478,8 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   // Per-projection-month calculations — costoNorm uses simulated dias/WD if provided
   const proyCalc = PROY_MESES.map(pm => {
     const uf         = parseFloat(proyTarifas[pm] || "") || 0;
-    const prod       = uf > 0 ? uf * (refMes?.uf || 39875) : 0;
+    const ufVal      = proyUFVal[pm] ?? (refMes?.uf || 39875);
+    const prod       = uf > 0 ? uf * ufVal : 0;
     const diasPm     = proyDias[pm] || {};
     const wd         = proyWD[pm] ?? (refMes?.workingDays > 0 ? refMes.workingDays : 20.75);
     let costo = refMes?.costoNorm || 0;
@@ -2489,7 +2492,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
     }
     const mgn = prod > 0 ? prod - costo : 0;
     const pct = prod > 0 ? mgn / prod : 0;
-    return { mes: pm, uf, prod, costo, wd, mgn, pct };
+    return { mes: pm, uf, ufVal, prod, costo, wd, mgn, pct };
   });
   const proyTotalProd = proyCalc.reduce((s, p) => s + p.prod, 0);
   const proyTotalMgn  = proyCalc.reduce((s, p) => s + p.mgn, 0);
@@ -2602,7 +2605,11 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
                     <input type="number" step="0.5" value={proyTarifas[p.mes] || ""}
                       onChange={e => onProyChange(p.mes, e.target.value)}
                       style={{...inputS,width:58}}/>
-                  ) : row.key === "uf" ? Math.round(refMes?.uf || 39875).toLocaleString("es-CL")
+                  ) : row.key === "uf" ? (
+                      <input type="number" step="1" value={p.ufVal}
+                        onChange={e => onProyUFChange(p.mes, Number(e.target.value))}
+                        style={{...inputS, width:58, textAlign:"center"}}/>
+                    )
                     : row.key === "workingDays" ? (
                       <input type="number" min={1} max={31} step={0.5} value={p.wd}
                         onChange={e => onProyWDChange(p.mes, Number(e.target.value))}
@@ -2741,6 +2748,7 @@ function FinancialKPIView() {
   const [proyTarifas, setProyTarifas] = useState<Record<string,string>>({});
   const [proyDias,    setProyDias]    = useState<Record<string,Record<string,number>>>({});
   const [proyWD,      setProyWD]      = useState<Record<string,number>>({});
+  const [proyUFVal,   setProyUFVal]   = useState<Record<string,number>>({});
   const [catalogo, setCatalogo]     = useState<ActividadCatalogo[]>([]);
   const [actMap, setActMap]         = useState<Record<string, ActividadMes[]>>({});
   const [loading, setLoading]       = useState(true);
@@ -2846,7 +2854,7 @@ function FinancialKPIView() {
       {/* Search */}
       <div className="bg-white rounded-xl border border-border p-5">
         <div className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Activity</div>
-        <BuscadorActividad onSelect={a => { setActSel(a); setProyTarifas({}); setProyDias({}); setProyWD({}); }} selected={actSel} catalogo={catalogo} />
+        <BuscadorActividad onSelect={a => { setActSel(a); setProyTarifas({}); setProyDias({}); setProyWD({}); setProyUFVal({}); }} selected={actSel} catalogo={catalogo} />
         {actSel && (
           <button className="mt-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setActSel(null)}>× Clear</button>
@@ -2936,6 +2944,7 @@ function FinancialKPIView() {
                 actividad={actSel} proyTarifas={proyTarifas} onProyChange={(mes, v) => setProyTarifas(prev => ({...prev, [mes]: v}))}
                 proyDias={proyDias} onProyDiasChange={(mes, nombre, dias) => setProyDias(prev => ({...prev, [mes]: {...(prev[mes]||{}), [nombre]: dias}}))}
                 proyWD={proyWD} onProyWDChange={(mes, wd) => setProyWD(prev => ({...prev, [mes]: wd}))}
+                proyUFVal={proyUFVal} onProyUFChange={(mes, uf) => setProyUFVal(prev => ({...prev, [mes]: uf}))}
                 actividadesMap={actMap}
                 editMode={editMode} editRows={editRows} allConsultants={allConsultants}
                 onChangeProduccion={handleChangeProduccion}
