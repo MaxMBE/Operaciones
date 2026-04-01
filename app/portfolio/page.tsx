@@ -2324,12 +2324,13 @@ interface ActividadMes { mes: string; produccion: number; costos: number; margen
 
 // ── Financial KPI View ────────────────────────────────────────────────────────
 
-const FY_MESES = ["2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02"];
-const PROY_MES = "2026-03";
+const FY_MESES = ["2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02","2026-03"];
+const PROY_MESES = ["2026-04","2026-05","2026-06"];
 const MES_LABEL: Record<string,string> = {
   "2025-04":"Apr-25","2025-05":"May-25","2025-06":"Jun-25","2025-07":"Jul-25",
   "2025-08":"Aug-25","2025-09":"Sep-25","2025-10":"Oct-25","2025-11":"Nov-25",
   "2025-12":"Dec-25","2026-01":"Jan-26","2026-02":"Feb-26","2026-03":"Mar-26",
+  "2026-04":"Apr-26","2026-05":"May-26","2026-06":"Jun-26",
 };
 
 const margenBg   = (p: number) => p >= 0.34 ? "#1b5e20" : p >= 0.30 ? "#8bc34a" : p >= 0.25 ? "#fdd835" : p >= 0 ? "#f44336" : "#b71c1c";
@@ -2446,11 +2447,11 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
   );
 }
 
-function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap,
+function TablaActividad({ actividad, proyTarifas, onProyChange, actividadesMap,
   editMode = false, editRows = [], allConsultants = [],
   onChangeProduccion, onChangeDias, onAddConsultant, onRemoveConsultant,
 }: {
-  actividad: ActividadCatalogo; proyTarifa: string; onProyChange: (v: string) => void;
+  actividad: ActividadCatalogo; proyTarifas: Record<string,string>; onProyChange: (mes: string, v: string) => void;
   actividadesMap: Record<string, ActividadMes[]>;
   editMode?: boolean;
   editRows?: ActividadMes[];
@@ -2464,15 +2465,24 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap,
   const byMes: Record<string, ActividadMes> = {};
   historico.forEach(m => { byMes[m.mes] = m; });
 
-  const refMes = byMes["2026-02"] || historico[historico.length - 1];
-  const proyUF    = parseFloat(proyTarifa) || 0;
-  const proyRef   = refMes?.uf || 39875;
-  const proyProd  = proyUF > 0 ? proyUF * proyRef : 0;
-  const proyCostoNorm = refMes?.costoNorm || 0;
-  const proyMargen = proyProd > 0 ? proyProd - proyCostoNorm : 0;
-  const proyPct    = proyProd > 0 ? proyMargen / proyProd : 0;
+  // Last month with real data (for projection reference and accumulated label)
+  const lastRealMes = [...FY_MESES].reverse().find(m => byMes[m]?.produccion) || FY_MESES[FY_MESES.length - 1];
+  const refMes = byMes[lastRealMes] || historico[historico.length - 1];
 
-  const conData = historico.filter(m => m.produccion !== 0 || m.costos !== 0);
+  // Per-projection-month calculations
+  const proyCalc = PROY_MESES.map(pm => {
+    const uf    = parseFloat(proyTarifas[pm] || "") || 0;
+    const prod  = uf > 0 ? uf * (refMes?.uf || 39875) : 0;
+    const costo = refMes?.costoNorm || 0;
+    const mgn   = prod > 0 ? prod - costo : 0;
+    const pct   = prod > 0 ? mgn / prod : 0;
+    return { mes: pm, uf, prod, costo, mgn, pct };
+  });
+  const proyTotalProd = proyCalc.reduce((s, p) => s + p.prod, 0);
+  const proyTotalMgn  = proyCalc.reduce((s, p) => s + p.mgn, 0);
+
+  // Accumulated = only FY_MESES months up to lastRealMes
+  const conData = historico.filter(m => FY_MESES.includes(m.mes) && m.mes <= lastRealMes && (m.produccion !== 0 || m.costos !== 0));
   const acProd  = conData.reduce((a, m) => a + m.produccion, 0);
   const acCosto = conData.reduce((a, m) => a + m.costos, 0);
   const acMgn   = conData.reduce((a, m) => a + m.margen, 0);
@@ -2558,13 +2568,13 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap,
           <tr>
             <th style={{...thS(),textAlign:"left",minWidth:190}} rowSpan={2}>KPI</th>
             <th style={{...thS(BG_REAL)}} colSpan={FY_MESES.length}>Real FY 25-26</th>
-            <th style={{...thS(BG_PROY),minWidth:80}}>Projection FY 25-26</th>
+            <th style={{...thS(BG_PROY),minWidth:80}} colSpan={PROY_MESES.length}>Projection FY 25-26</th>
             <th style={{...thS(BG_ACUM)}} colSpan={2}>Accumulated</th>
           </tr>
           <tr>
             {FY_MESES.map(m => <th key={m} style={{...thS(BG_HDR),fontSize:10}}>{MES_LABEL[m]}</th>)}
-            <th style={{...thS(BG_PROY),fontSize:10}}>{MES_LABEL[PROY_MES]}</th>
-            <th style={{...thS(BG_ACUM),fontSize:10}}>Real to {MES_LABEL["2026-01"]}</th>
+            {PROY_MESES.map(m => <th key={m} style={{...thS(BG_PROY),fontSize:10}}>{MES_LABEL[m]}</th>)}
+            <th style={{...thS(BG_ACUM),fontSize:10}}>Real to {MES_LABEL[lastRealMes]}</th>
             <th style={{...thS(BG_ACUM),fontSize:10,background:"#ffc000",color:"#333"}}>Real + Proj.</th>
           </tr>
         </thead>
@@ -2573,18 +2583,21 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap,
             <tr key={row.key}>
               <td style={labelS}>{row.label}{editMode && row.editable && <span style={{marginLeft:4,fontSize:9,color:"#2e75b6",fontWeight:700}}>✎</span>}</td>
               {FY_MESES.map(mes => renderCell(mes, row.key))}
-              <td style={{...tdS("#bdd7ee",false,row.key==="margenPct"?"center":"right")}}>
-                {row.key === "tarifaUF" ? (
-                  <input type="number" step="0.5" value={proyTarifa} onChange={e => onProyChange(e.target.value)}
-                    style={{...inputS,width:58}}/>
-                ) : row.key === "uf" ? Math.round(proyRef).toLocaleString("es-CL")
-                  : row.key === "workingDays" ? "22.0"
-                  : row.key === "produccion" ? (proyProd > 0 ? fmtNum(proyProd) : "")
-                  : row.key === "costoNorm"   ? (proyCostoNorm > 0 ? fmtNeg(proyCostoNorm) : "")
-                  : row.key === "margen" ? (proyMargen !== 0 ? <span style={{color:proyMargen>=0?"#1b5e20":"#b71c1c",fontWeight:700}}>{fmtNum(proyMargen)}</span> : "")
-                  : row.key === "margenPct" ? (proyPct !== 0 ? <span style={{padding:"1px 6px",borderRadius:3,background:margenBg(proyPct),color:margenTxt(proyPct),fontWeight:700}}>{fmtPctSgn(proyPct)}</span> : "")
-                  : ""}
-              </td>
+              {proyCalc.map(p => (
+                <td key={p.mes} style={{...tdS("#bdd7ee",false,row.key==="margenPct"?"center":"right")}}>
+                  {row.key === "tarifaUF" ? (
+                    <input type="number" step="0.5" value={proyTarifas[p.mes] || ""}
+                      onChange={e => onProyChange(p.mes, e.target.value)}
+                      style={{...inputS,width:58}}/>
+                  ) : row.key === "uf" ? Math.round(refMes?.uf || 39875).toLocaleString("es-CL")
+                    : row.key === "workingDays" ? "20.0"
+                    : row.key === "produccion" ? (p.prod > 0 ? fmtNum(p.prod) : "")
+                    : row.key === "costoNorm"   ? (p.costo > 0 ? fmtNeg(p.costo) : "")
+                    : row.key === "margen" ? (p.mgn !== 0 ? <span style={{color:p.mgn>=0?"#1b5e20":"#b71c1c",fontWeight:700}}>{fmtNum(p.mgn)}</span> : "")
+                    : row.key === "margenPct" ? (p.pct !== 0 ? <span style={{padding:"1px 6px",borderRadius:3,background:margenBg(p.pct),color:margenTxt(p.pct),fontWeight:700}}>{fmtPctSgn(p.pct)}</span> : "")
+                    : ""}
+                </td>
+              ))}
               <td style={{...tdS("#f0f0f0",row.bold,row.key==="margenPct"?"center":"right")}}>
                 {row.key==="produccion" ? fmtNum(acProd)
                  :row.key==="costoNorm" ? fmtNeg(acCosto)
@@ -2594,16 +2607,16 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap,
               </td>
               <td style={{...tdS(row.key==="margenPct"?margenBg(acPct):"#ffc000",row.bold,row.key==="margenPct"?"center":"right"),
                 color:row.key==="margenPct"?margenTxt(acPct):"#333"}}>
-                {row.key==="produccion" ? fmtNum(acProd+proyProd)
+                {row.key==="produccion" ? fmtNum(acProd+proyTotalProd)
                  :row.key==="costoNorm" ? fmtNeg(acCosto)
-                 :row.key==="margen"    ? <span style={{fontWeight:700}}>{fmtNum(acMgn+proyMargen)}</span>
-                 :row.key==="margenPct" ? <span style={{fontWeight:700}}>{fmtPctSgn(acPct)}</span>
+                 :row.key==="margen"    ? <span style={{fontWeight:700}}>{fmtNum(acMgn+proyTotalMgn)}</span>
+                 :row.key==="margenPct" ? (() => { const tp=acProd+proyTotalProd; const tm=acMgn+proyTotalMgn; const pp=tp>0?tm/tp:0; return <span style={{fontWeight:700}}>{fmtPctSgn(pp)}</span>; })()
                  : ""}
               </td>
             </tr>
           ))}
 
-          <tr><td colSpan={FY_MESES.length+4} style={{height:6,background:"#f0f0f0"}}/></tr>
+          <tr><td colSpan={FY_MESES.length+PROY_MESES.length+3} style={{height:6,background:"#f0f0f0"}}/></tr>
 
           {/* Headcount header */}
           <tr>
@@ -2613,7 +2626,7 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap,
               const n = d?.headcount?.length || 0;
               return <td key={mes} style={{...tdS(BG_HC,true),color:"#fff",textAlign:"center"}}>{n}</td>;
             })}
-            <td style={{...tdS(BG_PROY,true),color:"#fff",textAlign:"center"}}>{refMes?.headcount?.length||0}</td>
+            {PROY_MESES.map(pm => <td key={pm} style={{...tdS(BG_PROY,true),color:"#fff",textAlign:"center"}}>{refMes?.headcount?.length||0}</td>)}
             <td colSpan={2} style={{background:BG_HC,borderBottom:"0.5px solid #ddd"}}/>
           </tr>
 
@@ -2625,9 +2638,11 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap,
               const fte = d?.headcount?.reduce((a,h)=>a+h.fte,0)||0;
               return <td key={mes} style={{...tdS(BG_HC,false),color:"#fff",textAlign:"center"}}>{fte>0?fte.toFixed(1):"0.0"}</td>;
             })}
-            <td style={{...tdS(BG_PROY,false),color:"#fff",textAlign:"center"}}>
-              {(refMes?.headcount?.reduce((a,h)=>a+h.fte,0)||0).toFixed(1)}
-            </td>
+            {PROY_MESES.map(pm => (
+              <td key={pm} style={{...tdS(BG_PROY,false),color:"#fff",textAlign:"center"}}>
+                {(refMes?.headcount?.reduce((a,h)=>a+h.fte,0)||0).toFixed(1)}
+              </td>
+            ))}
             <td colSpan={2} style={{background:BG_HC,borderBottom:"0.5px solid #ddd"}}/>
           </tr>
 
@@ -2669,9 +2684,11 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap,
                   </td>
                 );
               })}
-              <td style={{padding:"4px 8px",fontSize:11,textAlign:"center",
-                background:"#bdd7ee",borderRight:"0.5px solid #ddd",borderBottom:"0.5px solid #eee",
-                color:"#888"}}>—</td>
+              {PROY_MESES.map(pm => (
+                <td key={pm} style={{padding:"4px 8px",fontSize:11,textAlign:"center",
+                  background:"#bdd7ee",borderRight:"0.5px solid #ddd",borderBottom:"0.5px solid #eee",
+                  color:"#888"}}>—</td>
+              ))}
               <td colSpan={2}/>
             </tr>
           ))}
@@ -2695,7 +2712,7 @@ function TablaActividad({ actividad, proyTarifa, onProyChange, actividadesMap,
 
 function FinancialKPIView() {
   const [actSel, setActSel]         = useState<ActividadCatalogo | null>(null);
-  const [proyTarifa, setProyTarifa] = useState("");
+  const [proyTarifas, setProyTarifas] = useState<Record<string,string>>({});
   const [catalogo, setCatalogo]     = useState<ActividadCatalogo[]>([]);
   const [actMap, setActMap]         = useState<Record<string, ActividadMes[]>>({});
   const [loading, setLoading]       = useState(true);
@@ -2801,7 +2818,7 @@ function FinancialKPIView() {
       {/* Search */}
       <div className="bg-white rounded-xl border border-border p-5">
         <div className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Activity</div>
-        <BuscadorActividad onSelect={a => { setActSel(a); setProyTarifa(""); }} selected={actSel} catalogo={catalogo} />
+        <BuscadorActividad onSelect={a => { setActSel(a); setProyTarifas({}); }} selected={actSel} catalogo={catalogo} />
         {actSel && (
           <button className="mt-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setActSel(null)}>× Clear</button>
@@ -2877,7 +2894,7 @@ function FinancialKPIView() {
           {!editMode && (
             <div style={{background:"#fff3cd",borderBottom:"0.5px solid #ffc107",
               padding:"6px 14px",fontSize:11,color:"#856404"}}>
-              ⚡ Column <strong>{MES_LABEL[PROY_MES]}</strong> — enter UF rate to project next month&apos;s margin.
+              ⚡ Projection columns ({PROY_MESES.map(m => MES_LABEL[m]).join(", ")}) — enter UF rate to project margin.
             </div>
           )}
 
@@ -2888,7 +2905,7 @@ function FinancialKPIView() {
           ) : (
             <div className="p-4">
               <TablaActividad
-                actividad={actSel} proyTarifa={proyTarifa} onProyChange={setProyTarifa}
+                actividad={actSel} proyTarifas={proyTarifas} onProyChange={(mes, v) => setProyTarifas(prev => ({...prev, [mes]: v}))}
                 actividadesMap={actMap}
                 editMode={editMode} editRows={editRows} allConsultants={allConsultants}
                 onChangeProduccion={handleChangeProduccion}
