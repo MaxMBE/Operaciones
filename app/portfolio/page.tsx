@@ -2737,12 +2737,17 @@ function FinancialKPIView() {
     setEditMode(false);
     setEditRows([]);
   }
+  // costoNorm = round(totalCostos / totalDias * 20.75)  — normalized to a 20.75-day month
+  function recalc(r: ActividadMes, hc: typeof r.headcount, produccion?: number): ActividadMes {
+    const totalCostos = hc.reduce((s, h) => s + h.costoMes, 0);
+    const totalDias   = hc.reduce((s, h) => s + h.dias, 0);
+    const costoNorm   = totalDias > 0 ? Math.round(totalCostos / totalDias * 20.75) : 0;
+    const prod        = produccion ?? r.produccion;
+    return { ...r, headcount: hc, produccion: prod, costos: -totalCostos, costoNorm, margen: prod - totalCostos };
+  }
+
   function handleChangeProduccion(mes: string, val: number) {
-    setEditRows(rows => rows.map(r => {
-      if (r.mes !== mes) return r;
-      const costoNorm = r.headcount.reduce((s, h) => s + h.costoMes, 0);
-      return { ...r, produccion: val, margen: val - costoNorm, costos: -costoNorm };
-    }));
+    setEditRows(rows => rows.map(r => r.mes !== mes ? r : recalc(r, r.headcount, val)));
   }
   function handleChangeDias(mes: string, nombre: string, dias: number) {
     setEditRows(rows => rows.map(r => {
@@ -2753,22 +2758,17 @@ function FinancialKPIView() {
         const fte = r.workingDays > 0 ? parseFloat((dias / r.workingDays).toFixed(2)) : 0;
         return { ...h, dias, costoMes, fte };
       });
-      const costoNorm = hc.reduce((s, h) => s + h.costoMes, 0);
-      return { ...r, headcount: hc, costoNorm, margen: r.produccion - costoNorm, costos: -costoNorm };
+      return recalc(r, hc);
     }));
   }
   function handleAddConsultant(nombre: string, costoDiario: number) {
     setEditRows(rows => rows.map(r => {
       if (r.headcount.find(h => h.nombre === nombre)) return r;
-      return { ...r, headcount: [...r.headcount, { nombre, dias: 0, fte: 0, costoDiario, costoMes: 0 }] };
+      return recalc(r, [...r.headcount, { nombre, dias: 0, fte: 0, costoDiario, costoMes: 0 }]);
     }));
   }
   function handleRemoveConsultant(nombre: string) {
-    setEditRows(rows => rows.map(r => {
-      const hc = r.headcount.filter(h => h.nombre !== nombre);
-      const costoNorm = hc.reduce((s, h) => s + h.costoMes, 0);
-      return { ...r, headcount: hc, costoNorm, margen: r.produccion - costoNorm, costos: -costoNorm };
-    }));
+    setEditRows(rows => rows.map(r => recalc(r, r.headcount.filter(h => h.nombre !== nombre))));
   }
 
   return (
