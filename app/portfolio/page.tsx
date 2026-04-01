@@ -2744,13 +2744,15 @@ function FinancialKPIView() {
     setEditMode(false);
     setEditRows([]);
   }
-  // costoNorm = round(totalCostos / totalDias * 20.75)  — normalized to a 20.75-day month
+  // costoNorm = round(totalCostos / workingDays * 20.75)  — normalized to a 20.75-day month
+  // Uses workingDays of the month (e.g. 21 for April), NOT sum of consultant days
+  // margen = produccion - costoNorm  (matches Excel formula)
   function recalc(r: ActividadMes, hc: typeof r.headcount, produccion?: number): ActividadMes {
     const totalCostos = hc.reduce((s, h) => s + h.costoMes, 0);
-    const totalDias   = hc.reduce((s, h) => s + h.dias, 0);
-    const costoNorm   = totalDias > 0 ? Math.round(totalCostos / totalDias * 20.75) : 0;
+    const wd          = r.workingDays > 0 ? r.workingDays : 20.75;
+    const costoNorm   = Math.round(totalCostos * 20.75 / wd);
     const prod        = produccion ?? r.produccion;
-    return { ...r, headcount: hc, produccion: prod, costos: -totalCostos, costoNorm, margen: prod - totalCostos };
+    return { ...r, headcount: hc, produccion: prod, costos: -totalCostos, costoNorm, margen: prod - costoNorm };
   }
 
   function handleChangeProduccion(mes: string, val: number) {
