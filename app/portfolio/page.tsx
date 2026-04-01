@@ -2448,12 +2448,14 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
 }
 
 // proyDias: { "2026-03": { "Claudio": 20, "Brahin": 20 }, "2026-04": {...} }
-function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProyDiasChange, actividadesMap,
+// proyWD: { "2026-03": 21, "2026-04": 20, ... }
+function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProyDiasChange, proyWD, onProyWDChange, actividadesMap,
   editMode = false, editRows = [], allConsultants = [],
   onChangeProduccion, onChangeDias, onAddConsultant, onRemoveConsultant,
 }: {
   actividad: ActividadCatalogo; proyTarifas: Record<string,string>; onProyChange: (mes: string, v: string) => void;
   proyDias: Record<string, Record<string,number>>; onProyDiasChange: (mes: string, nombre: string, dias: number) => void;
+  proyWD: Record<string,number>; onProyWDChange: (mes: string, wd: number) => void;
   actividadesMap: Record<string, ActividadMes[]>;
   editMode?: boolean;
   editRows?: ActividadMes[];
@@ -2471,16 +2473,14 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   const lastRealMes = [...FY_MESES].reverse().find(m => byMes[m]?.produccion) || FY_MESES[FY_MESES.length - 1];
   const refMes = byMes[lastRealMes] || historico[historico.length - 1];
 
-  // Per-projection-month calculations — costoNorm uses simulated dias if provided
+  // Per-projection-month calculations — costoNorm uses simulated dias/WD if provided
   const proyCalc = PROY_MESES.map(pm => {
     const uf         = parseFloat(proyTarifas[pm] || "") || 0;
     const prod       = uf > 0 ? uf * (refMes?.uf || 39875) : 0;
     const diasPm     = proyDias[pm] || {};
-    const hasDias    = Object.keys(diasPm).length > 0;
+    const wd         = proyWD[pm] ?? (refMes?.workingDays > 0 ? refMes.workingDays : 20.75);
     let costo = refMes?.costoNorm || 0;
-    if (hasDias && refMes?.headcount?.length) {
-      // Recalculate costoNorm from simulated dias × each consultant's daily rate
-      const wd = refMes.workingDays > 0 ? refMes.workingDays : 20.75;
+    if (refMes?.headcount?.length) {
       const totalCostos = refMes.headcount.reduce((s, h) => {
         const d = diasPm[h.nombre] ?? h.dias;
         return s + Math.round(d * h.costoDiario);
@@ -2489,7 +2489,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
     }
     const mgn = prod > 0 ? prod - costo : 0;
     const pct = prod > 0 ? mgn / prod : 0;
-    return { mes: pm, uf, prod, costo, mgn, pct };
+    return { mes: pm, uf, prod, costo, wd, mgn, pct };
   });
   const proyTotalProd = proyCalc.reduce((s, p) => s + p.prod, 0);
   const proyTotalMgn  = proyCalc.reduce((s, p) => s + p.mgn, 0);
@@ -2603,7 +2603,11 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
                       onChange={e => onProyChange(p.mes, e.target.value)}
                       style={{...inputS,width:58}}/>
                   ) : row.key === "uf" ? Math.round(refMes?.uf || 39875).toLocaleString("es-CL")
-                    : row.key === "workingDays" ? "20.0"
+                    : row.key === "workingDays" ? (
+                      <input type="number" min={1} max={31} step={0.5} value={p.wd}
+                        onChange={e => onProyWDChange(p.mes, Number(e.target.value))}
+                        style={{...inputS, width:46, textAlign:"center"}}/>
+                    )
                     : row.key === "produccion" ? (p.prod > 0 ? fmtNum(p.prod) : "")
                     : row.key === "costoNorm"   ? (p.costo > 0 ? fmtNeg(p.costo) : "")
                     : row.key === "margen" ? (p.mgn !== 0 ? <span style={{color:p.mgn>=0?"#1b5e20":"#b71c1c",fontWeight:700}}>{fmtNum(p.mgn)}</span> : "")
@@ -2736,6 +2740,7 @@ function FinancialKPIView() {
   const [actSel, setActSel]         = useState<ActividadCatalogo | null>(null);
   const [proyTarifas, setProyTarifas] = useState<Record<string,string>>({});
   const [proyDias,    setProyDias]    = useState<Record<string,Record<string,number>>>({});
+  const [proyWD,      setProyWD]      = useState<Record<string,number>>({});
   const [catalogo, setCatalogo]     = useState<ActividadCatalogo[]>([]);
   const [actMap, setActMap]         = useState<Record<string, ActividadMes[]>>({});
   const [loading, setLoading]       = useState(true);
@@ -2841,7 +2846,7 @@ function FinancialKPIView() {
       {/* Search */}
       <div className="bg-white rounded-xl border border-border p-5">
         <div className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Activity</div>
-        <BuscadorActividad onSelect={a => { setActSel(a); setProyTarifas({}); setProyDias({}); }} selected={actSel} catalogo={catalogo} />
+        <BuscadorActividad onSelect={a => { setActSel(a); setProyTarifas({}); setProyDias({}); setProyWD({}); }} selected={actSel} catalogo={catalogo} />
         {actSel && (
           <button className="mt-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setActSel(null)}>× Clear</button>
@@ -2930,6 +2935,7 @@ function FinancialKPIView() {
               <TablaActividad
                 actividad={actSel} proyTarifas={proyTarifas} onProyChange={(mes, v) => setProyTarifas(prev => ({...prev, [mes]: v}))}
                 proyDias={proyDias} onProyDiasChange={(mes, nombre, dias) => setProyDias(prev => ({...prev, [mes]: {...(prev[mes]||{}), [nombre]: dias}}))}
+                proyWD={proyWD} onProyWDChange={(mes, wd) => setProyWD(prev => ({...prev, [mes]: wd}))}
                 actividadesMap={actMap}
                 editMode={editMode} editRows={editRows} allConsultants={allConsultants}
                 onChangeProduccion={handleChangeProduccion}
