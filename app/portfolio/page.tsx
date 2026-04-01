@@ -1382,17 +1382,20 @@ function CORView() {
 
   // ── Calculated KPIs (from project data) ────────────────────────────────
   const corKPIsCalc = useMemo(() => {
-    const active = projects.filter(p => p.status !== "on-hold");
-    const totalRevenue = active.reduce((s, p) => s + (p.revenue || 0), 0);
-    const totalCost    = active.reduce((s, p) => s + (p.spent   || 0), 0);
+    // Financial KPIs: ALL projects regardless of status (completed/terminated still contributed revenue)
+    const totalRevenue = projects.reduce((s, p) => s + (p.revenue || 0), 0);
+    const totalCost    = projects.reduce((s, p) => s + (p.spent   || 0), 0);
     const grossMargin  = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0;
-    const otdVals = active.map(p => parsePercent(p.csvOtdPercent)).filter((v): v is number => v !== null);
-    const oqdVals = active.map(p => parsePercent(p.csvOqdPercent)).filter((v): v is number => v !== null);
+    // OTD/OQD: only non-completed, non-terminated, non-on-hold
+    const live = projects.filter(p => !["completed","terminated","on-hold","guarantee"].includes(p.status));
+    const otdVals = live.map(p => parsePercent(p.csvOtdPercent)).filter((v): v is number => v !== null);
+    const oqdVals = live.map(p => parsePercent(p.csvOqdPercent)).filter((v): v is number => v !== null);
     const avgOTD  = otdVals.length ? otdVals.reduce((s,v) => s+v, 0) / otdVals.length : null;
     const avgOQD  = oqdVals.length ? oqdVals.reduce((s,v) => s+v, 0) / oqdVals.length : null;
+    // Weather counts: only live services
     const wc = { G: 0, A: 0, R: 0, grey: 0, done: 0 };
-    active.forEach(p => { const k = reportData[p.id]?.overallStatus ?? "grey"; if (k in wc) wc[k as keyof typeof wc]++; });
-    return { totalRevenue, totalCost, grossMargin, avgOTD, avgOQD, activeCount: active.length, wc };
+    live.forEach(p => { const k = reportData[p.id]?.overallStatus ?? "grey"; if (k in wc) wc[k as keyof typeof wc]++; });
+    return { totalRevenue, totalCost, grossMargin, avgOTD, avgOQD, activeCount: live.length, wc };
   }, [projects, reportData]);
 
   // ── KPIs applying manual overrides ────────────────────────────────────
