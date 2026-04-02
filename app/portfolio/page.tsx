@@ -1122,30 +1122,40 @@ function CORView() {
       .catch(() => {});
   }, []);
 
-  // Auto-limpiar campos semanales al inicio de nueva semana (lunes)
-  // Detecta nueva semana comparando el último snapshot con el lunes actual
+  // Auto-limpiar campos semanales al inicio de nueva semana
+  // Usa cor_settings["weekly_clear_date"] en Supabase como fuente de verdad compartida
+  // (independiente de fechas de snapshots, funciona para todos los usuarios)
   const WEEKLY_CLEAR_FIELDS: Array<keyof ProjectReport> = [
     "achievements", "currentIssues", "actionsInProgress",
     "nextSteps", "marginImprovement", "keyRisks", "mitigation",
   ];
   const weekClearedRef = useRef(false);
   useEffect(() => {
-    if (isDefaultData || liveProjects.length === 0 || snapshots.length === 0) return;
+    if (isDefaultData || liveProjects.length === 0) return;
     if (weekClearedRef.current) return;
     const currentMonday = getLastMonday();
-    const latestSnapshotDate = snapshots[0]?.snapshot_date ?? "";
-    // Si el snapshot más reciente es de una semana anterior → nueva semana, limpiar
-    if (latestSnapshotDate < currentMonday) {
-      weekClearedRef.current = true;
-      liveProjects.forEach(p => {
-        const clearFields = {} as Partial<ProjectReport>;
-        WEEKLY_CLEAR_FIELDS.forEach(f => { (clearFields as Record<string, string>)[f] = ""; });
-        updateReport(p.id, clearFields);
-        updateProject(p.id, { shortComment: "" });
-      });
-    }
+    fetch("/api/settings/weekly-clear")
+      .then(r => r.json())
+      .then((stored: string | null) => {
+        if ((stored ?? "") >= currentMonday) return; // already cleared this week
+        weekClearedRef.current = true;
+        // Clear fields for all projects
+        liveProjects.forEach(p => {
+          const clearFields = {} as Partial<ProjectReport>;
+          WEEKLY_CLEAR_FIELDS.forEach(f => { (clearFields as Record<string, string>)[f] = ""; });
+          updateReport(p.id, clearFields);
+          updateProject(p.id, { shortComment: "" });
+        });
+        // Persist the clear date so all users see it
+        fetch("/api/settings/weekly-clear", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(currentMonday),
+        });
+      })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snapshots.length, liveProjects.length, isDefaultData]);
+  }, [liveProjects.length, isDefaultData]);
 
   // Auto-snapshot: crea/actualiza snapshot de la semana actual con los datos en vivo
   // Se dispara al cargar la app, al cargar un CSV, o cuando cambian revenue/cost de proyectos
