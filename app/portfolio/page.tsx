@@ -2485,28 +2485,6 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   const lastRealMes = [...FY_MESES].reverse().find(m => byMes[m]?.produccion) || FY_MESES[FY_MESES.length - 1];
   const refMes = byMes[lastRealMes] || historico[historico.length - 1];
 
-  // Per-projection-month calculations — costoNorm uses simulated dias/WD if provided
-  const proyCalc = PROY_MESES.map(pm => {
-    const uf         = parseFloat(proyTarifas[pm] || "") || 0;
-    const ufVal      = proyUFVal[pm] ?? (refMes?.uf || 39875);
-    const prod       = uf > 0 ? uf * ufVal : 0;
-    const diasPm     = proyDias[pm] || {};
-    const wd         = proyWD[pm] ?? (refMes?.workingDays > 0 ? refMes.workingDays : 20.75);
-    let costo = refMes?.costoNorm || 0;
-    if (refMes?.headcount?.length) {
-      const totalCostos = refMes.headcount.reduce((s, h) => {
-        const d = diasPm[h.nombre] ?? h.dias;
-        return s + Math.round(d * h.costoDiario);
-      }, 0);
-      costo = Math.round(totalCostos * 20.75 / wd);
-    }
-    const mgn = prod > 0 ? prod - costo : 0;
-    const pct = prod > 0 ? mgn / prod : 0;
-    return { mes: pm, uf, ufVal, prod, costo, wd, mgn, pct };
-  });
-  const proyTotalProd = proyCalc.reduce((s, p) => s + p.prod, 0);
-  const proyTotalMgn  = proyCalc.reduce((s, p) => s + p.mgn, 0);
-
   // Accumulated = only FY_MESES months up to lastRealMes
   const conData = historico.filter(m => FY_MESES.includes(m.mes) && m.mes <= lastRealMes && (m.produccion !== 0 || m.costos !== 0));
   const acProd  = conData.reduce((a, m) => a + m.produccion, 0);
@@ -2514,11 +2492,38 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   const acMgn   = conData.reduce((a, m) => a + m.margen, 0);
   const acPct   = acProd > 0 ? acMgn / acProd : 0;
 
+  // Build consultant list and costoDiario map from ALL historical months
+  // (not just refMes, so consultants who left before the last real month are included)
   const consultoresOrden: string[] = [];
   const seen = new Set<string>();
   [...historico].reverse().forEach(m =>
     m.headcount?.forEach(h => { if (!seen.has(h.nombre)) { seen.add(h.nombre); consultoresOrden.push(h.nombre); } })
   );
+  const consultCostMap = new Map<string, number>();
+  historico.forEach(m => m.headcount?.forEach(h => {
+    if (h.costoDiario > 0 && !consultCostMap.has(h.nombre)) consultCostMap.set(h.nombre, h.costoDiario);
+  }));
+
+  // Per-projection-month calculations — iterates ALL consultants, not just refMes.headcount
+  const proyCalc = PROY_MESES.map(pm => {
+    const uf     = parseFloat(proyTarifas[pm] || "") || 0;
+    const ufVal  = proyUFVal[pm] ?? (refMes?.uf || 39875);
+    const prod   = uf > 0 ? uf * ufVal : 0;
+    const diasPm = proyDias[pm] || {};
+    const wd     = proyWD[pm] ?? (refMes?.workingDays > 0 ? refMes.workingDays : 20.75);
+    const totalCostos = consultoresOrden.reduce((s, nombre) => {
+      const costoDiario  = consultCostMap.get(nombre) || 0;
+      const defaultDias  = refMes?.headcount?.find(h => h.nombre === nombre)?.dias ?? 0;
+      const d = diasPm[nombre] ?? defaultDias;
+      return s + Math.round(d * costoDiario);
+    }, 0);
+    const costo = Math.round(totalCostos * 20.75 / wd);
+    const mgn   = prod > 0 ? prod - costo : 0;
+    const pct   = prod > 0 ? mgn / prod : 0;
+    return { mes: pm, uf, ufVal, prod, costo, wd, mgn, pct };
+  });
+  const proyTotalProd = proyCalc.reduce((s, p) => s + p.prod, 0);
+  const proyTotalMgn  = proyCalc.reduce((s, p) => s + p.mgn, 0);
 
   const BG_HDR  = "#17375e";
   const BG_REAL = "#2e6da4";
@@ -2660,7 +2665,14 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
               const n = d?.headcount?.length || 0;
               return <td key={mes} style={{...tdS(BG_HC,true),color:"#fff",textAlign:"center"}}>{n}</td>;
             })}
-            {PROY_MESES.map(pm => <td key={pm} style={{...tdS(BG_PROY,true),color:"#fff",textAlign:"center"}}>{refMes?.headcount?.length||0}</td>)}
+            {PROY_MESES.map(pm => {
+              const diasPm = proyDias[pm] || {};
+              const n = consultoresOrden.filter(nombre => {
+                const d = diasPm[nombre] ?? (refMes?.headcount?.find(h => h.nombre === nombre)?.dias ?? 0);
+                return d > 0;
+              }).length;
+              return <td key={pm} style={{...tdS(BG_PROY,true),color:"#fff",textAlign:"center"}}>{n}</td>;
+            })}
             <td colSpan={2} style={{background:BG_HC,borderBottom:"0.5px solid #ddd"}}/>
           </tr>
 
@@ -2672,11 +2684,15 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
               const fte = d?.headcount?.reduce((a,h)=>a+h.fte,0)||0;
               return <td key={mes} style={{...tdS(BG_HC,false),color:"#fff",textAlign:"center"}}>{fte>0?fte.toFixed(1):"0.0"}</td>;
             })}
-            {PROY_MESES.map(pm => (
-              <td key={pm} style={{...tdS(BG_PROY,false),color:"#fff",textAlign:"center"}}>
-                {(refMes?.headcount?.reduce((a,h)=>a+h.fte,0)||0).toFixed(1)}
-              </td>
-            ))}
+            {PROY_MESES.map(pm => {
+              const diasPm = proyDias[pm] || {};
+              const wd = proyWD[pm] ?? (refMes?.workingDays > 0 ? refMes.workingDays : 20.75);
+              const fte = consultoresOrden.reduce((sum, nombre) => {
+                const d = diasPm[nombre] ?? (refMes?.headcount?.find(h => h.nombre === nombre)?.dias ?? 0);
+                return sum + (d > 0 ? d / wd : 0);
+              }, 0);
+              return <td key={pm} style={{...tdS(BG_PROY,false),color:"#fff",textAlign:"center"}}>{fte.toFixed(1)}</td>;
+            })}
             <td colSpan={2} style={{background:BG_HC,borderBottom:"0.5px solid #ddd"}}/>
           </tr>
 
@@ -2753,12 +2769,15 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   );
 }
 
+type ProjData = { tarifas: Record<string,string>; dias: Record<string,Record<string,number>>; wd: Record<string,number>; ufVal: Record<string,number> };
+
 function FinancialKPIView() {
   const [actSel, setActSel]         = useState<ActividadCatalogo | null>(null);
   const [proyTarifas, setProyTarifas] = useState<Record<string,string>>({});
   const [proyDias,    setProyDias]    = useState<Record<string,Record<string,number>>>({});
   const [proyWD,      setProyWD]      = useState<Record<string,number>>({});
   const [proyUFVal,   setProyUFVal]   = useState<Record<string,number>>({});
+  const [savedProj,   setSavedProj]   = useState<Record<string, ProjData>>({});
   const [catalogo, setCatalogo]     = useState<ActividadCatalogo[]>([]);
   const [actMap, setActMap]         = useState<Record<string, ActividadMes[]>>({});
   const [loading, setLoading]       = useState(true);
@@ -2794,10 +2813,29 @@ function FinancialKPIView() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
+
+    // Load saved projection data from Supabase
+    fetch("/api/settings/fin-kpi-proy")
+      .then(r => r.json())
+      .then((stored: Record<string, ProjData> | null) => {
+        if (stored && typeof stored === "object") setSavedProj(stored);
+      })
+      .catch(() => {});
   }, []);
 
-  // Reset edit mode when activity changes
-  useEffect(() => { setEditMode(false); setEditRows([]); }, [actSel]);
+  // Reset edit mode when activity changes; restore saved projection data
+  useEffect(() => {
+    setEditMode(false);
+    setEditRows([]);
+    if (actSel) {
+      const saved = savedProj[actSel.codigo];
+      setProyTarifas(saved?.tarifas ?? {});
+      setProyDias(saved?.dias ?? {});
+      setProyWD(saved?.wd ?? {});
+      setProyUFVal(saved?.ufVal ?? {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actSel]);
 
   const historico: ActividadMes[] = actSel ? (actMap[actSel.codigo] || []) : [];
   const displayRows = editMode ? editRows : historico;
@@ -2811,6 +2849,15 @@ function FinancialKPIView() {
   function saveEdit() {
     if (!actSel) return;
     setActMap(prev => ({ ...prev, [actSel.codigo]: editRows }));
+    // Persist projection data to Supabase
+    const projEntry: ProjData = { tarifas: proyTarifas, dias: proyDias, wd: proyWD, ufVal: proyUFVal };
+    const updated = { ...savedProj, [actSel.codigo]: projEntry };
+    setSavedProj(updated);
+    fetch("/api/settings/fin-kpi-proy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updated),
+    }).catch(() => {});
     setEditMode(false);
     setEditRows([]);
   }
@@ -2864,7 +2911,7 @@ function FinancialKPIView() {
       {/* Search */}
       <div className="bg-white rounded-xl border border-border p-5">
         <div className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Activity</div>
-        <BuscadorActividad onSelect={a => { setActSel(a); setProyTarifas({}); setProyDias({}); setProyWD({}); setProyUFVal({}); }} selected={actSel} catalogo={catalogo} />
+        <BuscadorActividad onSelect={a => { setActSel(a); }} selected={actSel} catalogo={catalogo} />
         {actSel && (
           <button className="mt-2 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setActSel(null)}>× Clear</button>
