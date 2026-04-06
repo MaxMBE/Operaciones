@@ -2599,7 +2599,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
           </tr>
           <tr>
             {FY_MESES.map(m => <th key={m} style={{...thS(BG_HDR),fontSize:10}}>{MES_LABEL[m]}</th>)}
-            {PROY_MESES.map(m => <th key={m} style={{...thS(BG_PROY),fontSize:10}}>{MES_LABEL[m]}</th>)}
+            {PROY_MESES.map(m => <th key={m} style={{...thS(BG_PROY),fontSize:10,minWidth:100}}>{MES_LABEL[m]}</th>)}
             <th style={{...thS(BG_ACUM),fontSize:10}}>Real to {MES_LABEL[lastRealMes]}</th>
             <th style={{...thS(BG_ACUM),fontSize:10,background:"#ffc000",color:"#333"}}>Real + Proj.</th>
           </tr>
@@ -2618,7 +2618,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
                   ) : row.key === "uf" ? (
                       <input type="number" step="1" value={p.ufVal}
                         onChange={e => onProyUFChange(p.mes, Number(e.target.value))}
-                        style={{...inputS, width:58, textAlign:"center"}}/>
+                        style={{...inputS, width:76, textAlign:"center"}}/>
                     )
                     : row.key === "workingDays" ? (
                       <input type="number" min={1} max={31} step={0.5} value={p.wd}
