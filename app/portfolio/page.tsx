@@ -2753,7 +2753,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   );
 }
 
-type ProjData = { tarifas: Record<string,string>; dias: Record<string,Record<string,number>>; wd: Record<string,number>; ufVal: Record<string,number> };
+type ProjData = { tarifas: Record<string,string>; dias: Record<string,Record<string,number>>; wd: Record<string,number>; ufVal: Record<string,number>; editedRows?: ActividadMes[] };
 
 function FinancialKPIView() {
   const [actSel, setActSel]         = useState<ActividadCatalogo | null>(null);
@@ -2770,13 +2770,11 @@ function FinancialKPIView() {
   const [allConsultants, setAllConsultants] = useState<Array<{nombre: string; costoDiario: number}>>([]);
 
   useEffect(() => {
+    // Chain: load JSON first, then load Supabase edits, apply both together
     fetch("/actividades-data.json")
       .then(r => r.json())
       .then(d => {
         setCatalogo(d.CATALOGO_ACTIVIDADES || []);
-        // Recalculate costoNorm and margen with the correct formula for all stored months
-        // costoNorm = totalCostos * 20.75 / workingDays  (NOT / sum_consultant_days)
-        // margen    = produccion - costoNorm
         const rawMap = d.ACTIVIDADES_FULL || {};
         const fixedMap: Record<string, ActividadMes[]> = {};
         const consultMap = new Map<string, number>();
@@ -2790,24 +2788,29 @@ function FinancialKPIView() {
             return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
           });
         }
-        setActMap(fixedMap);
         setAllConsultants([...consultMap.entries()]
           .map(([nombre, costoDiario]) => ({ nombre, costoDiario }))
           .sort((a, b) => a.nombre.localeCompare(b.nombre)));
-        setLoading(false);
+        // Load Supabase edits and overlay them on top of the JSON map
+        return fetch("/api/settings/fin-kpi-proy")
+          .then(r => r.json())
+          .then((stored: Record<string, ProjData> | null) => {
+            if (stored && typeof stored === "object") {
+              setSavedProj(stored);
+              // Apply any saved editedRows over the base JSON data
+              for (const [code, data] of Object.entries(stored)) {
+                if (data.editedRows?.length) fixedMap[code] = data.editedRows;
+              }
+            }
+            setActMap(fixedMap);
+            setLoading(false);
+          })
+          .catch(() => { setActMap(fixedMap); setLoading(false); });
       })
       .catch(() => setLoading(false));
-
-    // Load saved projection data from Supabase
-    fetch("/api/settings/fin-kpi-proy")
-      .then(r => r.json())
-      .then((stored: Record<string, ProjData> | null) => {
-        if (stored && typeof stored === "object") setSavedProj(stored);
-      })
-      .catch(() => {});
   }, []);
 
-  // Reset edit mode when activity changes; restore saved projection data
+  // Reset edit mode when activity changes; restore saved projection data + edited rows
   useEffect(() => {
     setEditMode(false);
     setEditRows([]);
@@ -2817,6 +2820,10 @@ function FinancialKPIView() {
       setProyDias(saved?.dias ?? {});
       setProyWD(saved?.wd ?? {});
       setProyUFVal(saved?.ufVal ?? {});
+      // Apply saved editedRows (may include added consultants not in JSON)
+      if (saved?.editedRows?.length) {
+        setActMap(prev => ({ ...prev, [actSel.codigo]: saved.editedRows! }));
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actSel]);
@@ -2833,8 +2840,8 @@ function FinancialKPIView() {
   function saveEdit() {
     if (!actSel) return;
     setActMap(prev => ({ ...prev, [actSel.codigo]: editRows }));
-    // Persist projection data to Supabase
-    const projEntry: ProjData = { tarifas: proyTarifas, dias: proyDias, wd: proyWD, ufVal: proyUFVal };
+    // Persist projection + edited historical rows to Supabase
+    const projEntry: ProjData = { tarifas: proyTarifas, dias: proyDias, wd: proyWD, ufVal: proyUFVal, editedRows: editRows };
     const updated = { ...savedProj, [actSel.codigo]: projEntry };
     setSavedProj(updated);
     fetch("/api/settings/fin-kpi-proy", {
