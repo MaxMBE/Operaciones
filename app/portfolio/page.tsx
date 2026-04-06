@@ -2397,6 +2397,9 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
 }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const results = useMemo(() => {
     if (q.length < 2) return [];
     const lq = q.toLowerCase();
@@ -2405,23 +2408,28 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
       .slice(0, 10);
   }, [q, allConsultants, existingNames]);
 
+  function updateRect() {
+    if (inputRef.current) setRect(inputRef.current.getBoundingClientRect());
+  }
+
   return (
-    <div style={{ position:"relative", width: 380 }}>
+    <div style={{ width: 380 }}>
       <input
+        ref={inputRef}
         value={q}
-        onChange={e => { setQ(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
+        onChange={e => { setQ(e.target.value); setOpen(true); updateRect(); }}
+        onFocus={() => { setOpen(true); updateRect(); }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder="Search consultant to add..."
         style={{ width:"100%", boxSizing:"border-box", border:"1px solid #2e75b6",
           borderRadius:6, padding:"7px 10px", fontSize:12,
           background:"#fff", color:"#1565c0", outline:"none" }}
       />
-      {open && results.length > 0 && (
-        <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, width:"100%",
-          zIndex:9999, background:"#fff", border:"1px solid #2e75b6",
+      {open && results.length > 0 && rect && (
+        <div style={{ position:"fixed", top: rect.bottom + 4, left: rect.left,
+          width: rect.width, zIndex:99999, background:"#fff", border:"1px solid #2e75b6",
           borderRadius:8, maxHeight:260, overflowY:"auto",
-          boxShadow:"0 6px 20px rgba(0,0,0,0.15)" }}>
+          boxShadow:"0 6px 20px rgba(0,0,0,0.18)" }}>
           {results.map(c => (
             <div key={c.nombre}
               onMouseDown={e => { e.preventDefault(); onAdd(c.nombre, c.costoDiario); setQ(""); setOpen(false); }}
@@ -2526,7 +2534,8 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   const labelS: React.CSSProperties = {padding:"5px 10px",fontSize:11,fontWeight:500,
     background:"#e8edf5",textAlign:"right",color:"#17375e",
     borderRight:"1px solid #c5cfe0",borderBottom:"0.5px solid #ddd",
-    whiteSpace:"nowrap",minWidth:190};
+    whiteSpace:"nowrap",minWidth:190,
+    position:"sticky",left:0,zIndex:1};
   const inputS: React.CSSProperties = {border:"1px solid #2e75b6",borderRadius:3,
     padding:"1px 4px",fontSize:11,textAlign:"right",background:"#fff",color:"#1565c0",fontWeight:600};
 
@@ -2581,7 +2590,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
       <table style={{borderCollapse:"collapse",fontSize:11,width:"100%"}}>
         <thead>
           <tr>
-            <th style={{...thS(),textAlign:"left",minWidth:190}} rowSpan={2}>KPI</th>
+            <th style={{...thS(),textAlign:"left",minWidth:190,position:"sticky",left:0,zIndex:2}} rowSpan={2}>KPI</th>
             <th style={{...thS(BG_REAL)}} colSpan={FY_MESES.length}>Real FY 25-26</th>
             <th style={{...thS(BG_PROY),minWidth:80}} colSpan={PROY_MESES.length}>Projection FY 25-26</th>
             <th style={{...thS(BG_ACUM)}} colSpan={2}>Accumulated</th>
@@ -2685,7 +2694,8 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
             <tr key={nombre} style={{background:idx%2===0?"#f5f7fa":"transparent"}}>
               <td style={{padding:"4px 6px 4px 12px",fontSize:11,
                 borderRight:"1px solid #ddd",borderBottom:"0.5px solid #eee",
-                whiteSpace:"nowrap",color:"#111",display:"flex",alignItems:"center",gap:4}}>
+                whiteSpace:"nowrap",color:"#111",display:"flex",alignItems:"center",gap:4,
+                position:"sticky",left:0,background:idx%2===0?"#f5f7fa":"#fff",zIndex:1}}>
                 {editMode && onRemoveConsultant && (
                   <button onClick={() => onRemoveConsultant(nombre)}
                     style={{flexShrink:0,width:16,height:16,borderRadius:"50%",border:"none",
