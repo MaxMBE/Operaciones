@@ -2402,52 +2402,36 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
     const lq = q.toLowerCase();
     return allConsultants
       .filter(c => !existingNames.includes(c.nombre) && c.nombre.toLowerCase().includes(lq))
-      .slice(0, 8);
+      .slice(0, 10);
   }, [q, allConsultants, existingNames]);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [dropPos, setDropPos] = useState<{top:number;left:number;width:number}|null>(null);
-
-  function handleFocus() {
-    setOpen(true);
-    if (containerRef.current) {
-      const r = containerRef.current.getBoundingClientRect();
-      setDropPos({ top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: Math.max(r.width, 340) });
-    }
-  }
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setQ(e.target.value);
-    setOpen(true);
-    if (containerRef.current) {
-      const r = containerRef.current.getBoundingClientRect();
-      setDropPos({ top: r.bottom + window.scrollY, left: r.left + window.scrollX, width: Math.max(r.width, 340) });
-    }
-  }
 
   return (
-    <div ref={containerRef} style={{ position:"relative", display:"inline-block" }}>
+    <div style={{ position:"relative", width: 380 }}>
       <input
         value={q}
-        onChange={handleChange}
-        onFocus={handleFocus}
-        onBlur={() => setTimeout(() => setOpen(false), 180)}
+        onChange={e => { setQ(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
         placeholder="Search consultant to add..."
-        style={{ width:300, border:"1px solid #2e75b6", borderRadius:6, padding:"6px 10px",
-          fontSize:12, background:"#fff", color:"#1565c0" }}
+        style={{ width:"100%", boxSizing:"border-box", border:"1px solid #2e75b6",
+          borderRadius:6, padding:"7px 10px", fontSize:12,
+          background:"#fff", color:"#1565c0", outline:"none" }}
       />
-      {open && results.length > 0 && dropPos && (
-        <div style={{ position:"fixed", top: dropPos.top + 2, left: dropPos.left,
-          width: dropPos.width, zIndex:9999, background:"#fff",
-          border:"1px solid #2e75b6", borderRadius:8, maxHeight:240, overflowY:"auto",
-          boxShadow:"0 8px 24px rgba(0,0,0,0.15)" }}>
+      {open && results.length > 0 && (
+        <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, width:"100%",
+          zIndex:9999, background:"#fff", border:"1px solid #2e75b6",
+          borderRadius:8, maxHeight:260, overflowY:"auto",
+          boxShadow:"0 6px 20px rgba(0,0,0,0.15)" }}>
           {results.map(c => (
-            <div key={c.nombre} onMouseDown={() => { onAdd(c.nombre, c.costoDiario); setQ(""); setOpen(false); }}
-              style={{ padding:"8px 14px", cursor:"pointer", borderBottom:"0.5px solid #eee",
+            <div key={c.nombre}
+              onMouseDown={e => { e.preventDefault(); onAdd(c.nombre, c.costoDiario); setQ(""); setOpen(false); }}
+              style={{ padding:"9px 14px", cursor:"pointer", borderBottom:"0.5px solid #eee",
                 fontSize:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}
               onMouseEnter={e => (e.currentTarget.style.background="#e3f2fd")}
               onMouseLeave={e => (e.currentTarget.style.background="transparent")}>
               <span style={{fontWeight:500}}>{c.nombre}</span>
               <span style={{ fontSize:10, color:"#888", marginLeft:8, flexShrink:0 }}>
-                ${Math.round(c.costoDiario).toLocaleString("es-CL")}/day
+                ${Math.round(c.costoDiario).toLocaleString("es-CL")}/día
               </span>
             </div>
           ))}
