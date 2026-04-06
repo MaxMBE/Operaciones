@@ -2878,12 +2878,23 @@ function FinancialKPIView() {
   function handleChangeDias(mes: string, nombre: string, dias: number) {
     setEditRows(rows => rows.map(r => {
       if (r.mes !== mes) return r;
-      const hc = r.headcount.map(h => {
-        if (h.nombre !== nombre) return h;
-        const costoMes = Math.round(dias * h.costoDiario);
+      const existing = r.headcount.find(h => h.nombre === nombre);
+      let hc;
+      if (existing) {
+        // Consultant already in this month's headcount — update dias
+        hc = r.headcount.map(h => {
+          if (h.nombre !== nombre) return h;
+          const costoMes = Math.round(dias * h.costoDiario);
+          const fte = r.workingDays > 0 ? parseFloat((dias / r.workingDays).toFixed(2)) : 0;
+          return { ...h, dias, costoMes, fte };
+        });
+      } else {
+        // Consultant not in this month — add them (lookup costoDiario from allConsultants)
+        const costoDiario = allConsultants.find(c => c.nombre === nombre)?.costoDiario ?? 0;
+        const costoMes = Math.round(dias * costoDiario);
         const fte = r.workingDays > 0 ? parseFloat((dias / r.workingDays).toFixed(2)) : 0;
-        return { ...h, dias, costoMes, fte };
-      });
+        hc = [...r.headcount, { nombre, dias, fte, costoDiario, costoMes }];
+      }
       return recalc(r, hc);
     }));
   }
