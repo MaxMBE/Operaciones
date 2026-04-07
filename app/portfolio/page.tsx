@@ -225,6 +225,7 @@ function ProjectDetailPanel({
   onSaveReport,
   readOnly = false,
   actBillingLookup,
+  actMonthLookup,
 }: {
   project: Project;
   report?: ProjectReport;
@@ -232,6 +233,7 @@ function ProjectDetailPanel({
   onSaveReport:  (changes: Partial<ProjectReport>) => void;
   readOnly?: boolean;
   actBillingLookup?: (ifsCode: string) => number | null;
+  actMonthLookup?: (ifsCode: string) => ActividadMes | null;
 }) {
   const t = useT();
   const { lang } = useLang();
@@ -547,6 +549,27 @@ function ProjectDetailPanel({
             <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide mb-2">Financial KPIs</h4>
             {editMode ? (
               <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                {actMonthLookup && p.ifsCode && (() => {
+                  const mc = actMonthLookup(p.ifsCode!);
+                  if (!mc) return null;
+                  return (
+                    <div className="col-span-2 flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-1.5">
+                      <span className="text-[9px] text-indigo-700 font-medium">
+                        MC data: Rev {mc.produccion.toLocaleString("es-CL")} · Cost {Math.abs(mc.costoNorm).toLocaleString("es-CL")} · Margin {mc.produccion > 0 ? Math.round(mc.margen / mc.produccion * 100) : 0}%
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setP("revenueMonthly", String(mc.produccion));
+                          setP("costMonthly",    String(Math.abs(mc.costoNorm)));
+                        }}
+                        className="text-[9px] bg-indigo-600 text-white px-2 py-0.5 rounded hover:bg-indigo-700 font-semibold"
+                      >
+                        Load Monthly
+                      </button>
+                    </div>
+                  );
+                })()}
                 <NumericInput label="Revenue (Month)"    value={draftP.revenueMonthly}    onChange={v => setP("revenueMonthly", v)} />
                 <NumericInput label="Cost (Month)"      value={draftP.costMonthly}        onChange={v => setP("costMonthly", v)} />
                 <NumericInput label="Revenue YTD"       value={draftP.revenue}            onChange={v => setP("revenue", v)} />
@@ -1149,15 +1172,20 @@ function CORView() {
   const locale = lang === "en" ? "en-US" : "es-CL";
   const activeMonthLabel = monthDisplayLabel(activeMonth, locale);
 
-  // Returns total consultant days for a given IFS code in the active month (from Margin Calculator data)
-  const actBillingLookup = useCallback((ifsCode: string): number | null => {
+  // Returns full month data for a given IFS code in the active month (from Margin Calculator)
+  const actMonthLookup = useCallback((ifsCode: string): ActividadMes | null => {
     const months = actMap[ifsCode];
     if (!months) return null;
-    const entry = months.find(m => m.mes === activeMonth);
+    return months.find(m => m.mes === activeMonth) ?? null;
+  }, [actMap, activeMonth]);
+
+  // Returns total consultant days for billing auto-fill
+  const actBillingLookup = useCallback((ifsCode: string): number | null => {
+    const entry = actMonthLookup(ifsCode);
     if (!entry) return null;
     const totalDias = entry.headcount?.reduce((s: number, h: HeadcountEntry) => s + h.dias, 0) ?? 0;
     return totalDias > 0 ? totalDias : null;
-  }, [actMap, activeMonth]);
+  }, [actMonthLookup]);
 
   // Projects active in the selected month
   const kpiMonthProjects = useMemo(() => {
@@ -2263,6 +2291,7 @@ function CORView() {
                             project={selectedProject}
                             report={selectedReport}
                             actBillingLookup={actBillingLookup}
+                            actMonthLookup={actMonthLookup}
                             onSaveProject={changes => updateProject(p.id, changes)}
                             onSaveReport={changes => {
                               // phase, teamMood, healthGovernance(CSAT) are per-month; everything else is global
