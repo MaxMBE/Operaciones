@@ -598,9 +598,18 @@ function ProjectDetailPanel({
                     <td className={`py-1 pl-1 text-right font-semibold ${devClass(tmdProj)}`}>{fmtDev(tmdProj)}</td>
                   </tr>
                   <tr>
-                    <td className="py-1 pr-2 font-medium">FTE Man-days</td>
+                    <td className="py-1 pr-2 font-medium">Billing</td>
                     <td className="py-1 px-1 text-right text-gray-400">—</td>
-                    <td className="py-1 px-1 text-right font-semibold">{draftR.ftes||draftP.teamSize||"—"}</td>
+                    <td className="py-1 px-1 text-right font-semibold">
+                      {editMode ? (
+                        <input
+                          type="number"
+                          value={draftR.ftes || ""}
+                          onChange={e => setR("ftes", e.target.value)}
+                          className="w-16 text-right text-[9px] border border-indigo-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                        />
+                      ) : (draftR.ftes || "—")}
+                    </td>
                     <td className="py-1 pl-1 text-right text-gray-400">—</td>
                   </tr>
                   {draftP.serviceType === "Fixed Price" && (
