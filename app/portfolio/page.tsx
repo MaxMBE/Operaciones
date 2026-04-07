@@ -1255,13 +1255,13 @@ function CORView() {
   const [confirmKPI,   setConfirmKPI]   = useState(false);
   const [kpiSuccess,   setKpiSuccess]   = useState(false);
 
-  async function saveMonthSnapshot(opts?: { corManualOverride?: CORManual }) {
+  async function saveMonthSnapshot(opts?: { corManualOverride?: CORManual; projectsOverride?: Project[]; reportDataOverride?: Record<string, ProjectReport> }) {
     const snapshot_date = monthToSnapshotDate(activeMonth);
     const week_label    = monthDisplayLabel(activeMonth, locale);
     const corManual     = opts?.corManualOverride ?? manualData;
-    // Use monthData if already loaded/initialized, otherwise use month-filtered live data
-    const projectsToSave   = monthData ? monthData.projects    : kpiMonthProjects;
-    const reportDataToSave = monthData ? monthData.report_data : reportData;
+    // Use explicit overrides first, then monthData, then live filtered data
+    const projectsToSave   = opts?.projectsOverride   ?? (monthData ? monthData.projects    : kpiMonthProjects);
+    const reportDataToSave = opts?.reportDataOverride ?? (monthData ? monthData.report_data : reportData);
     setSaveStatus(lang === "en" ? "Saving…" : "Guardando…");
     try {
       const res = await fetch("/api/snapshots", {
@@ -2294,7 +2294,23 @@ function CORView() {
                             report={selectedReport}
                             actBillingLookup={actBillingLookup}
                             actMonthLookup={actMonthLookup}
-                            onSaveProject={changes => updateProject(p.id, changes)}
+                            onSaveProject={changes => {
+                              // Always update live DataContext (persists to Supabase via /api/data)
+                              updateProject(p.id, changes);
+                              // For historical months: also update monthData and auto-save snapshot
+                              if (!isCurrentMonth) {
+                                const baseProjects = monthData?.projects ?? kpiMonthProjects;
+                                const updatedProjects = baseProjects.map(proj =>
+                                  proj.id === p.id ? { ...proj, ...changes } : proj
+                                );
+                                const baseReportData = monthData?.report_data ?? reportData;
+                                setMonthData(prev => {
+                                  const base = prev ?? { id:"", snapshot_date: monthToSnapshotDate(activeMonth), week_label: activeMonthLabel, created_at:"", projects: kpiMonthProjects, report_data: reportData, cor_manual: manualData };
+                                  return { ...base, projects: updatedProjects };
+                                });
+                                saveMonthSnapshot({ projectsOverride: updatedProjects, reportDataOverride: baseReportData });
+                              }
+                            }}
                             onSaveReport={changes => {
                               // phase, teamMood, healthGovernance(CSAT) are per-month; everything else is global
                               const PER_MONTH = ["phase", "teamMood", "healthGovernance"] as const;
@@ -2309,10 +2325,16 @@ function CORView() {
                                 if (isCurrentMonth) {
                                   updateReport(p.id, perMonth);
                                 } else {
+                                  const baseProjects = monthData?.projects ?? kpiMonthProjects;
+                                  const updatedReportData = {
+                                    ...(monthData?.report_data ?? reportData),
+                                    [p.id]: { ...(monthData?.report_data ?? reportData)[p.id], ...perMonth },
+                                  };
                                   setMonthData(prev => {
                                     const base = prev ?? { id:"", snapshot_date: monthToSnapshotDate(activeMonth), week_label: activeMonthLabel, created_at:"", projects: kpiMonthProjects, report_data: reportData, cor_manual: manualData };
-                                    return { ...base, report_data: { ...base.report_data, [p.id]: { ...base.report_data[p.id], ...perMonth } } };
+                                    return { ...base, report_data: updatedReportData };
                                   });
+                                  saveMonthSnapshot({ projectsOverride: baseProjects, reportDataOverride: updatedReportData });
                                 }
                               }
                             }}
