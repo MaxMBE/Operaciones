@@ -2101,7 +2101,7 @@ function CORView() {
                 {([
                   { label: t.cor_client_label,    field: "client"      as const, align: ""        },
                   { label: lang === "en" ? "Project / Service" : "Proyecto / Servicio", field: "name"        as const, align: ""        },
-                  { label: lang === "en" ? "Type" : "Tipo",                        field: "serviceType" as const, align: "center"  },
+                  { label: lang === "en" ? "Model" : "Modelo",                     field: "serviceType" as const, align: "center"  },
                   { label: lang === "en" ? "Start" : "Inicio",                     field: "startDate"   as const, align: "center"  },
                   { label: lang === "en" ? "End" : "Término",                      field: "endDate"     as const, align: "center"  },
                   { label: "TL",                  field: "leader"      as const, align: ""        },
