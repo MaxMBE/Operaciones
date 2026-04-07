@@ -1388,9 +1388,10 @@ function CORView() {
 
   // ── Calculated KPIs (from month-filtered project data) ─────────────────
   const corKPIsCalc = useMemo(() => {
-    // Financial KPIs: all services active in the selected month
-    const totalRevenue = kpiMonthProjects.reduce((s, p) => s + (p.revenue || 0), 0);
-    const totalCost    = kpiMonthProjects.reduce((s, p) => s + (p.spent   || 0), 0);
+    // Financial KPIs: use monthly figures (only services that billed in the selected month)
+    const billed = kpiMonthProjects.filter(p => (p.revenueMonthly || 0) > 0 || (p.costMonthly || 0) > 0);
+    const totalRevenue = billed.reduce((s, p) => s + (p.revenueMonthly || 0), 0);
+    const totalCost    = billed.reduce((s, p) => s + (p.costMonthly    || 0), 0);
     const grossMargin  = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0;
     // OTD/OQD: only non-completed, non-terminated, non-on-hold within the month
     const live = kpiMonthProjects.filter(p => !["completed","terminated","on-hold","guarantee"].includes(p.status));
