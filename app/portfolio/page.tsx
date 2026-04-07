@@ -2304,16 +2304,24 @@ function CORView() {
                             actBillingLookup={actBillingLookup}
                             actMonthLookup={actMonthLookup}
                             onSaveProject={changes => {
-                              // Always update live DataContext (persists to Supabase via /api/data)
-                              updateProject(p.id, changes);
-                              // If monthData exists (snapshot loaded), update it too so table re-renders immediately
+                              // Monthly financial fields are per-month — must NOT bleed into other months
+                              const PER_MONTH_PROJ = ["revenueMonthly","costMonthly","billingMonthly","billingProjection"] as const;
+                              const perMonthProj: Partial<Project> = {};
+                              const globalProj: Partial<Project> = {};
+                              for (const [k, v] of Object.entries(changes)) {
+                                if ((PER_MONTH_PROJ as readonly string[]).includes(k)) (perMonthProj as Record<string,unknown>)[k] = v;
+                                else (globalProj as Record<string,unknown>)[k] = v;
+                              }
+                              // Global fields always update live DataContext
+                              if (Object.keys(globalProj).length) updateProject(p.id, globalProj);
+                              // Monthly fields: for current month update live too; for historical only snapshot
+                              if (isCurrentMonth && Object.keys(perMonthProj).length) updateProject(p.id, perMonthProj);
+                              // Always update monthData for immediate UI refresh
                               if (monthData) {
                                 const updatedProjects = monthData.projects.map(proj =>
                                   proj.id === p.id ? { ...proj, ...changes } : proj
                                 );
-                                const newMonthData = { ...monthData, projects: updatedProjects };
-                                setMonthData(newMonthData);
-                                // For historical months also persist to snapshot
+                                setMonthData({ ...monthData, projects: updatedProjects });
                                 if (!isCurrentMonth) {
                                   saveMonthSnapshot({ projectsOverride: updatedProjects, reportDataOverride: monthData.report_data });
                                 }
