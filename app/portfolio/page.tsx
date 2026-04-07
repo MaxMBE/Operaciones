@@ -1330,7 +1330,7 @@ function CORView() {
   ], [WEATHER]);
 
   const filteredProjects = useMemo(() => {
-    const filtered = projects.filter(p => {
+    const filtered = kpiMonthProjects.filter(p => {
       const status = reportData[p.id]?.overallStatus ?? "grey";
       if (fltStatus.length  && !fltStatus.includes(status))           return false;
       if (fltClient.length  && !fltClient.includes(p.client ?? ""))   return false;
@@ -1379,7 +1379,7 @@ function CORView() {
       }
       return sortDir === "asc" ? (va as number)-(vb as number) : (vb as number)-(va as number);
     });
-  }, [projects, reportData, fltStatus, fltClient, fltLeader, fltManager, fltType, sortField, sortDir]);
+  }, [kpiMonthProjects, reportData, fltStatus, fltClient, fltLeader, fltManager, fltType, sortField, sortDir]);
 
   const hasTableFilters = !!(fltStatus.length || fltClient.length || fltLeader.length || fltManager.length || fltType.length);
 
