@@ -224,12 +224,14 @@ function ProjectDetailPanel({
   onSaveProject,
   onSaveReport,
   readOnly = false,
+  actBillingLookup,
 }: {
   project: Project;
   report?: ProjectReport;
   onSaveProject: (changes: Partial<Project>) => void;
   onSaveReport:  (changes: Partial<ProjectReport>) => void;
   readOnly?: boolean;
+  actBillingLookup?: (ifsCode: string) => number | null;
 }) {
   const t = useT();
   const { lang } = useLang();
@@ -602,13 +604,32 @@ function ProjectDetailPanel({
                     <td className="py-1 px-1 text-right text-gray-400">—</td>
                     <td className="py-1 px-1 text-right font-semibold">
                       {editMode ? (
-                        <input
-                          type="number"
-                          value={draftR.ftes || ""}
-                          onChange={e => setR("ftes", e.target.value)}
-                          className="w-16 text-right text-[9px] border border-indigo-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                        />
-                      ) : (draftR.ftes || "—")}
+                        <div className="flex items-center justify-end gap-1">
+                          <input
+                            type="number"
+                            value={draftR.ftes || ""}
+                            onChange={e => setR("ftes", e.target.value)}
+                            className="w-16 text-right text-[9px] border border-indigo-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                          {actBillingLookup && p.ifsCode && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const v = actBillingLookup(p.ifsCode!);
+                                if (v !== null) setR("ftes", String(v));
+                              }}
+                              title="Load from Margin Calculator"
+                              className="text-[8px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded hover:bg-indigo-200"
+                            >MC</button>
+                          )}
+                        </div>
+                      ) : (
+                        (() => {
+                          const autoVal = actBillingLookup && p.ifsCode ? actBillingLookup(p.ifsCode) : null;
+                          const display = draftR.ftes || (autoVal !== null ? String(autoVal) : null);
+                          return display ? <span className={!draftR.ftes && autoVal !== null ? "text-indigo-500 italic" : ""}>{display}</span> : "—";
+                        })()
+                      )}
                     </td>
                     <td className="py-1 pl-1 text-right text-gray-400">—</td>
                   </tr>
@@ -1092,6 +1113,28 @@ function CORView() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // ── Margin Calculator actMap (for Billing auto-fill) ──────────────────
+  const [actMap, setActMapCOR] = useState<Record<string, ActividadMes[]>>({});
+  useEffect(() => {
+    fetch("/actividades-data.json")
+      .then(r => r.json())
+      .then(d => {
+        const rawMap = d.ACTIVIDADES_FULL || {};
+        const fixedMap: Record<string, ActividadMes[]> = {};
+        for (const [code, months] of Object.entries(rawMap)) {
+          fixedMap[code] = (months as ActividadMes[]).map(m => {
+            const hc = m.headcount || [];
+            const totalCostos = hc.reduce((s: number, h: HeadcountEntry) => s + h.costoMes, 0);
+            const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
+            const costoNorm = Math.round(totalCostos * 20.75 / wd);
+            return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
+          });
+        }
+        setActMapCOR(fixedMap);
+      })
+      .catch(() => {});
+  }, []);
+
   // ── Monthly snapshots ─────────────────────────────────────────────────
   const [monthSnapshots, setMonthSnapshots] = useState<SnapshotMeta[]>([]);
   const [activeMonth,    setActiveMonth]    = useState<string>(currentMonth());
@@ -1105,6 +1148,16 @@ function CORView() {
 
   const locale = lang === "en" ? "en-US" : "es-CL";
   const activeMonthLabel = monthDisplayLabel(activeMonth, locale);
+
+  // Returns total consultant days for a given IFS code in the active month (from Margin Calculator data)
+  const actBillingLookup = useCallback((ifsCode: string): number | null => {
+    const months = actMap[ifsCode];
+    if (!months) return null;
+    const entry = months.find(m => m.mes === activeMonth);
+    if (!entry) return null;
+    const totalDias = entry.headcount?.reduce((s: number, h: HeadcountEntry) => s + h.dias, 0) ?? 0;
+    return totalDias > 0 ? totalDias : null;
+  }, [actMap, activeMonth]);
 
   // Projects active in the selected month
   const kpiMonthProjects = useMemo(() => {
@@ -2209,6 +2262,7 @@ function CORView() {
                           <ProjectDetailPanel
                             project={selectedProject}
                             report={selectedReport}
+                            actBillingLookup={actBillingLookup}
                             onSaveProject={changes => updateProject(p.id, changes)}
                             onSaveReport={changes => {
                               // phase, teamMood, healthGovernance(CSAT) are per-month; everything else is global
