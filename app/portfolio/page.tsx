@@ -1187,17 +1187,18 @@ function CORView() {
     return totalDias > 0 ? totalDias : null;
   }, [actMonthLookup]);
 
-  // Projects active in the selected month
+  // Projects active in the selected month — always filter liveProjects by date so snapshot
+  // quirks (projects saved when still active but now ended) don't bleed through.
   const kpiMonthProjects = useMemo(() => {
     const [y, m] = activeMonth.split("-").map(Number);
     const firstDay = new Date(y, m - 1, 1);
     const lastDay  = new Date(y, m, 0);
-    return projects.filter(p => {
+    return liveProjects.filter(p => {
       const start = p.startDate ? new Date(p.startDate + "T00:00:00") : null;
       const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
       return (!start || start <= lastDay) && (!end || end >= firstDay);
     });
-  }, [projects, activeMonth]);
+  }, [liveProjects, activeMonth]);
 
   // Load list of saved months on mount
   useEffect(() => {
