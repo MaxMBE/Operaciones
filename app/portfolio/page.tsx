@@ -2372,11 +2372,12 @@ function CORView() {
 
 function TransformationView() {
   return (
-    <div className="flex items-center justify-center h-64 bg-white rounded-xl border border-border">
-      <div className="text-center">
-        <p className="text-sm font-semibold text-muted-foreground">Transformation</p>
-        <p className="text-xs text-muted-foreground mt-1">Coming soon</p>
-      </div>
+    <div className="bg-white rounded-xl border border-border overflow-hidden" style={{ height: "calc(100vh - 180px)" }}>
+      <iframe
+        src="/commitment-models.pdf"
+        className="w-full h-full"
+        title="SII Operations — Commitment Models M3·M4·M5"
+      />
     </div>
   );
 }
