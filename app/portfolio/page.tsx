@@ -24,38 +24,19 @@ import {
 interface SnapshotMeta { id: string; snapshot_date: string; week_label: string; created_at: string; }
 interface SnapshotFull extends SnapshotMeta { projects: Project[]; report_data: Record<string, ProjectReport>; cor_manual: CORManual | null; }
 
-// ── Helpers de fecha para snapshots ──────────────────────────────────────────
-function getLastMonday(from = new Date()): string {
-  const d = new Date(from);
-  // day 0=Dom, 1=Lun ... 6=Sab
-  const day = d.getDay();
-  const diff = day === 0 ? 6 : day - 1; // días hacia atrás hasta el lunes
-  d.setDate(d.getDate() - diff);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
+// ── Helpers de fecha para snapshots mensuales ────────────────────────────────
+function currentMonth(): string {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function isMondayToday(): boolean {
-  return new Date().getDay() === 1;
-}
+function monthToSnapshotDate(ym: string): string { return `${ym}-01`; }
 
-function formatWeekLabel(isoDate: string): string {
-  const [y, m, day] = isoDate.split("-").map(Number);
-  const d = new Date(y, m - 1, day);
-  return `Week of ${d.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`;
-}
+function snapshotDateToMonth(d: string): string { return d.slice(0, 7); }
 
-function translateWeekLabel(label: string): string {
-  const ES_MONTHS: Record<string, string> = {
-    enero:"January", febrero:"February", marzo:"March", abril:"April",
-    mayo:"May", junio:"June", julio:"July", agosto:"August",
-    septiembre:"September", octubre:"October", noviembre:"November", diciembre:"December",
-  };
-  const m = label.match(/^Semana del (\d+) de (\w+) de (\d+)$/i);
-  if (m) return `Week of ${ES_MONTHS[m[2].toLowerCase()] || m[2]} ${m[1]}, ${m[3]}`;
-  return label;
+function monthDisplayLabel(ym: string, locale: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(locale, { month: "long", year: "numeric" });
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -65,7 +46,7 @@ const CHART_COLORS = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4
 
 // ── COR manual override ────────────────────────────────────────────────────────
 
-const COR_MANUAL_KEY = "cor_manual_data";
+// COR_MANUAL_KEY kept for localStorage migration only (no longer used as primary store)
 
 interface CORManual {
   revenue: string; cost: string; otd: string; oqd: string;
@@ -1102,26 +1083,23 @@ function CORView() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ── Snapshots ─────────────────────────────────────────────────────────
-  const [snapshots,        setSnapshots]        = useState<SnapshotMeta[]>([]);
-  const [activeSnapshotId, setActiveSnapshotId] = useState<string | "live">("live");
-  const [snapshotData,     setSnapshotData]     = useState<SnapshotFull | null>(null);
-  const [snapshotLoading,  setSnapshotLoading]  = useState(false);
-  const [snapshotStatus,   setSnapshotStatus]   = useState<string>("");
+  // ── Monthly snapshots ─────────────────────────────────────────────────
+  const [monthSnapshots, setMonthSnapshots] = useState<SnapshotMeta[]>([]);
+  const [activeMonth,    setActiveMonth]    = useState<string>(currentMonth());
+  const [monthData,      setMonthData]      = useState<SnapshotFull | null>(null);
+  const [monthLoading,   setMonthLoading]   = useState(false);
+  const [saveStatus,     setSaveStatus]     = useState<string>("");
 
-  // Datos activos: live o snapshot
-  const projects    = snapshotData ? snapshotData.projects    : liveProjects;
-  const reportData  = snapshotData ? snapshotData.report_data : liveReportData;
-  const isHistorical = activeSnapshotId !== "live" && snapshots.some(s => s.id === activeSnapshotId && s.snapshot_date !== getLastMonday());
+  const isCurrentMonth = activeMonth === currentMonth();
+  const projects   = monthData ? monthData.projects    : liveProjects;
+  const reportData = monthData ? monthData.report_data : liveReportData;
 
-  // ── Month selector for KPI cards ──────────────────────────────────────
-  const [kpiMonth, setKpiMonth] = useState<string>(() => {
-    const n = new Date();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const locale = lang === "en" ? "en-US" : "es-CL";
+  const activeMonthLabel = monthDisplayLabel(activeMonth, locale);
 
+  // Projects active in the selected month
   const kpiMonthProjects = useMemo(() => {
-    const [y, m] = kpiMonth.split("-").map(Number);
+    const [y, m] = activeMonth.split("-").map(Number);
     const firstDay = new Date(y, m - 1, 1);
     const lastDay  = new Date(y, m, 0);
     return projects.filter(p => {
@@ -1129,106 +1107,29 @@ function CORView() {
       const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
       return (!start || start <= lastDay) && (!end || end >= firstDay);
     });
-  }, [projects, kpiMonth]);
+  }, [projects, activeMonth]);
 
-  const kpiMonthLabel = useMemo(() => {
-    const [y, m] = kpiMonth.split("-").map(Number);
-    return new Date(y, m - 1, 1).toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { month: "long", year: "numeric" });
-  }, [kpiMonth, lang]);
-
-  // Cargar lista de snapshots al montar
+  // Load list of saved months on mount
   useEffect(() => {
     fetch("/api/snapshots")
       .then(r => r.json())
-      .then((list: SnapshotMeta[]) => setSnapshots(list))
+      .then((list: SnapshotMeta[]) => setMonthSnapshots(list))
       .catch(() => {});
   }, []);
 
-  // Auto-limpiar campos semanales al inicio de nueva semana
-  // Usa cor_settings["weekly_clear_date"] en Supabase como fuente de verdad compartida
-  // (independiente de fechas de snapshots, funciona para todos los usuarios)
-  const WEEKLY_CLEAR_FIELDS: Array<keyof ProjectReport> = [
-    "achievements", "currentIssues", "actionsInProgress",
-    "nextSteps", "marginImprovement", "keyRisks", "mitigation",
-  ];
-  const weekClearedRef = useRef(false);
+  // Load month data when activeMonth changes
   useEffect(() => {
-    if (isDefaultData || liveProjects.length === 0) return;
-    if (weekClearedRef.current) return;
-    const currentMonday = getLastMonday();
-    fetch("/api/settings/weekly-clear")
+    if (isCurrentMonth) { setMonthData(null); return; }
+    const snap = monthSnapshots.find(s => snapshotDateToMonth(s.snapshot_date) === activeMonth);
+    if (!snap) { setMonthData(null); return; }
+    setMonthLoading(true);
+    fetch(`/api/snapshots/${snap.id}`)
       .then(r => r.json())
-      .then((stored: string | null) => {
-        if ((stored ?? "") >= currentMonday) return; // already cleared this week
-        weekClearedRef.current = true;
-        // Clear fields for all projects
-        liveProjects.forEach(p => {
-          const clearFields = {} as Partial<ProjectReport>;
-          WEEKLY_CLEAR_FIELDS.forEach(f => { (clearFields as Record<string, string>)[f] = ""; });
-          updateReport(p.id, clearFields);
-          updateProject(p.id, { shortComment: "" });
-        });
-        // Persist the clear date so all users see it
-        fetch("/api/settings/weekly-clear", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(currentMonday),
-        });
-      })
-      .catch(() => {});
+      .then((d: SnapshotFull) => setMonthData(d))
+      .catch(() => setMonthData(null))
+      .finally(() => setMonthLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [liveProjects.length, isDefaultData]);
-
-  // Auto-snapshot: crea/actualiza snapshot de la semana actual con los datos en vivo
-  // Se dispara al cargar la app, al cargar un CSV, o cuando cambian revenue/cost de proyectos
-  const snapshotDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevSnapshotHashRef = useRef("");
-  const projectsHash = useMemo(
-    () => liveProjects.reduce((h, p) => h + (p.revenue || 0) + (p.spent || 0) + (p.id || "").length, 0).toString() + liveProjects.length,
-    [liveProjects]
-  );
-  useEffect(() => {
-    if (isDefaultData || liveProjects.length === 0) return;
-    if (projectsHash === prevSnapshotHashRef.current) return;
-    if (snapshotDebounceRef.current) clearTimeout(snapshotDebounceRef.current);
-    snapshotDebounceRef.current = setTimeout(() => {
-      prevSnapshotHashRef.current = projectsHash;
-      const todayDate = getLastMonday();
-      const week_label = formatWeekLabel(todayDate);
-      let corManual: CORManual | null = null;
-      try { const s = localStorage.getItem(COR_MANUAL_KEY); if (s) corManual = JSON.parse(s); } catch {}
-      setSnapshotStatus("Saving weekly snapshot...");
-      fetch("/api/snapshots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ snapshot_date: todayDate, week_label, projects: liveProjects, report_data: liveReportData, cor_manual: { ...(corManual ?? {}), teamMembers: liveTeamMembers } }),
-      })
-        .then(r => r.json())
-        .then((newSnap: SnapshotMeta) => {
-          setSnapshots(prev => [newSnap, ...prev.filter(s => s.snapshot_date !== newSnap.snapshot_date)]);
-          setSnapshotStatus("✓ Snapshot guardado");
-          setTimeout(() => setSnapshotStatus(""), 3000);
-        })
-        .catch(() => setSnapshotStatus(""));
-    }, 8000); // 8s debounce — waits for Supabase sync to settle before saving snapshot
-    return () => { if (snapshotDebounceRef.current) clearTimeout(snapshotDebounceRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectsHash, isDefaultData]);
-
-  // Al cambiar snapshot seleccionado, cargar datos completos
-  // "live" siempre muestra datos en tiempo real (nunca carga snapshot)
-  useEffect(() => {
-    if (activeSnapshotId === "live") {
-      setSnapshotData(null);
-      return;
-    }
-    setSnapshotLoading(true);
-    fetch(`/api/snapshots/${activeSnapshotId}`)
-      .then(r => r.json())
-      .then((d: SnapshotFull) => setSnapshotData(d))
-      .catch(() => setSnapshotData(null))
-      .finally(() => setSnapshotLoading(false));
-  }, [activeSnapshotId, snapshots]);
+  }, [activeMonth, monthSnapshots]);
 
   // ── Table filters ─────────────────────────────────────────────────────
   const [fltStatus,  setFltStatus]  = useState<string[]>([]);
@@ -1255,80 +1156,56 @@ function CORView() {
   const [manualData, setManualData] = useState<CORManual>(EMPTY_MANUAL);
   const [draftManual, setDraftManual] = useState<CORManual>(EMPTY_MANUAL);
 
-  // Load manualData from localStorage after mount (avoids SSR/hydration mismatch)
-  // En modo histórico, usa el cor_manual del snapshot
+  // manualData comes from the loaded month snapshot
   useEffect(() => {
-    if (snapshotData) {
-      setManualData(snapshotData.cor_manual ?? EMPTY_MANUAL);
-      return;
-    }
-    // Modo live: cargar desde Supabase con migración automática desde localStorage
-    fetch("/api/settings/cor-manual")
-      .then(r => r.json())
-      .then((remote: CORManual | null) => {
-        if (remote && Object.values(remote).some(v => v !== "")) {
-          setManualData(remote);
-          try { localStorage.setItem(COR_MANUAL_KEY, JSON.stringify(remote)); } catch {}
-        } else {
-          // Supabase vacío → migrar desde localStorage
-          try {
-            const local = localStorage.getItem(COR_MANUAL_KEY);
-            if (local) {
-              const parsed: CORManual = JSON.parse(local);
-              setManualData(parsed);
-              fetch("/api/settings/cor-manual", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(parsed),
-              });
-            }
-          } catch {}
-        }
-      })
-      .catch(() => {
-        try {
-          const s = localStorage.getItem(COR_MANUAL_KEY);
-          if (s) setManualData(JSON.parse(s));
-        } catch {}
-      });
-  }, [snapshotData]);
+    setManualData(monthData?.cor_manual ?? EMPTY_MANUAL);
+  }, [monthData]);
   const hasManual = Object.values(manualData).some(v => v !== "");
 
   const [confirmKPI,   setConfirmKPI]   = useState(false);
   const [kpiSuccess,   setKpiSuccess]   = useState(false);
 
+  async function saveMonthSnapshot(opts?: { corManualOverride?: CORManual }) {
+    const snapshot_date = monthToSnapshotDate(activeMonth);
+    const week_label    = monthDisplayLabel(activeMonth, locale);
+    const corManual     = opts?.corManualOverride ?? manualData;
+    setSaveStatus(lang === "en" ? "Saving…" : "Guardando…");
+    try {
+      const res = await fetch("/api/snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          snapshot_date, week_label,
+          projects, report_data: reportData,
+          cor_manual: { ...corManual, teamMembers: liveTeamMembers },
+        }),
+      });
+      const saved: SnapshotMeta = await res.json();
+      setMonthSnapshots(prev => [saved, ...prev.filter(s => snapshotDateToMonth(s.snapshot_date) !== activeMonth)]);
+      setSaveStatus("✓ " + (lang === "en" ? "Saved" : "Guardado"));
+      setTimeout(() => setSaveStatus(""), 3000);
+    } catch {
+      setSaveStatus(lang === "en" ? "Error saving" : "Error al guardar");
+      setTimeout(() => setSaveStatus(""), 3000);
+    }
+  }
+
   function openOverride() { setDraftManual({ ...manualData }); setOverrideMode(true); }
   function saveOverride() { setConfirmKPI(true); }
   function handleConfirmKPI() {
-    setManualData(draftManual);
-    try { localStorage.setItem(COR_MANUAL_KEY, JSON.stringify(draftManual)); } catch {}
-    // Guardar en Supabase
-    fetch("/api/settings/cor-manual", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draftManual),
-    });
+    const updated = { ...draftManual };
+    setManualData(updated);
     setConfirmKPI(false);
     setOverrideMode(false);
+    saveMonthSnapshot({ corManualOverride: updated });
     setKpiSuccess(true);
     setTimeout(() => setKpiSuccess(false), 3000);
   }
   function cancelOverride() { setOverrideMode(false); }
-  function handleReportMonthChange(v: string) {
-    const u = { ...manualData, reportMonth: v };
-    setManualData(u);
-    try { localStorage.setItem(COR_MANUAL_KEY, JSON.stringify(u)); } catch {}
-    fetch("/api/settings/cor-manual", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(u),
-    });
-  }
   function clearOverride() {
     setManualData(EMPTY_MANUAL);
     setDraftManual(EMPTY_MANUAL);
-    try { localStorage.removeItem(COR_MANUAL_KEY); } catch {}
-    fetch("/api/settings/cor-manual", { method: "DELETE" });
+    saveMonthSnapshot({ corManualOverride: EMPTY_MANUAL });
   }
   function setDM(k: keyof CORManual, v: string) { setDraftManual(d => ({ ...d, [k]: v })); }
 
@@ -1512,16 +1389,28 @@ function CORView() {
     const cell = editingCellRef.current;
     if (!cell) return;
     const { id, field, value } = cell;
-    if (field === "otd")    updateProject(id, { csvOtdPercent: value ? value+"%" : "" });
-    if (field === "oqd")    updateProject(id, { csvOqdPercent: value ? value+"%" : "" });
-    if (field === "margin") updateReport(id, { marginYTD: value ? value+"%" : "" });
-    if (field === "ftes")   updateReport(id, { ftes: value });
-    if (field === "csat")   updateReport(id, { healthGovernance: value });
+    if (isCurrentMonth) {
+      if (field === "otd")    updateProject(id, { csvOtdPercent: value ? value+"%" : "" });
+      if (field === "oqd")    updateProject(id, { csvOqdPercent: value ? value+"%" : "" });
+      if (field === "margin") updateReport(id, { marginYTD: value ? value+"%" : "" });
+      if (field === "ftes")   updateReport(id, { ftes: value });
+      if (field === "csat")   updateReport(id, { healthGovernance: value });
+    } else {
+      // Past month: write into local monthData, user saves explicitly
+      if (field === "otd" || field === "oqd") {
+        const key = field === "otd" ? "csvOtdPercent" : "csvOqdPercent";
+        setMonthData(prev => prev ? { ...prev, projects: prev.projects.map(p => p.id === id ? { ...p, [key]: value ? value+"%" : "" } : p) } : prev);
+      } else {
+        const key = field === "margin" ? "marginYTD" : field === "ftes" ? "ftes" : "healthGovernance";
+        const val = field === "margin" ? (value ? value+"%" : "") : value;
+        setMonthData(prev => prev ? { ...prev, report_data: { ...prev.report_data, [id]: { ...prev.report_data[id], [key]: val } } } : prev);
+      }
+    }
     setEditingCell(null);
-  }, [updateProject, updateReport]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [updateProject, updateReport, isCurrentMonth]);
 
   function cellInput(id: string, field: string, currentVal: string, isSelect?: boolean) {
-    if (isHistorical) return null; // solo lectura en modo histórico
     const active = editingCell?.id === id && editingCell?.field === field;
     if (active) {
       if (field === "trend") {
@@ -1594,26 +1483,29 @@ function CORView() {
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span className="bg-muted/40 border border-border px-3 py-1.5 rounded-lg">{today}</span>
           <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-medium px-3 py-1.5 rounded-lg">
-            {projects.length} {t.pf_services}
+            {kpiMonthProjects.length} {t.pf_services}
           </span>
-          {snapshotStatus && <span className="text-[10px] text-emerald-600 font-medium">{snapshotStatus}</span>}
+          {saveStatus && <span className="text-[10px] text-emerald-600 font-medium">{saveStatus}</span>}
 
-          {/* ── Selector histórico ──────────────────────────────────── */}
+          {/* ── Month selector ──────────────────────────────────────── */}
           <div className="flex items-center gap-1.5">
-            <History className="w-3 h-3 text-muted-foreground" />
-            <select
-              value={activeSnapshotId}
-              onChange={e => { setActiveSnapshotId(e.target.value); setSelectedId(null); }}
-              className="text-[11px] border border-border rounded-lg px-2 py-1.5 bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-400 max-w-[200px]"
-              disabled={snapshotLoading}
-            >
-              <option value="live">📡 {t.live_data}</option>
-              {snapshots.map(s => (
-                <option key={s.id} value={s.id}>{lang === "en" ? translateWeekLabel(s.week_label) : s.week_label}</option>
-              ))}
-            </select>
-            {snapshotLoading && <span className="text-[10px] text-muted-foreground animate-pulse">…</span>}
+            <input
+              type="month"
+              value={activeMonth}
+              onChange={e => { setActiveMonth(e.target.value); setSelectedId(null); }}
+              className="text-[11px] border border-border rounded-lg px-2 py-1.5 bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              disabled={monthLoading}
+            />
+            {monthLoading && <span className="text-[10px] text-muted-foreground animate-pulse">…</span>}
           </div>
+
+          {/* ── Save month button ───────────────────────────────────── */}
+          <button
+            onClick={() => saveMonthSnapshot()}
+            className="flex items-center gap-1.5 bg-indigo-600 text-white text-[11px] font-medium px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            {lang === "en" ? `Save ${activeMonthLabel}` : `Guardar ${activeMonthLabel}`}
+          </button>
 
           {/* ── Menú desplegable de acciones ───────────────────────── */}
           <div className="relative" ref={menuRef}>
@@ -1626,25 +1518,21 @@ function CORView() {
             </button>
             {menuOpen && (
               <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-border rounded-xl shadow-lg z-50 overflow-hidden">
-                {!isHistorical && (
-                  <button
-                    onClick={() => { setShowNewModal(true); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-indigo-500" />
-                    {t.pf_new_service}
-                  </button>
-                )}
-                {!isHistorical && (
-                  <button
-                    onClick={() => { openOverride(); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
-                  >
-                    <Pencil className="w-3.5 h-3.5 text-indigo-500" />
-                    {t.pf_edit_overview}
-                  </button>
-                )}
-                {hasManual && !isHistorical && (
+                <button
+                  onClick={() => { setShowNewModal(true); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5 text-indigo-500" />
+                  {t.pf_new_service}
+                </button>
+                <button
+                  onClick={() => { openOverride(); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-indigo-500" />
+                  {t.pf_edit_overview}
+                </button>
+                {hasManual && (
                   <button
                     onClick={() => { clearOverride(); setMenuOpen(false); }}
                     className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-violet-600 hover:bg-violet-50 transition-colors"
@@ -1663,25 +1551,25 @@ function CORView() {
         </div>
       </div>
 
-      {/* ── Banner modo histórico ──────────────────────────────────────── */}
-      {isHistorical && snapshotData && (
-        <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-xl px-4 py-2.5 print:hidden">
-          <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+      {/* ── Banner mes anterior ────────────────────────────────────────── */}
+      {!isCurrentMonth && (
+        <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-2.5 print:hidden">
+          <Clock className="w-4 h-4 text-indigo-600 flex-shrink-0" />
           <div className="flex-1">
-            <span className="text-xs font-semibold text-amber-800">{t.historical_mode} — {lang === "en" ? translateWeekLabel(snapshotData.week_label) : snapshotData.week_label}</span>
-            <span className="text-[10px] text-amber-600 ml-2">{t.historical_readonly} {t.historical_banner_sub}</span>
+            <span className="text-xs font-semibold text-indigo-800 capitalize">{activeMonthLabel}</span>
+            {!monthData && <span className="text-[10px] text-indigo-600 ml-2">— {lang === "en" ? "no saved data yet" : "sin datos guardados aún"}</span>}
           </div>
           <button
-            onClick={() => { setActiveSnapshotId("live"); setSnapshotData(null); }}
-            className="text-[10px] font-semibold text-amber-700 border border-amber-400 bg-white px-2.5 py-1 rounded-lg hover:bg-amber-100 transition-colors"
+            onClick={() => { setActiveMonth(currentMonth()); setMonthData(null); }}
+            className="text-[10px] font-semibold text-indigo-700 border border-indigo-300 bg-white px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition-colors"
           >
-            {t.back_to_live}
+            {lang === "en" ? "Current month" : "Mes actual"}
           </button>
         </div>
       )}
 
       {/* ── Manual Override Panel ──────────────────────────────────────── */}
-      {!isHistorical && overrideMode && (
+      {overrideMode && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1785,21 +1673,6 @@ function CORView() {
       )}
 
       {/* ── Global KPI Cards ───────────────────────────────────────────── */}
-      {/* Month selector */}
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-xs text-muted-foreground font-medium">
-          {lang === "en" ? "Month:" : "Mes:"}
-        </span>
-        <input
-          type="month"
-          value={kpiMonth}
-          onChange={e => setKpiMonth(e.target.value)}
-          className="border border-border rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-        />
-        <span className="text-xs text-muted-foreground">
-          — {kpiMonthProjects.length} {lang === "en" ? "services" : "servicios"}
-        </span>
-      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Revenue */}
         <div className="rounded-xl border border-border bg-white p-3">
@@ -1810,7 +1683,7 @@ function CORView() {
           <p className="text-lg font-bold text-foreground leading-none">{formatClpToUsd(corKPIs.totalRevenue)}</p>
           <p className="text-[10px] text-muted-foreground mt-1">{t.cor_cost_label} {formatClpToUsd(corKPIs.totalCost)}</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <span className="text-[10px] text-muted-foreground capitalize">{kpiMonthLabel}</span>
+            <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
 
@@ -1825,7 +1698,7 @@ function CORView() {
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">{t.cor_target_40}</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <span className="text-[10px] text-muted-foreground capitalize">{kpiMonthLabel}</span>
+            <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
 
@@ -1840,7 +1713,7 @@ function CORView() {
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <span className="text-[10px] text-muted-foreground capitalize">{kpiMonthLabel}</span>
+            <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
 
@@ -1855,7 +1728,7 @@ function CORView() {
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <span className="text-[10px] text-muted-foreground capitalize">{kpiMonthLabel}</span>
+            <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
 
@@ -1873,7 +1746,7 @@ function CORView() {
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">{corKPIs.activeCount} {t.cor_active_services}</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <span className="text-[10px] text-muted-foreground capitalize">{kpiMonthLabel}</span>
+            <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
       </div>
@@ -2301,7 +2174,7 @@ function CORView() {
                       {/* Status Trend — dropdown editable */}
                       <td
                         className="px-3 py-2 text-center cursor-pointer group"
-                        onClick={e => { e.stopPropagation(); if (!isHistorical) setEditingCell({ id:p.id, field:"trend", value: rep?.statusTrend ?? "" }); }}
+                        onClick={e => { e.stopPropagation(); setEditingCell({ id:p.id, field:"trend", value: rep?.statusTrend ?? "" }); }}
                       >
                         {cellInput(p.id,"trend","") || (() => {
                           const manual = rep?.statusTrend;
@@ -2325,9 +2198,15 @@ function CORView() {
                           <ProjectDetailPanel
                             project={selectedProject}
                             report={selectedReport}
-                            onSaveProject={isHistorical ? () => {} : changes => updateProject(p.id, changes)}
-                            onSaveReport={isHistorical ? () => {} : changes => updateReport(p.id, changes)}
-                            readOnly={isHistorical}
+                            onSaveProject={isCurrentMonth
+                              ? changes => updateProject(p.id, changes)
+                              : changes => setMonthData(prev => prev ? { ...prev, projects: prev.projects.map(pr => pr.id === p.id ? { ...pr, ...changes } : pr) } : prev)
+                            }
+                            onSaveReport={isCurrentMonth
+                              ? changes => updateReport(p.id, changes)
+                              : changes => setMonthData(prev => prev ? { ...prev, report_data: { ...prev.report_data, [p.id]: { ...prev.report_data[p.id], ...changes } } } : prev)
+                            }
+                            readOnly={false}
                           />
                         </td>
                       </tr>
