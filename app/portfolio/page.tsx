@@ -1392,26 +1392,19 @@ function CORView() {
     const cell = editingCellRef.current;
     if (!cell) return;
     const { id, field, value } = cell;
-    if (isCurrentMonth) {
-      if (field === "otd")    updateProject(id, { csvOtdPercent: value ? value+"%" : "" });
-      if (field === "oqd")    updateProject(id, { csvOqdPercent: value ? value+"%" : "" });
-      if (field === "margin") updateReport(id, { marginYTD: value ? value+"%" : "" });
-      if (field === "ftes")   updateReport(id, { ftes: value });
-      if (field === "csat")   updateReport(id, { healthGovernance: value });
-    } else {
-      // Past month: write into local monthData, user saves explicitly
-      if (field === "otd" || field === "oqd") {
-        const key = field === "otd" ? "csvOtdPercent" : "csvOqdPercent";
-        setMonthData(prev => {
-          const base = prev ?? { id:"", snapshot_date: monthToSnapshotDate(activeMonth), week_label: activeMonthLabel, created_at:"", projects: kpiMonthProjects, report_data: reportData, cor_manual: manualData };
-          return { ...base, projects: base.projects.map(pr => pr.id === id ? { ...pr, [key]: value ? value+"%" : "" } : pr) };
-        });
+    // otd, oqd, margin, ftes → always live (transversal)
+    if (field === "otd")    updateProject(id, { csvOtdPercent: value ? value+"%" : "" });
+    if (field === "oqd")    updateProject(id, { csvOqdPercent: value ? value+"%" : "" });
+    if (field === "margin") updateReport(id, { marginYTD: value ? value+"%" : "" });
+    if (field === "ftes")   updateReport(id, { ftes: value });
+    // csat → per-month
+    if (field === "csat") {
+      if (isCurrentMonth) {
+        updateReport(id, { healthGovernance: value });
       } else {
-        const key = field === "margin" ? "marginYTD" : field === "ftes" ? "ftes" : "healthGovernance";
-        const val = field === "margin" ? (value ? value+"%" : "") : value;
         setMonthData(prev => {
           const base = prev ?? { id:"", snapshot_date: monthToSnapshotDate(activeMonth), week_label: activeMonthLabel, created_at:"", projects: kpiMonthProjects, report_data: reportData, cor_manual: manualData };
-          return { ...base, report_data: { ...base.report_data, [id]: { ...base.report_data[id], [key]: val } } };
+          return { ...base, report_data: { ...base.report_data, [id]: { ...base.report_data[id], healthGovernance: value } } };
         });
       }
     }
@@ -2207,20 +2200,28 @@ function CORView() {
                           <ProjectDetailPanel
                             project={selectedProject}
                             report={selectedReport}
-                            onSaveProject={isCurrentMonth
-                              ? changes => updateProject(p.id, changes)
-                              : changes => setMonthData(prev => {
-                                  const base = prev ?? { id:"", snapshot_date: monthToSnapshotDate(activeMonth), week_label: activeMonthLabel, created_at:"", projects: kpiMonthProjects, report_data: reportData, cor_manual: manualData };
-                                  return { ...base, projects: base.projects.map(pr => pr.id === p.id ? { ...pr, ...changes } : pr) };
-                                })
-                            }
-                            onSaveReport={isCurrentMonth
-                              ? changes => updateReport(p.id, changes)
-                              : changes => setMonthData(prev => {
-                                  const base = prev ?? { id:"", snapshot_date: monthToSnapshotDate(activeMonth), week_label: activeMonthLabel, created_at:"", projects: kpiMonthProjects, report_data: reportData, cor_manual: manualData };
-                                  return { ...base, report_data: { ...base.report_data, [p.id]: { ...base.report_data[p.id], ...changes } } };
-                                })
-                            }
+                            onSaveProject={changes => updateProject(p.id, changes)}
+                            onSaveReport={changes => {
+                              // phase, teamMood, healthGovernance(CSAT) are per-month; everything else is global
+                              const PER_MONTH = ["phase", "teamMood", "healthGovernance"] as const;
+                              const perMonth: Partial<ProjectReport> = {};
+                              const global: Partial<ProjectReport> = {};
+                              for (const [k, v] of Object.entries(changes)) {
+                                if ((PER_MONTH as readonly string[]).includes(k)) (perMonth as Record<string,unknown>)[k] = v;
+                                else (global as Record<string,unknown>)[k] = v;
+                              }
+                              if (Object.keys(global).length) updateReport(p.id, global);
+                              if (Object.keys(perMonth).length) {
+                                if (isCurrentMonth) {
+                                  updateReport(p.id, perMonth);
+                                } else {
+                                  setMonthData(prev => {
+                                    const base = prev ?? { id:"", snapshot_date: monthToSnapshotDate(activeMonth), week_label: activeMonthLabel, created_at:"", projects: kpiMonthProjects, report_data: reportData, cor_manual: manualData };
+                                    return { ...base, report_data: { ...base.report_data, [p.id]: { ...base.report_data[p.id], ...perMonth } } };
+                                  });
+                                }
+                              }
+                            }}
                             readOnly={false}
                           />
                         </td>
