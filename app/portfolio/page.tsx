@@ -1236,11 +1236,15 @@ function CORView() {
   }, []);
 
   // Load month data when activeMonth changes
+  // isLoadingSnap: true while the first setMonthData from a network load is pending,
+  // so the debounced auto-save doesn't fire on initial load.
+  const isLoadingSnap = useRef(false);
   useEffect(() => {
     if (isCurrentMonth) { setMonthData(null); return; }
     const snap = monthSnapshots.find(s => snapshotDateToMonth(s.snapshot_date) === activeMonth);
     if (!snap) { setMonthData(null); return; }
     setMonthLoading(true);
+    isLoadingSnap.current = true;
     fetch(`/api/snapshots/${snap.id}`)
       .then(r => r.json())
       .then((d: SnapshotFull) => setMonthData(d))
@@ -1248,6 +1252,26 @@ function CORView() {
       .finally(() => setMonthLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeMonth, monthSnapshots]);
+
+  // Stable ref to saveMonthSnapshot — always points to the latest version so the
+  // debounced effect can call it without stale-closure issues.
+  const saveSnapshotRef = useRef(saveMonthSnapshot);
+  saveSnapshotRef.current = saveMonthSnapshot;
+
+  // Auto-save snapshot 600 ms after any manual edit to monthData.
+  // This replaces explicit saveMonthSnapshot calls in onSaveProject/onSaveReport
+  // and ensures both updates are batched into a single network request.
+  useEffect(() => {
+    if (isCurrentMonth || !monthData) return;
+    // Skip saving when snapshot was just loaded from the network
+    if (isLoadingSnap.current) { isLoadingSnap.current = false; return; }
+    const snap = { projects: monthData.projects, report_data: monthData.report_data };
+    const timer = setTimeout(() => {
+      saveSnapshotRef.current({ projectsOverride: snap.projects, reportDataOverride: snap.report_data });
+    }, 600);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthData]);
 
   // ── Table filters ─────────────────────────────────────────────────────
   const [fltStatus,  setFltStatus]  = useState<string[]>([]);
@@ -2342,16 +2366,18 @@ function CORView() {
                               if (Object.keys(globalProj).length) updateProject(p.id, globalProj);
                               // Monthly fields: for current month update live too; for historical only snapshot
                               if (isCurrentMonth && Object.keys(perMonthProj).length) updateProject(p.id, perMonthProj);
-                              // Always update monthData for immediate UI refresh
-                              if (monthData) {
-                                const existsInSnap = monthData.projects.some(proj => proj.id === p.id);
-                                const updatedProjects = existsInSnap
-                                  ? monthData.projects.map(proj => proj.id === p.id ? { ...proj, ...changes } : proj)
-                                  : [...monthData.projects, { ...p, ...changes }];
-                                setMonthData({ ...monthData, projects: updatedProjects });
-                                if (!isCurrentMonth) {
-                                  saveMonthSnapshot({ projectsOverride: updatedProjects, reportDataOverride: monthData.report_data });
-                                }
+                              // Update monthData with functional updater to avoid stale-closure
+                              // overwrites when onSaveReport is called in the same tick.
+                              // The debounced useEffect will persist to Supabase automatically.
+                              if (!isCurrentMonth) {
+                                setMonthData(prev => {
+                                  if (!prev) return null;
+                                  const existsInSnap = prev.projects.some(proj => proj.id === p.id);
+                                  const updatedProjects = existsInSnap
+                                    ? prev.projects.map(proj => proj.id === p.id ? { ...proj, ...changes } : proj)
+                                    : [...prev.projects, { ...p, ...changes }];
+                                  return { ...prev, projects: updatedProjects };
+                                });
                               }
                             }}
                             onSaveReport={changes => {
@@ -2365,16 +2391,19 @@ function CORView() {
                               }
                               if (Object.keys(global).length) updateReport(p.id, global);
                               const allChanges = { ...global, ...perMonth };
-                              if (monthData && Object.keys(allChanges).length) {
-                                const updatedReportData = {
-                                  ...monthData.report_data,
-                                  [p.id]: { ...monthData.report_data[p.id], ...allChanges },
-                                };
-                                const newMonthData = { ...monthData, report_data: updatedReportData };
-                                setMonthData(newMonthData);
-                                if (!isCurrentMonth) {
-                                  saveMonthSnapshot({ projectsOverride: monthData.projects, reportDataOverride: updatedReportData });
-                                }
+                              if (!isCurrentMonth && Object.keys(allChanges).length) {
+                                // Functional updater avoids stale-closure collision with onSaveProject.
+                                // Debounced useEffect will persist to Supabase automatically.
+                                setMonthData(prev => {
+                                  if (!prev) return null;
+                                  return {
+                                    ...prev,
+                                    report_data: {
+                                      ...prev.report_data,
+                                      [p.id]: { ...prev.report_data[p.id], ...allChanges },
+                                    },
+                                  };
+                                });
                               } else if (Object.keys(perMonth).length && isCurrentMonth) {
                                 updateReport(p.id, perMonth);
                               }
