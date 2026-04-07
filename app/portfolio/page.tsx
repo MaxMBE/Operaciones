@@ -1400,10 +1400,10 @@ function CORView() {
     const oqdVals = live.map(p => parsePercent(p.csvOqdPercent)).filter((v): v is number => v !== null);
     const avgOTD  = otdVals.length ? otdVals.reduce((s,v) => s+v, 0) / otdVals.length : null;
     const avgOQD  = oqdVals.length ? oqdVals.reduce((s,v) => s+v, 0) / oqdVals.length : null;
-    // Weather counts: only live services
+    // Weather counts: all services in the month
     const wc = { G: 0, A: 0, R: 0, grey: 0, done: 0 };
-    live.forEach(p => { const k = reportData[p.id]?.overallStatus ?? "grey"; if (k in wc) wc[k as keyof typeof wc]++; });
-    return { totalRevenue, totalCost, grossMargin, avgOTD, avgOQD, activeCount: live.length, wc };
+    kpiMonthProjects.forEach(p => { const k = reportData[p.id]?.overallStatus ?? "grey"; if (k in wc) wc[k as keyof typeof wc]++; });
+    return { totalRevenue, totalCost, grossMargin, avgOTD, avgOQD, activeCount: kpiMonthProjects.length, wc };
   }, [kpiMonthProjects, reportData]);
 
   // ── KPIs applying manual overrides ────────────────────────────────────
