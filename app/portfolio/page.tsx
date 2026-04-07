@@ -1356,12 +1356,12 @@ function CORView() {
       else if (sortField === "ftes")   { va = parseFloat(rep_a?.ftes || String(a.teamSize||0))||0; vb = parseFloat(rep_b?.ftes || String(b.teamSize||0))||0; }
       else if (sortField === "revenue"){ va = a.revenue||0; vb = b.revenue||0; }
       else if (sortField === "margin") {
-        va = rep_a?.marginYTD ? (parsePercent(rep_a.marginYTD)??-999) : a.revenue>0 ? Math.round((a.revenue-a.spent)/a.revenue*100) : -999;
-        vb = rep_b?.marginYTD ? (parsePercent(rep_b.marginYTD)??-999) : b.revenue>0 ? Math.round((b.revenue-b.spent)/b.revenue*100) : -999;
+        va = a.revenueMonthly && a.revenueMonthly>0 ? Math.round((a.revenueMonthly-(a.costMonthly||0))/a.revenueMonthly*100) : rep_a?.marginYTD ? (parsePercent(rep_a.marginYTD)??-999) : -999;
+        vb = b.revenueMonthly && b.revenueMonthly>0 ? Math.round((b.revenueMonthly-(b.costMonthly||0))/b.revenueMonthly*100) : rep_b?.marginYTD ? (parsePercent(rep_b.marginYTD)??-999) : -999;
       }
       else if (sortField === "tmd")  {
-        const ma = rep_a?.marginYTD ? (parsePercent(rep_a.marginYTD)??null) : a.revenue>0 ? Math.round((a.revenue-a.spent)/a.revenue*100) : null;
-        const mb = rep_b?.marginYTD ? (parsePercent(rep_b.marginYTD)??null) : b.revenue>0 ? Math.round((b.revenue-b.spent)/b.revenue*100) : null;
+        const ma = a.revenueMonthly && a.revenueMonthly>0 ? Math.round((a.revenueMonthly-(a.costMonthly||0))/a.revenueMonthly*100) : rep_a?.marginYTD ? (parsePercent(rep_a.marginYTD)??null) : null;
+        const mb = b.revenueMonthly && b.revenueMonthly>0 ? Math.round((b.revenueMonthly-(b.costMonthly||0))/b.revenueMonthly*100) : rep_b?.marginYTD ? (parsePercent(rep_b.marginYTD)??null) : null;
         va = ma !== null ? ma - 34 : -999; vb = mb !== null ? mb - 34 : -999;
       }
       else if (sortField === "otd")    { va = parsePercent(a.csvOtdPercent)??-1; vb = parsePercent(b.csvOtdPercent)??-1; }
@@ -1445,7 +1445,9 @@ function CORView() {
       .map(p => ({
         name:   p.name.length>16?p.name.slice(0,14)+"…":p.name,
         fullName: p.name,
-        margin: Math.round(parseFloat(reportData[p.id]?.marginYTD?.replace("%","")||String(Math.round((p.revenue-p.spent)/p.revenue*100)))),
+        margin: p.revenueMonthly && p.revenueMonthly > 0
+          ? Math.round((p.revenueMonthly - (p.costMonthly||0)) / p.revenueMonthly * 100)
+          : Math.round(parseFloat(reportData[p.id]?.marginYTD?.replace("%","")||String(Math.round((p.revenue-p.spent)/p.revenue*100)))),
       })),
   [projects, reportData]);
 
@@ -2107,9 +2109,9 @@ function CORView() {
                 const weather  = WEATHER[rep?.overallStatus ?? "grey"] ?? WEATHER.grey;
                 const otdVal   = parsePercent(p.csvOtdPercent);
                 const oqdVal   = parsePercent(p.csvOqdPercent);
-                const marginPct = rep?.marginYTD
-                  ? parsePercent(rep.marginYTD)
-                  : p.revenue > 0 ? Math.round((p.revenue-p.spent)/p.revenue*100) : null;
+                const marginPct = p.revenueMonthly && p.revenueMonthly > 0
+                  ? Math.round((p.revenueMonthly - (p.costMonthly||0)) / p.revenueMonthly * 100)
+                  : rep?.marginYTD ? parsePercent(rep.marginYTD) : null;
                 const ftes  = rep?.ftes || String(p.teamSize||"—");
                 const csat  = csatFromHealth(rep?.healthGovernance);
                 const tmd   = marginPct !== null ? Math.round(marginPct - 34) : null;
