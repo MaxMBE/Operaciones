@@ -1169,6 +1169,9 @@ function CORView() {
     const snapshot_date = monthToSnapshotDate(activeMonth);
     const week_label    = monthDisplayLabel(activeMonth, locale);
     const corManual     = opts?.corManualOverride ?? manualData;
+    // Use monthData if already loaded/initialized, otherwise use month-filtered live data
+    const projectsToSave   = monthData ? monthData.projects    : kpiMonthProjects;
+    const reportDataToSave = monthData ? monthData.report_data : reportData;
     setSaveStatus(lang === "en" ? "Saving…" : "Guardando…");
     try {
       const res = await fetch("/api/snapshots", {
@@ -1176,7 +1179,7 @@ function CORView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           snapshot_date, week_label,
-          projects, report_data: reportData,
+          projects: projectsToSave, report_data: reportDataToSave,
           cor_manual: { ...corManual, teamMembers: liveTeamMembers },
         }),
       });
@@ -1399,11 +1402,17 @@ function CORView() {
       // Past month: write into local monthData, user saves explicitly
       if (field === "otd" || field === "oqd") {
         const key = field === "otd" ? "csvOtdPercent" : "csvOqdPercent";
-        setMonthData(prev => prev ? { ...prev, projects: prev.projects.map(p => p.id === id ? { ...p, [key]: value ? value+"%" : "" } : p) } : prev);
+        setMonthData(prev => {
+          const base = prev ?? { id:"", snapshot_date: monthToSnapshotDate(activeMonth), week_label: activeMonthLabel, created_at:"", projects: kpiMonthProjects, report_data: reportData, cor_manual: manualData };
+          return { ...base, projects: base.projects.map(pr => pr.id === id ? { ...pr, [key]: value ? value+"%" : "" } : pr) };
+        });
       } else {
         const key = field === "margin" ? "marginYTD" : field === "ftes" ? "ftes" : "healthGovernance";
         const val = field === "margin" ? (value ? value+"%" : "") : value;
-        setMonthData(prev => prev ? { ...prev, report_data: { ...prev.report_data, [id]: { ...prev.report_data[id], [key]: val } } } : prev);
+        setMonthData(prev => {
+          const base = prev ?? { id:"", snapshot_date: monthToSnapshotDate(activeMonth), week_label: activeMonthLabel, created_at:"", projects: kpiMonthProjects, report_data: reportData, cor_manual: manualData };
+          return { ...base, report_data: { ...base.report_data, [id]: { ...base.report_data[id], [key]: val } } };
+        });
       }
     }
     setEditingCell(null);
@@ -2200,11 +2209,17 @@ function CORView() {
                             report={selectedReport}
                             onSaveProject={isCurrentMonth
                               ? changes => updateProject(p.id, changes)
-                              : changes => setMonthData(prev => prev ? { ...prev, projects: prev.projects.map(pr => pr.id === p.id ? { ...pr, ...changes } : pr) } : prev)
+                              : changes => setMonthData(prev => {
+                                  const base = prev ?? { id:"", snapshot_date: monthToSnapshotDate(activeMonth), week_label: activeMonthLabel, created_at:"", projects: kpiMonthProjects, report_data: reportData, cor_manual: manualData };
+                                  return { ...base, projects: base.projects.map(pr => pr.id === p.id ? { ...pr, ...changes } : pr) };
+                                })
                             }
                             onSaveReport={isCurrentMonth
                               ? changes => updateReport(p.id, changes)
-                              : changes => setMonthData(prev => prev ? { ...prev, report_data: { ...prev.report_data, [p.id]: { ...prev.report_data[p.id], ...changes } } } : prev)
+                              : changes => setMonthData(prev => {
+                                  const base = prev ?? { id:"", snapshot_date: monthToSnapshotDate(activeMonth), week_label: activeMonthLabel, created_at:"", projects: kpiMonthProjects, report_data: reportData, cor_manual: manualData };
+                                  return { ...base, report_data: { ...base.report_data, [p.id]: { ...base.report_data[p.id], ...changes } } };
+                                })
                             }
                             readOnly={false}
                           />
