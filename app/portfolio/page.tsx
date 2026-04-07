@@ -2986,7 +2986,7 @@ export default function PortfolioPage() {
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
             }`}
           >
-            {tab==="cor" ? "COR" : tab==="transformation" ? "Transformation" : tab==="financial-kpi" ? "Financial KPI" : "Career Path"}
+            {tab==="cor" ? "COR" : tab==="transformation" ? "Transformation" : tab==="financial-kpi" ? "Margin Calculator" : "Career Path"}
           </button>
         ))}
       </div>
