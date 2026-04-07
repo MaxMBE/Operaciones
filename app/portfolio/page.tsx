@@ -1194,18 +1194,38 @@ function CORView() {
     return totalDias > 0 ? totalDias : null;
   }, [actMonthLookup]);
 
-  // Projects active in the selected month — always filter liveProjects by date so snapshot
-  // quirks (projects saved when still active but now ended) don't bleed through.
+  // Projects active in the selected month.
+  // Date filtering uses liveProjects (authoritative for which projects exist/active).
+  // For historical months: per-month financial fields are merged from the snapshot so
+  // the table and KPI cards always reflect the saved monthly data.
   const kpiMonthProjects = useMemo(() => {
     const [y, m] = activeMonth.split("-").map(Number);
     const firstDay = new Date(y, m - 1, 1);
     const lastDay  = new Date(y, m, 0);
-    return liveProjects.filter(p => {
+    const active = liveProjects.filter(p => {
       const start = p.startDate ? new Date(p.startDate + "T00:00:00") : null;
       const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
       return (!start || start <= lastDay) && (!end || end >= firstDay);
     });
-  }, [liveProjects, activeMonth]);
+    // For historical months, overlay per-month financials from the snapshot
+    if (monthData) {
+      const snapMap = new Map(monthData.projects.map(sp => [sp.id, sp]));
+      return active.map(p => {
+        const snap = snapMap.get(p.id);
+        if (!snap) return p;
+        return {
+          ...p,
+          revenueMonthly:    snap.revenueMonthly,
+          costMonthly:       snap.costMonthly,
+          billingMonthly:    snap.billingMonthly,
+          billingProjection: snap.billingProjection,
+          revenueProjection: snap.revenueProjection,
+          costProjection:    snap.costProjection,
+        };
+      });
+    }
+    return active;
+  }, [liveProjects, activeMonth, monthData]);
 
   // Load list of saved months on mount
   useEffect(() => {
@@ -1449,16 +1469,18 @@ function CORView() {
   }, [projects, lang]);
 
   const marginBarDataCalc = useMemo(() =>
-    [...projects].filter(p=>p.revenue>0)
-      .sort((a,b) => (b.revenue-b.spent)/b.revenue - (a.revenue-a.spent)/a.revenue)
+    [...kpiMonthProjects].filter(p=>p.revenueMonthly && p.revenueMonthly > 0)
+      .sort((a,b) => {
+        const ma = Math.round((a.revenueMonthly! - (a.costMonthly||0)) / a.revenueMonthly! * 100);
+        const mb = Math.round((b.revenueMonthly! - (b.costMonthly||0)) / b.revenueMonthly! * 100);
+        return mb - ma;
+      })
       .map(p => ({
         name:   p.name.length>16?p.name.slice(0,14)+"…":p.name,
         fullName: p.name,
-        margin: p.revenueMonthly && p.revenueMonthly > 0
-          ? Math.round((p.revenueMonthly - (p.costMonthly||0)) / p.revenueMonthly * 100)
-          : Math.round(parseFloat(reportData[p.id]?.marginYTD?.replace("%","")||String(Math.round((p.revenue-p.spent)/p.revenue*100)))),
+        margin: Math.round((p.revenueMonthly! - (p.costMonthly||0)) / p.revenueMonthly! * 100),
       })),
-  [projects, reportData]);
+  [kpiMonthProjects]);
 
   // ── Display data (manual override takes priority) ──────────────────────
   const customerData = useMemo(() => {
@@ -1481,7 +1503,11 @@ function CORView() {
 
   const marginBarData = marginBarDataCalc;
 
-  const selectedProject = useMemo(() => projects.find(p => p.id === selectedId), [projects, selectedId]);
+  // Use kpiMonthProjects (merged: live dates + snapshot financials) so the detail panel
+  // always receives the same data as the table row.
+  const selectedProject = useMemo(() =>
+    kpiMonthProjects.find(q => q.id === selectedId) ?? liveProjects.find(q => q.id === selectedId),
+  [kpiMonthProjects, liveProjects, selectedId]);
   const selectedReport  = useMemo(() => selectedId ? reportData[selectedId] : undefined, [reportData, selectedId]);
 
   // ── Save cell edit ────────────────────────────────────────────────────
@@ -2318,9 +2344,10 @@ function CORView() {
                               if (isCurrentMonth && Object.keys(perMonthProj).length) updateProject(p.id, perMonthProj);
                               // Always update monthData for immediate UI refresh
                               if (monthData) {
-                                const updatedProjects = monthData.projects.map(proj =>
-                                  proj.id === p.id ? { ...proj, ...changes } : proj
-                                );
+                                const existsInSnap = monthData.projects.some(proj => proj.id === p.id);
+                                const updatedProjects = existsInSnap
+                                  ? monthData.projects.map(proj => proj.id === p.id ? { ...proj, ...changes } : proj)
+                                  : [...monthData.projects, { ...p, ...changes }];
                                 setMonthData({ ...monthData, projects: updatedProjects });
                                 if (!isCurrentMonth) {
                                   saveMonthSnapshot({ projectsOverride: updatedProjects, reportDataOverride: monthData.report_data });
