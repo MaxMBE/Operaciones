@@ -1114,6 +1114,28 @@ function CORView() {
   const reportData  = snapshotData ? snapshotData.report_data : liveReportData;
   const isHistorical = activeSnapshotId !== "live" && snapshots.some(s => s.id === activeSnapshotId && s.snapshot_date !== getLastMonday());
 
+  // ── Month selector for KPI cards ──────────────────────────────────────
+  const [kpiMonth, setKpiMonth] = useState<string>(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
+  });
+
+  const kpiMonthProjects = useMemo(() => {
+    const [y, m] = kpiMonth.split("-").map(Number);
+    const firstDay = new Date(y, m - 1, 1);
+    const lastDay  = new Date(y, m, 0);
+    return projects.filter(p => {
+      const start = p.startDate ? new Date(p.startDate + "T00:00:00") : null;
+      const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
+      return (!start || start <= lastDay) && (!end || end >= firstDay);
+    });
+  }, [projects, kpiMonth]);
+
+  const kpiMonthLabel = useMemo(() => {
+    const [y, m] = kpiMonth.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { month: "long", year: "numeric" });
+  }, [kpiMonth, lang]);
+
   // Cargar lista de snapshots al montar
   useEffect(() => {
     fetch("/api/snapshots")
@@ -1394,14 +1416,14 @@ function CORView() {
     setFltStatus([]); setFltClient([]); setFltLeader([]); setFltManager([]); setFltType([]);
   }
 
-  // ── Calculated KPIs (from project data) ────────────────────────────────
+  // ── Calculated KPIs (from month-filtered project data) ─────────────────
   const corKPIsCalc = useMemo(() => {
-    // Financial KPIs: ALL projects regardless of status (completed/terminated still contributed revenue)
-    const totalRevenue = projects.reduce((s, p) => s + (p.revenue || 0), 0);
-    const totalCost    = projects.reduce((s, p) => s + (p.spent   || 0), 0);
+    // Financial KPIs: all services active in the selected month
+    const totalRevenue = kpiMonthProjects.reduce((s, p) => s + (p.revenue || 0), 0);
+    const totalCost    = kpiMonthProjects.reduce((s, p) => s + (p.spent   || 0), 0);
     const grossMargin  = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0;
-    // OTD/OQD: only non-completed, non-terminated, non-on-hold
-    const live = projects.filter(p => !["completed","terminated","on-hold","guarantee"].includes(p.status));
+    // OTD/OQD: only non-completed, non-terminated, non-on-hold within the month
+    const live = kpiMonthProjects.filter(p => !["completed","terminated","on-hold","guarantee"].includes(p.status));
     const otdVals = live.map(p => parsePercent(p.csvOtdPercent)).filter((v): v is number => v !== null);
     const oqdVals = live.map(p => parsePercent(p.csvOqdPercent)).filter((v): v is number => v !== null);
     const avgOTD  = otdVals.length ? otdVals.reduce((s,v) => s+v, 0) / otdVals.length : null;
@@ -1410,7 +1432,7 @@ function CORView() {
     const wc = { G: 0, A: 0, R: 0, grey: 0, done: 0 };
     live.forEach(p => { const k = reportData[p.id]?.overallStatus ?? "grey"; if (k in wc) wc[k as keyof typeof wc]++; });
     return { totalRevenue, totalCost, grossMargin, avgOTD, avgOQD, activeCount: live.length, wc };
-  }, [projects, reportData]);
+  }, [kpiMonthProjects, reportData]);
 
   // ── KPIs applying manual overrides ────────────────────────────────────
   const corKPIs = useMemo(() => {
@@ -1763,6 +1785,21 @@ function CORView() {
       )}
 
       {/* ── Global KPI Cards ───────────────────────────────────────────── */}
+      {/* Month selector */}
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-xs text-muted-foreground font-medium">
+          {lang === "en" ? "Month:" : "Mes:"}
+        </span>
+        <input
+          type="month"
+          value={kpiMonth}
+          onChange={e => setKpiMonth(e.target.value)}
+          className="border border-border rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+        />
+        <span className="text-xs text-muted-foreground">
+          — {kpiMonthProjects.length} {lang === "en" ? "services" : "servicios"}
+        </span>
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Revenue */}
         <div className="rounded-xl border border-border bg-white p-3">
@@ -1773,7 +1810,7 @@ function CORView() {
           <p className="text-lg font-bold text-foreground leading-none">{formatClpToUsd(corKPIs.totalRevenue)}</p>
           <p className="text-[10px] text-muted-foreground mt-1">{t.cor_cost_label} {formatClpToUsd(corKPIs.totalCost)}</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={handleReportMonthChange} />
+            <span className="text-[10px] text-muted-foreground capitalize">{kpiMonthLabel}</span>
           </div>
         </div>
 
@@ -1788,7 +1825,7 @@ function CORView() {
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">{t.cor_target_40}</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={handleReportMonthChange} />
+            <span className="text-[10px] text-muted-foreground capitalize">{kpiMonthLabel}</span>
           </div>
         </div>
 
@@ -1803,7 +1840,7 @@ function CORView() {
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={handleReportMonthChange} />
+            <span className="text-[10px] text-muted-foreground capitalize">{kpiMonthLabel}</span>
           </div>
         </div>
 
@@ -1818,7 +1855,7 @@ function CORView() {
           </p>
           <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={handleReportMonthChange} />
+            <span className="text-[10px] text-muted-foreground capitalize">{kpiMonthLabel}</span>
           </div>
         </div>
 
@@ -1836,7 +1873,7 @@ function CORView() {
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">{corKPIs.activeCount} {t.cor_active_services}</p>
           <div className="mt-2 pt-1.5 border-t border-gray-100">
-            <ReportMonthLabel value={manualData.reportMonth ?? "Enero"} readOnly={isHistorical} onChange={handleReportMonthChange} />
+            <span className="text-[10px] text-muted-foreground capitalize">{kpiMonthLabel}</span>
           </div>
         </div>
       </div>
