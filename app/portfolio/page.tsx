@@ -274,6 +274,8 @@ function ProjectDetailPanel({
     costMonthly:       String(p.costMonthly       || ""),
     revenueProjection: String(p.revenueProjection || ""),
     costProjection:    String(p.costProjection    || ""),
+    billingMonthly:    String(p.billingMonthly    || ""),
+    billingProjection: String(p.billingProjection || ""),
     progress:       String(p.progress || ""),
     expectedProgress: String(p.expectedProgress ?? ""),
     startDate:     p.startDate    || "",
@@ -330,6 +332,8 @@ function ProjectDetailPanel({
       costMonthly:       parseFloat(draftP.costMonthly)       || undefined,
       revenueProjection: parseFloat(draftP.revenueProjection) || undefined,
       costProjection:    parseFloat(draftP.costProjection)    || undefined,
+      billingMonthly:    parseFloat(draftP.billingMonthly)    || undefined,
+      billingProjection: parseFloat(draftP.billingProjection) || undefined,
       progress:      parseInt(draftP.progress)  || p.progress,
       expectedProgress: draftP.expectedProgress !== "" ? parseInt(draftP.expectedProgress) : p.expectedProgress,
       startDate:     draftP.startDate,
@@ -383,6 +387,7 @@ function ProjectDetailPanel({
       csvOqdPercent: (p.csvOqdPercent||"").replace("%",""),
       shortComment: p.shortComment||"", csvRisks: p.csvRisks||"",
       csvMitigation: p.csvMitigation||"", csvNextActions: p.csvNextActions||"",
+      billingMonthly: String(p.billingMonthly||""), billingProjection: String(p.billingProjection||""),
     });
     setDraftR({
       ftes: rep?.ftes||"",
@@ -624,37 +629,39 @@ function ProjectDetailPanel({
                   </tr>
                   <tr>
                     <td className="py-1 pr-2 font-medium">Billing</td>
-                    <td className="py-1 px-1 text-right text-gray-400">—</td>
-                    <td className="py-1 px-1 text-right font-semibold">
+                    {/* Monthly */}
+                    <td className="py-1 px-1 text-right">
                       {editMode ? (
                         <div className="flex items-center justify-end gap-1">
-                          <input
-                            type="number"
-                            value={draftR.ftes || ""}
-                            onChange={e => setR("ftes", e.target.value)}
-                            className="w-16 text-right text-[9px] border border-indigo-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                          />
+                          <input type="number" value={draftP.billingMonthly} onChange={e => setP("billingMonthly", e.target.value)}
+                            className="w-16 text-right text-[9px] border border-indigo-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
                           {actBillingLookup && p.ifsCode && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const v = actBillingLookup(p.ifsCode!);
-                                if (v !== null) setR("ftes", String(v));
-                              }}
-                              title="Load from Margin Calculator"
-                              className="text-[8px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded hover:bg-indigo-200"
-                            >MC</button>
+                            <button type="button" onClick={() => { const v = actBillingLookup(p.ifsCode!); if (v !== null) setP("billingMonthly", String(v)); }}
+                              title="Load from Margin Calculator" className="text-[8px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded hover:bg-indigo-200">MC</button>
                           )}
                         </div>
+                      ) : draftP.billingMonthly ? <span>{draftP.billingMonthly}</span> : <span className="text-gray-400">—</span>}
+                    </td>
+                    {/* YTD */}
+                    <td className="py-1 px-1 text-right font-semibold">
+                      {editMode ? (
+                        <input type="number" value={draftR.ftes} onChange={e => setR("ftes", e.target.value)}
+                          className="w-16 text-right text-[9px] border border-indigo-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
                       ) : (
                         (() => {
                           const autoVal = actBillingLookup && p.ifsCode ? actBillingLookup(p.ifsCode) : null;
                           const display = draftR.ftes || (autoVal !== null ? String(autoVal) : null);
-                          return display ? <span className={!draftR.ftes && autoVal !== null ? "text-indigo-500 italic" : ""}>{display}</span> : "—";
+                          return display ? <span className={!draftR.ftes && autoVal !== null ? "text-indigo-500 italic" : ""}>{display}</span> : <span className="text-gray-400">—</span>;
                         })()
                       )}
                     </td>
-                    <td className="py-1 pl-1 text-right text-gray-400">—</td>
+                    {/* Projection */}
+                    <td className="py-1 pl-1 text-right">
+                      {editMode ? (
+                        <input type="number" value={draftP.billingProjection} onChange={e => setP("billingProjection", e.target.value)}
+                          className="w-16 text-right text-[9px] border border-indigo-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
+                      ) : draftP.billingProjection ? <span>{draftP.billingProjection}</span> : <span className="text-gray-400">—</span>}
+                    </td>
                   </tr>
                   {draftP.serviceType === "Fixed Price" && (
                   <tr>

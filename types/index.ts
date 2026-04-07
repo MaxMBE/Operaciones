@@ -77,6 +77,8 @@ export interface Project {
   costMonthly?: number;
   revenueProjection?: number;
   costProjection?: number;
+  billingMonthly?: number;
+  billingProjection?: number;
 }
 
 export interface BurndownPoint {
