@@ -2198,12 +2198,12 @@ function CORView() {
                           : <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-3 py-2 text-center text-muted-foreground whitespace-nowrap">
-                        {p.startDate ? new Date(p.startDate).toLocaleDateString(lang === "en" ? "en-US" : "es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}
+                        {p.startDate ? new Date(p.startDate + "T00:00:00").toLocaleDateString(lang === "en" ? "en-US" : "es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}
                       </td>
                       <td className="px-3 py-2 text-center whitespace-nowrap">
                         {(() => {
                           if (!p.endDate) return <span className="text-muted-foreground">—</span>;
-                          const end = new Date(p.endDate);
+                          const end = new Date(p.endDate + "T00:00:00");
                           const now = new Date();
                           const diffMs = end.getTime() - now.getTime();
                           const diffDays = diffMs / (1000 * 60 * 60 * 24);

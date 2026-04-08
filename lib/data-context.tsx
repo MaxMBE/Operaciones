@@ -86,17 +86,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // ── POST store to server (debounced 800 ms) ───────────────────────────
-  function scheduleSync(store: Store) {
-    if (syncTimer.current) clearTimeout(syncTimer.current);
-    syncTimer.current = setTimeout(() => {
-      fetch("/api/data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(store),
-      }).catch(console.error);
-    }, 800);
+  // ── POST store to server (debounced 300 ms) ───────────────────────────
+  const pendingStore = useRef<Store | null>(null);
+
+  function flushSync() {
+    if (!pendingStore.current) return;
+    const store = pendingStore.current;
+    pendingStore.current = null;
+    fetch("/api/data", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(store),
+    }).catch(console.error);
   }
+
+  function scheduleSync(store: Store) {
+    pendingStore.current = store;
+    if (syncTimer.current) clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(flushSync, 300);
+  }
+
+  // Flush pending save before the tab closes so changes aren't lost
+  useEffect(() => {
+    const handler = () => flushSync();
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Load from server on mount; auto-migrate localStorage if needed ─────
   useEffect(() => {
