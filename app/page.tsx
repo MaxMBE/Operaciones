@@ -119,10 +119,8 @@ function WeeklyReportPanel({
   const [editSection, setEditSection] = useState<string | null>(null);
   const [secDraft,    setSecDraft]    = useState<Partial<ProjectReport>>({});
 
-  function openSec(key: string, fields: (keyof ProjectReport)[]) {
-    const init: Partial<ProjectReport> = {};
-    fields.forEach(f => { (init as unknown as Record<string, unknown>)[f] = (data as unknown as Record<string, unknown>)[f] ?? ""; });
-    setSecDraft(init);
+  function openSec(key: string) {
+    setSecDraft({ ...data });
     setEditSection(key);
   }
 
@@ -293,7 +291,7 @@ function WeeklyReportPanel({
               <p className="text-xs font-semibold mt-0.5">{data.ftes || String(p.teamSize || "—")} FTE</p>
             </div>
             <button
-              onClick={() => openSec("header", ["overallStatus", "statusTrend", "risksStatus", "ftes", "commitmentLevel", "phase", "reportDate", "statusNote"])}
+              onClick={() => openSec("header")}
               className="flex items-center justify-center px-3 text-blue-400 hover:text-white hover:bg-blue-800 transition-colors border-l border-blue-800"
               title="Edit header"
             >
@@ -324,7 +322,7 @@ function WeeklyReportPanel({
           <div className="col-span-2 p-3">
             <div className="flex items-center justify-between pb-1 mb-2 border-b border-gray-200">
               <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Detailed indicators</p>
-              <button onClick={() => openSec("indicators", INDICATORS.map(i => i.field))}
+              <button onClick={() => openSec("indicators")}
                 className="text-gray-300 hover:text-primary transition-colors" title="Edit indicators">
                 <Pencil className="w-3 h-3" />
               </button>
@@ -366,7 +364,7 @@ function WeeklyReportPanel({
 
         {/* Edit content footer */}
         <div className="border-t border-gray-100 px-3 py-1.5 flex justify-end bg-gray-50">
-          <button onClick={() => openSec("content", ["achievements", "focus", "nextSteps"])}
+          <button onClick={() => openSec("content")}
             className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-primary transition-colors">
             <Pencil className="w-3 h-3" />
             Edit content
