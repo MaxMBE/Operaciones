@@ -793,28 +793,28 @@ export default function OverviewPage() {
         </div>
 
         {/* Tabla */}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1360px] text-sm table-fixed">
+        <div>
+          <table className="w-full text-[11px] table-fixed">
             <colgroup>
               <col className="w-[9%]" />
-              <col className="w-[16%]" />
+              <col className="w-[17%]" />
               <col className="w-[8%]" />
               <col className="w-[6%]" />
               <col className="w-[6%]" />
               <col className="w-[6%]" />
               <col className="w-[8%]" />
-              <col className="w-[5%]" />
+              <col className="w-[4%]" />
               <col className="w-[8%]" />
-              <col className="w-[8%]" />
+              <col className="w-[7%]" />
               <col className="w-[5%]" />
               <col className="w-[5%]" />
               <col className="w-[5%]" />
-              <col className="w-[5%]" />
+              <col className="w-[6%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-border">
-                {["Client", "Project / Service", "Status", "Model", "Start", "End", "TL", "FTEs", "Revenue", "Monthly Margin", "TMD", "OTD", "OQD", ""].map((h, i) => (
-                  <th key={i} className="text-left text-xs font-medium text-muted-foreground pb-3 pr-4 whitespace-nowrap">{h}</th>
+                {["Client", "Service", "Status", "Model", "Start", "End", "TL", "FTEs", "Revenue", "Margin", "TMD", "OTD", "OQD", ""].map((h, i) => (
+                  <th key={i} className="text-left text-[10px] font-semibold text-muted-foreground pb-3 pr-2 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -833,12 +833,12 @@ export default function OverviewPage() {
                   <tr className={`group border-b border-border last:border-0 transition-colors ${isEditing ? "bg-primary/5" : isExpanded ? "bg-slate-50" : "hover:bg-muted/40"}`}>
 
                     {/* Cliente */}
-                    <td className="py-2 pr-3 text-xs text-muted-foreground">
+                    <td className="py-2 pr-2 text-muted-foreground">
                       {isEditing ? field("client") : <span className="truncate block">{p.client ?? "—"}</span>}
                     </td>
 
-                    {/* Proyecto / Servicio */}
-                    <td className="py-2 pr-4 font-medium">
+                    {/* Servicio */}
+                    <td className="py-2 pr-2 font-medium">
                       {isEditing ? field("name") : (
                         <button
                           onClick={() => setExpandedId(isExpanded ? null : p.id)}
@@ -848,14 +848,14 @@ export default function OverviewPage() {
                             {isExpanded
                               ? <ChevronDown  className="w-3 h-3 flex-shrink-0 text-muted-foreground" />
                               : <ChevronRight className="w-3 h-3 flex-shrink-0 text-muted-foreground" />}
-                            <p className="truncate text-sm group-hover/name:text-primary transition-colors">{p.name}</p>
+                            <p className="truncate font-medium group-hover/name:text-primary transition-colors">{p.name}</p>
                           </div>
                         </button>
                       )}
                     </td>
 
                     {/* Status */}
-                    <td className="py-2 pr-4">
+                    <td className="py-2 pr-2">
                       {isEditing ? (
                         <select
                           value={editDraft.status}
@@ -867,24 +867,24 @@ export default function OverviewPage() {
                           ))}
                         </select>
                       ) : (
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${statusBadge[p.status].cls}`}>
+                        <span className={`inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${statusBadge[p.status].cls}`}>
                           {statusBadge[p.status].label}
                         </span>
                       )}
                     </td>
 
                     {/* Modelo */}
-                    <td className="py-2 pr-3 text-xs text-muted-foreground">
+                    <td className="py-2 pr-2 text-muted-foreground">
                       {isEditing ? field("serviceType") : <span className="truncate block">{p.serviceType ?? "—"}</span>}
                     </td>
 
                     {/* Start */}
-                    <td className="py-2 pr-4 text-xs text-muted-foreground whitespace-nowrap">
+                    <td className="py-2 pr-2 text-muted-foreground whitespace-nowrap">
                       {isEditing ? field("startDate") : fmtDate(p.startDate)}
                     </td>
 
                     {/* End */}
-                    <td className="py-2 pr-4 text-xs text-muted-foreground whitespace-nowrap">
+                    <td className="py-2 pr-2 text-muted-foreground whitespace-nowrap">
                       {isEditing ? field("endDate") : (
                         p.endDate ? (
                           <span className="flex items-center gap-1">
@@ -896,22 +896,22 @@ export default function OverviewPage() {
                     </td>
 
                     {/* TL */}
-                    <td className="py-2 pr-3 text-xs text-muted-foreground">
+                    <td className="py-2 pr-2 text-muted-foreground">
                       {isEditing ? field("leader") : <span className="truncate block">{p.leader ?? "—"}</span>}
                     </td>
 
                     {/* FTEs */}
-                    <td className="py-2 pr-3 text-xs text-center">
+                    <td className="py-2 pr-2 text-center">
                       <span className="font-medium text-foreground">{reportData[p.id]?.ftes ?? "—"}</span>
                     </td>
 
                     {/* Revenue */}
-                    <td className="py-2 pr-3 text-xs text-muted-foreground">
+                    <td className="py-2 pr-2 text-muted-foreground">
                       {fmtRevenue(p.revenueMonthly)}
                     </td>
 
-                    {/* Monthly Margin */}
-                    <td className="py-2 pr-3 text-xs">
+                    {/* Margin */}
+                    <td className="py-2 pr-2">
                       {(() => {
                         const m = calcMargin(p.revenueMonthly, p.costMonthly);
                         if (m === null) return <span className="text-muted-foreground">—</span>;
@@ -921,7 +921,7 @@ export default function OverviewPage() {
                     </td>
 
                     {/* TMD */}
-                    <td className="py-2 pr-3 text-xs">
+                    <td className="py-2 pr-2">
                       {(() => {
                         const tmd = reportData[p.id]?.marginImprovement;
                         if (!tmd) return <span className="text-muted-foreground">—</span>;
@@ -931,14 +931,14 @@ export default function OverviewPage() {
                     </td>
 
                     {/* OTD */}
-                    <td className="py-2 pr-3 text-xs text-center">
+                    <td className="py-2 pr-2 text-center">
                       {p.csvOtdPercent
                         ? <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">{p.csvOtdPercent}</span>
                         : <span className="text-muted-foreground">—</span>}
                     </td>
 
                     {/* OQD */}
-                    <td className="py-2 pr-3 text-xs text-center">
+                    <td className="py-2 pr-2 text-center">
                       {p.csvOqdPercent
                         ? <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">{p.csvOqdPercent}</span>
                         : <span className="text-muted-foreground">—</span>}
