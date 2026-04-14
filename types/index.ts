@@ -14,7 +14,7 @@ export interface Oportunidad {
 }
 export type TaskStatus = "todo" | "in-progress" | "done" | "blocked";
 export type Priority = "low" | "medium" | "high" | "critical";
-export type MemberRole = "BM" | "PM" | "Team Lead" | "Developer" | "Designer" | "QA" | "Analyst" | "DevOps" | "Architect" | "Data Engineer" | "Security" | "Support";
+export type MemberRole = "BM" | "PM" | "Product Owner" | "Team Lead" | "Developer" | "Designer" | "QA" | "Analyst" | "DevOps" | "Architect" | "Data Engineer" | "Security" | "Support";
 
 export interface TeamMember {
   id: string;
