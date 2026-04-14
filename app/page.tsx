@@ -780,18 +780,17 @@ export default function OverviewPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm table-fixed">
             <colgroup>
-              <col className="w-[22%]" />
-              <col className="w-[16%]" />
-              <col className="w-[11%]" />
-              <col className="w-[12%]" />
-              <col className="w-[11%]" />
-              <col className="w-[11%]" />
-              <col className="w-[11%]" />
-              <col className="w-[6%]" />
+              <col className="w-[26%]" />
+              <col className="w-[18%]" />
+              <col className="w-[13%]" />
+              <col className="w-[13%]" />
+              <col className="w-[13%]" />
+              <col className="w-[13%]" />
+              <col className="w-[4%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-border">
-                {[t.table_service, t.table_start_end, t.table_status, t.table_progress, t.table_type, t.table_bm, t.table_leader, ""].map((h) => (
+                {[t.table_service, t.table_start_end, t.table_status, t.table_type, t.table_bm, t.table_leader, ""].map((h) => (
                   <th key={h} className="text-left text-xs font-medium text-muted-foreground pb-3 pr-3">{h}</th>
                 ))}
               </tr>
@@ -799,7 +798,7 @@ export default function OverviewPage() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
                     {t.no_services}
                   </td>
                 </tr>
@@ -867,25 +866,6 @@ export default function OverviewPage() {
                       )}
                     </td>
 
-                    {/* Progreso */}
-                    <td className="py-2 pr-3">
-                      {isEditing ? (
-                        <input
-                          type="number" min={0} max={100}
-                          value={editDraft.progress ?? 0}
-                          onChange={(e) => setEditDraft((d) => ({ ...d, progress: Number(e.target.value) }))}
-                          className={`${inputCls} w-16`}
-                        />
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div className={`h-full ${statusBar[p.status]} rounded-full`} style={{ width: `${p.progress}%` }} />
-                          </div>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">{p.progress}%</span>
-                        </div>
-                      )}
-                    </td>
-
                     {/* Tipo */}
                     <td className="py-2 pr-3 text-xs text-muted-foreground">
                       {isEditing ? field("serviceType") : <span className="truncate block">{p.serviceType ?? "—"}</span>}
@@ -933,7 +913,7 @@ export default function OverviewPage() {
                   {/* Fila expandida: weekly report */}
                   {isExpanded && (
                     <tr key={`${p.id}-expanded`}>
-                      <td colSpan={8} className="p-0 border-b border-border bg-slate-50">
+                      <td colSpan={7} className="p-0 border-b border-border bg-slate-50">
                         <WeeklyReportPanel
                           project={p}
                           report={reportData[p.id]}
