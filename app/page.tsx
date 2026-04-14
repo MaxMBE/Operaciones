@@ -419,6 +419,14 @@ export default function OverviewPage() {
     terminated: "bg-slate-400",
   };
 
+  function kpiCls(pctStr?: string) {
+    const n = parseFloat(pctStr ?? "");
+    if (isNaN(n)) return "bg-gray-100 text-gray-500";
+    if (n < 70)  return "bg-red-100 text-red-700";
+    if (n < 95)  return "bg-amber-100 text-amber-700";
+    return "bg-emerald-50 text-emerald-700";
+  }
+
   function fmtRevenue(v?: number) {
     if (!v) return "—";
     if (v >= 1_000_000) return `USD ${(v / 1_000_000).toFixed(1)}M`;
@@ -943,14 +951,14 @@ export default function OverviewPage() {
                     {/* OTD */}
                     <td className="py-2 pr-2 text-center">
                       {p.csvOtdPercent
-                        ? <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">{p.csvOtdPercent}</span>
+                        ? <span className={`inline-block px-1.5 py-0.5 rounded font-medium ${kpiCls(p.csvOtdPercent)}`}>{p.csvOtdPercent}</span>
                         : <span className="text-muted-foreground">—</span>}
                     </td>
 
                     {/* OQD */}
                     <td className="py-2 pr-2 text-center">
                       {p.csvOqdPercent
-                        ? <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">{p.csvOqdPercent}</span>
+                        ? <span className={`inline-block px-1.5 py-0.5 rounded font-medium ${kpiCls(p.csvOqdPercent)}`}>{p.csvOqdPercent}</span>
                         : <span className="text-muted-foreground">—</span>}
                     </td>
 
