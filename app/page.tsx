@@ -6,13 +6,13 @@ import { BurndownChart } from "@/components/metrics/burndown-chart";
 import { ServicesTimelineChart } from "@/components/metrics/services-timeline-chart";
 import { formatClpToUsd } from "@/lib/utils";
 import type { Project, ProjectStatus, HealthStatus, ProjectReport } from "@/types";
-import { Search, X, Pencil, Check, FileText, Trash2, AlertTriangle, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, X, Pencil, Check, FileText, Trash2, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { PrintButton } from "@/components/print-button";
 import { PrintHeader } from "@/components/print-header";
 import { MultiFilter } from "@/components/multi-filter";
-import { CsvUploadMenuItems } from "@/components/csv-upload-menu-items";
+import { Plus } from "lucide-react";
 
 // ── Weekly Report Panel helpers ────────────────────────────────────────────────
 
@@ -379,11 +379,18 @@ function WeeklyReportPanel({
 // ── OverviewPage ──────────────────────────────────────────────────────────────
 
 export default function OverviewPage() {
-  const { projects, teamMembers, isDefaultData, csvFileName, rowCount, updateProject, deleteProject, reportData, updateReport } = useData();
+  const { projects, teamMembers, isDefaultData, csvFileName, rowCount, addProject, updateProject, deleteProject, reportData, updateReport } = useData();
   const router = useRouter();
   const t = useT();
-  const [menuOpen,    setMenuOpen]    = useState(false);
-  const [expandedId,  setExpandedId]  = useState<string | null>(null);
+  const [menuOpen,      setMenuOpen]      = useState(false);
+  const [expandedId,    setExpandedId]    = useState<string | null>(null);
+  const [showNewModal,  setShowNewModal]  = useState(false);
+  const [newDraft, setNewDraft] = useState({
+    name: "", client: "", startDate: "", endDate: "",
+    status: "active" as ProjectStatus, progress: 0,
+    serviceType: "", manager: "", leader: "", bu: "",
+    ifsCode: "", serviceLevel: "", teamSize: 0,
+  });
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function h(e: MouseEvent) { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); }
@@ -434,6 +441,34 @@ export default function OverviewPage() {
     setFilterLeaderState(value);
     if (value.length) sessionStorage.setItem("overview_filterLeader", JSON.stringify(value));
     else sessionStorage.removeItem("overview_filterLeader");
+  }
+
+  // ── Nuevo servicio ────────────────────────────────────────────────────────
+  function handleCreateService() {
+    if (!newDraft.name.trim()) return;
+    const newProject: Project = {
+      id:          `proj-${Date.now()}`,
+      name:        newDraft.name.trim(),
+      client:      newDraft.client.trim()      || undefined,
+      startDate:   newDraft.startDate          || "",
+      endDate:     newDraft.endDate            || "",
+      status:      newDraft.status,
+      progress:    newDraft.progress,
+      serviceType: newDraft.serviceType.trim() || undefined,
+      manager:     newDraft.manager.trim()     || "",
+      leader:      newDraft.leader.trim()      || undefined,
+      bu:          newDraft.bu.trim()          || undefined,
+      ifsCode:     newDraft.ifsCode.trim()     || undefined,
+      serviceLevel:newDraft.serviceLevel.trim()|| undefined,
+      teamSize:    newDraft.teamSize || 0,
+      budget: 0, spent: 0, revenue: 0, tasksTotal: 0, tasksDone: 0,
+    };
+    addProject(newProject);
+    setNewDraft({ name: "", client: "", startDate: "", endDate: "",
+      status: "active", progress: 0, serviceType: "", manager: "",
+      leader: "", bu: "", ifsCode: "", serviceLevel: "", teamSize: 0 });
+    setShowNewModal(false);
+    setMenuOpen(false);
   }
 
   // ── Eliminar ──────────────────────────────────────────────────────────────
@@ -620,8 +655,14 @@ export default function OverviewPage() {
             </button>
             {menuOpen && (
               <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+                <button
+                  onClick={() => { setShowNewModal(true); setMenuOpen(false); }}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5 text-primary" />
+                  New service
+                </button>
                 <PrintButton asMenuItem />
-                <CsvUploadMenuItems onClose={() => setMenuOpen(false)} />
               </div>
             )}
           </div>
@@ -908,6 +949,128 @@ export default function OverviewPage() {
           </table>
         </div>
       </div>
+      {/* Modal nuevo servicio */}
+      {showNewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowNewModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Plus className="w-4 h-4 text-primary" /> New service
+              </h2>
+              <button onClick={() => setShowNewModal(false)} className="p-1 rounded-lg text-muted-foreground hover:bg-muted transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-3 overflow-y-auto max-h-[70vh]">
+              {/* Fila 1: Nombre + Cliente */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Service name <span className="text-red-500">*</span></label>
+                  <input value={newDraft.name} onChange={e => setNewDraft(d => ({ ...d, name: e.target.value }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Service name" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Client</label>
+                  <input value={newDraft.client} onChange={e => setNewDraft(d => ({ ...d, client: e.target.value }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Client" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">IFS Code</label>
+                  <input value={newDraft.ifsCode} onChange={e => setNewDraft(d => ({ ...d, ifsCode: e.target.value }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="IFS Code" />
+                </div>
+              </div>
+              {/* Fila 2: Fechas */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Start date</label>
+                  <input type="date" value={newDraft.startDate} onChange={e => setNewDraft(d => ({ ...d, startDate: e.target.value }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">End date</label>
+                  <input type="date" value={newDraft.endDate} onChange={e => setNewDraft(d => ({ ...d, endDate: e.target.value }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary" />
+                </div>
+              </div>
+              {/* Fila 3: Status + Tipo */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Status</label>
+                  <select value={newDraft.status} onChange={e => setNewDraft(d => ({ ...d, status: e.target.value as ProjectStatus }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary">
+                    <option value="active">{t.status_active}</option>
+                    <option value="at-risk">{t.status_at_risk}</option>
+                    <option value="on-hold">{t.status_on_hold_alt}</option>
+                    <option value="completed">{t.status_completed}</option>
+                    <option value="guarantee">{t.status_guarantee}</option>
+                    <option value="delayed">{t.status_delayed}</option>
+                    <option value="terminated">{t.status_terminated}</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Type</label>
+                  <input value={newDraft.serviceType} onChange={e => setNewDraft(d => ({ ...d, serviceType: e.target.value }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="CC / SC / Fixed Price" />
+                </div>
+              </div>
+              {/* Fila 4: BM + Leader */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">BM</label>
+                  <input value={newDraft.manager} onChange={e => setNewDraft(d => ({ ...d, manager: e.target.value }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Business Manager" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Team Leader</label>
+                  <input value={newDraft.leader} onChange={e => setNewDraft(d => ({ ...d, leader: e.target.value }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Team Leader" />
+                </div>
+              </div>
+              {/* Fila 5: BU + FTEs + Commitment */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">BU</label>
+                  <input value={newDraft.bu} onChange={e => setNewDraft(d => ({ ...d, bu: e.target.value }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="Business Unit" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">FTEs</label>
+                  <input type="number" min={0} value={newDraft.teamSize || ""}
+                    onChange={e => setNewDraft(d => ({ ...d, teamSize: Number(e.target.value) }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="0" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Commitment</label>
+                  <input value={newDraft.serviceLevel} onChange={e => setNewDraft(d => ({ ...d, serviceLevel: e.target.value }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                    placeholder="CC / SC / FP" />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 px-6 py-4 border-t border-border bg-muted/20 rounded-b-2xl">
+              <button onClick={() => setShowNewModal(false)}
+                className="flex-1 px-4 py-2 text-sm font-medium rounded-xl border border-border text-foreground hover:bg-muted/50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleCreateService} disabled={!newDraft.name.trim()}
+                className="flex-1 px-4 py-2 text-sm font-medium rounded-xl bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                Create service
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal eliminar */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
