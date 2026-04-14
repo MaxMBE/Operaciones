@@ -398,15 +398,6 @@ export default function OverviewPage() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  const statusConfig: Record<ProjectStatus, { label: string; class: string }> = {
-    active:      { label: t.status_active,    class: "bg-blue-100 text-blue-700"      },
-    completed:   { label: t.status_completed, class: "bg-emerald-100 text-emerald-700" },
-    "at-risk":   { label: t.status_at_risk,   class: "bg-red-100 text-red-700"        },
-    "on-hold":   { label: t.status_on_hold,   class: "bg-yellow-100 text-yellow-700"  },
-    guarantee:   { label: t.status_guarantee,   class: "bg-purple-100 text-purple-700"  },
-    delayed:     { label: t.status_delayed,     class: "bg-orange-100 text-orange-700"  },
-    terminated:  { label: t.status_terminated,  class: "bg-slate-100 text-slate-600"    },
-  };
 
   const statusBar: Record<ProjectStatus, string> = {
     active:    "bg-blue-500",
@@ -417,6 +408,17 @@ export default function OverviewPage() {
     delayed:    "bg-orange-500",
     terminated: "bg-slate-400",
   };
+
+  function fmtRevenue(v?: number) {
+    if (!v) return "—";
+    if (v >= 1_000_000) return `USD ${(v / 1_000_000).toFixed(1)}M`;
+    if (v >= 1_000) return `USD ${Math.round(v / 1_000)}K`;
+    return `USD ${v}`;
+  }
+  function calcMargin(rev?: number, cost?: number): number | null {
+    if (!rev) return null;
+    return Math.round(((rev - (cost ?? 0)) / rev) * 100);
+  }
 
   const inputCls = "w-full px-1.5 py-0.5 text-xs border border-primary rounded focus:outline-none bg-white";
 
@@ -780,44 +782,49 @@ export default function OverviewPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm table-fixed">
             <colgroup>
-              <col className="w-[26%]" />
-              <col className="w-[18%]" />
-              <col className="w-[13%]" />
-              <col className="w-[13%]" />
-              <col className="w-[13%]" />
-              <col className="w-[13%]" />
-              <col className="w-[4%]" />
+              <col className="w-[9%]" />
+              <col className="w-[17%]" />
+              <col className="w-[6%]" />
+              <col className="w-[7%]" />
+              <col className="w-[7%]" />
+              <col className="w-[7%]" />
+              <col className="w-[5%]" />
+              <col className="w-[8%]" />
+              <col className="w-[9%]" />
+              <col className="w-[6%]" />
+              <col className="w-[6%]" />
+              <col className="w-[6%]" />
+              <col className="w-[3%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-border">
-                {[t.table_service, t.table_start_end, t.table_status, t.table_type, t.table_bm, t.table_leader, ""].map((h) => (
-                  <th key={h} className="text-left text-xs font-medium text-muted-foreground pb-3 pr-3">{h}</th>
+                {["Client", "Project / Service", "Model", "Start", "End", "TL", "FTEs", "Revenue", "Monthly Margin", "TMD", "OTD", "OQD", ""].map((h, i) => (
+                  <th key={i} className="text-left text-xs font-medium text-muted-foreground pb-3 pr-3">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={13} className="py-8 text-center text-sm text-muted-foreground">
                     {t.no_services}
                   </td>
                 </tr>
               ) : filtered.map((p) => {
                 const isEditing  = editId === p.id;
                 const isExpanded = expandedId === p.id;
-                const cfg = statusConfig[p.status];
                 return (
                   <Fragment key={p.id}>
                   <tr className={`group border-b border-border last:border-0 transition-colors ${isEditing ? "bg-primary/5" : isExpanded ? "bg-slate-50" : "hover:bg-muted/40"}`}>
 
-                    {/* Servicio + Cliente */}
-                    <td className="py-2 pr-3 font-medium max-w-[180px]">
-                      {isEditing ? (
-                        <div className="space-y-1">
-                          {field("name")}
-                          {field("client")}
-                        </div>
-                      ) : (
+                    {/* Cliente */}
+                    <td className="py-2 pr-3 text-xs text-muted-foreground">
+                      {isEditing ? field("client") : <span className="truncate block">{p.client ?? "—"}</span>}
+                    </td>
+
+                    {/* Proyecto / Servicio */}
+                    <td className="py-2 pr-3 font-medium">
+                      {isEditing ? field("name") : (
                         <button
                           onClick={() => setExpandedId(isExpanded ? null : p.id)}
                           className="text-left w-full group/name"
@@ -828,57 +835,79 @@ export default function OverviewPage() {
                               : <ChevronRight className="w-3 h-3 flex-shrink-0 text-muted-foreground" />}
                             <p className="truncate text-sm group-hover/name:text-primary transition-colors">{p.name}</p>
                           </div>
-                          {p.client && <p className="text-xs text-muted-foreground truncate pl-4">{p.client}</p>}
                         </button>
                       )}
                     </td>
 
-                    {/* Fechas */}
-                    <td className="py-2 pr-3 text-xs text-muted-foreground">
-                      {isEditing ? (
-                        <div className="space-y-1">
-                          {field("startDate")}
-                          {field("endDate")}
-                        </div>
-                      ) : (
-                        p.startDate ? <span>{p.startDate} → {p.endDate}</span> : "—"
-                      )}
-                    </td>
-
-                    {/* Estado */}
-                    <td className="py-2 pr-3">
-                      {isEditing ? (
-                        <select
-                          value={editDraft.status}
-                          onChange={(e) => setEditDraft((d) => ({ ...d, status: e.target.value as ProjectStatus }))}
-                          className={inputCls}
-                        >
-                          <option value="active">{t.status_active}</option>
-                          <option value="at-risk">{t.status_at_risk}</option>
-                          <option value="on-hold">{t.status_on_hold_alt}</option>
-                          <option value="completed">{t.status_completed}</option>
-                          <option value="guarantee">{t.status_guarantee}</option>
-                          <option value="delayed">{t.status_delayed}</option>
-                          <option value="terminated">{t.status_terminated}</option>
-                        </select>
-                      ) : (
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${cfg.class}`}>{cfg.label}</span>
-                      )}
-                    </td>
-
-                    {/* Tipo */}
+                    {/* Modelo */}
                     <td className="py-2 pr-3 text-xs text-muted-foreground">
                       {isEditing ? field("serviceType") : <span className="truncate block">{p.serviceType ?? "—"}</span>}
                     </td>
 
-                    {/* Manager */}
+                    {/* Start */}
                     <td className="py-2 pr-3 text-xs text-muted-foreground">
-                      {isEditing ? field("manager") : <span className="truncate block">{p.manager || "—"}</span>}
+                      {isEditing ? field("startDate") : <span>{p.startDate || "—"}</span>}
                     </td>
 
-                    {/* Líder */}
+                    {/* End */}
+                    <td className="py-2 pr-3 text-xs text-muted-foreground">
+                      {isEditing ? field("endDate") : (
+                        p.endDate ? (
+                          <span className="flex items-center gap-1">
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusBar[p.status]}`} />
+                            {p.endDate}
+                          </span>
+                        ) : "—"
+                      )}
+                    </td>
+
+                    {/* TL */}
                     <td className="py-2 pr-3 text-xs text-muted-foreground">
                       {isEditing ? field("leader") : <span className="truncate block">{p.leader ?? "—"}</span>}
+                    </td>
+
+                    {/* FTEs */}
+                    <td className="py-2 pr-3 text-xs text-center">
+                      <span className="font-medium text-foreground">{reportData[p.id]?.ftes ?? "—"}</span>
+                    </td>
+
+                    {/* Revenue */}
+                    <td className="py-2 pr-3 text-xs text-muted-foreground">
+                      {fmtRevenue(p.revenueMonthly)}
+                    </td>
+
+                    {/* Monthly Margin */}
+                    <td className="py-2 pr-3 text-xs">
+                      {(() => {
+                        const m = calcMargin(p.revenueMonthly, p.costMonthly);
+                        if (m === null) return <span className="text-muted-foreground">—</span>;
+                        const cls = m >= 20 ? "text-emerald-600" : m >= 10 ? "text-amber-600" : "text-red-600";
+                        return <span className={`font-medium ${cls}`}>{m}%</span>;
+                      })()}
+                    </td>
+
+                    {/* TMD */}
+                    <td className="py-2 pr-3 text-xs">
+                      {(() => {
+                        const tmd = reportData[p.id]?.marginImprovement;
+                        if (!tmd) return <span className="text-muted-foreground">—</span>;
+                        const cls = tmd.startsWith("+") ? "text-emerald-600" : "text-red-600";
+                        return <span className={`font-medium ${cls}`}>{tmd}</span>;
+                      })()}
+                    </td>
+
+                    {/* OTD */}
+                    <td className="py-2 pr-3 text-xs text-center">
+                      {p.csvOtdPercent
+                        ? <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">{p.csvOtdPercent}</span>
+                        : <span className="text-muted-foreground">—</span>}
+                    </td>
+
+                    {/* OQD */}
+                    <td className="py-2 pr-3 text-xs text-center">
+                      {p.csvOqdPercent
+                        ? <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-medium">{p.csvOqdPercent}</span>
+                        : <span className="text-muted-foreground">—</span>}
                     </td>
 
                     {/* Acciones */}
@@ -913,7 +942,7 @@ export default function OverviewPage() {
                   {/* Fila expandida: weekly report */}
                   {isExpanded && (
                     <tr key={`${p.id}-expanded`}>
-                      <td colSpan={7} className="p-0 border-b border-border bg-slate-50">
+                      <td colSpan={13} className="p-0 border-b border-border bg-slate-50">
                         <WeeklyReportPanel
                           project={p}
                           report={reportData[p.id]}
