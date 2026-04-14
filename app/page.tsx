@@ -187,6 +187,16 @@ function WeeklyReportPanel({
                   <input value={String(secDraft.phase ?? "")} onChange={e => setS("phase", e.target.value)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="Design / Dev / UAT" />
                 </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Report Date</label>
+                  <input type="date" value={String(secDraft.reportDate ?? "")} onChange={e => setS("reportDate", e.target.value)}
+                    className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">TMD (Margin delta)</label>
+                  <input value={String(secDraft.marginImprovement ?? "")} onChange={e => setS("marginImprovement", e.target.value)}
+                    className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="+4pp" />
+                </div>
                 <div className="col-span-2">
                   <label className="text-xs text-gray-500 block mb-1">Short Description</label>
                   <input value={String(secDraft.statusNote ?? "")} onChange={e => setS("statusNote", e.target.value)}
@@ -312,7 +322,7 @@ function WeeklyReportPanel({
           </div>
           <div className="px-4 py-2">
             <p className="text-[9px] text-gray-400 uppercase font-medium mb-0.5">Short description</p>
-            <p className="text-gray-600 leading-snug">{p.shortComment || data.statusNote || "—"}</p>
+            <p className="text-gray-600 leading-snug">{data.statusNote || p.shortComment || "—"}</p>
           </div>
         </div>
 
