@@ -419,6 +419,20 @@ export default function OverviewPage() {
     if (!rev) return null;
     return Math.round(((rev - (cost ?? 0)) / rev) * 100);
   }
+  function fmtDate(s?: string) {
+    if (!s) return "—";
+    const [y, m, d] = s.split("-");
+    return `${m}/${d}/${(y ?? "").slice(2)}`;
+  }
+  const statusBadge: Record<ProjectStatus, { label: string; cls: string }> = {
+    active:     { label: t.status_active,     cls: "bg-blue-100 text-blue-700"      },
+    completed:  { label: t.status_completed,  cls: "bg-emerald-100 text-emerald-700" },
+    "at-risk":  { label: t.status_at_risk,    cls: "bg-red-100 text-red-700"        },
+    "on-hold":  { label: t.status_on_hold_alt, cls: "bg-yellow-100 text-yellow-700"  },
+    guarantee:  { label: t.status_guarantee,  cls: "bg-purple-100 text-purple-700"  },
+    delayed:    { label: t.status_delayed,    cls: "bg-orange-100 text-orange-700"  },
+    terminated: { label: t.status_terminated, cls: "bg-slate-100 text-slate-600"    },
+  };
 
   const inputCls = "w-full px-1.5 py-0.5 text-xs border border-primary rounded focus:outline-none bg-white";
 
@@ -780,33 +794,34 @@ export default function OverviewPage() {
 
         {/* Tabla */}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm table-fixed">
+          <table className="w-full min-w-[1360px] text-sm table-fixed">
             <colgroup>
               <col className="w-[9%]" />
-              <col className="w-[17%]" />
+              <col className="w-[16%]" />
+              <col className="w-[8%]" />
               <col className="w-[6%]" />
-              <col className="w-[7%]" />
-              <col className="w-[7%]" />
-              <col className="w-[7%]" />
+              <col className="w-[6%]" />
+              <col className="w-[6%]" />
+              <col className="w-[8%]" />
               <col className="w-[5%]" />
               <col className="w-[8%]" />
-              <col className="w-[9%]" />
-              <col className="w-[6%]" />
-              <col className="w-[6%]" />
-              <col className="w-[6%]" />
-              <col className="w-[3%]" />
+              <col className="w-[8%]" />
+              <col className="w-[5%]" />
+              <col className="w-[5%]" />
+              <col className="w-[5%]" />
+              <col className="w-[5%]" />
             </colgroup>
             <thead>
               <tr className="border-b border-border">
-                {["Client", "Project / Service", "Model", "Start", "End", "TL", "FTEs", "Revenue", "Monthly Margin", "TMD", "OTD", "OQD", ""].map((h, i) => (
-                  <th key={i} className="text-left text-xs font-medium text-muted-foreground pb-3 pr-3">{h}</th>
+                {["Client", "Project / Service", "Status", "Model", "Start", "End", "TL", "FTEs", "Revenue", "Monthly Margin", "TMD", "OTD", "OQD", ""].map((h, i) => (
+                  <th key={i} className="text-left text-xs font-medium text-muted-foreground pb-3 pr-4 whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-8 text-center text-sm text-muted-foreground">
+                  <td colSpan={14} className="py-8 text-center text-sm text-muted-foreground">
                     {t.no_services}
                   </td>
                 </tr>
@@ -823,7 +838,7 @@ export default function OverviewPage() {
                     </td>
 
                     {/* Proyecto / Servicio */}
-                    <td className="py-2 pr-3 font-medium">
+                    <td className="py-2 pr-4 font-medium">
                       {isEditing ? field("name") : (
                         <button
                           onClick={() => setExpandedId(isExpanded ? null : p.id)}
@@ -839,23 +854,42 @@ export default function OverviewPage() {
                       )}
                     </td>
 
+                    {/* Status */}
+                    <td className="py-2 pr-4">
+                      {isEditing ? (
+                        <select
+                          value={editDraft.status}
+                          onChange={(e) => setEditDraft((d) => ({ ...d, status: e.target.value as ProjectStatus }))}
+                          className={inputCls}
+                        >
+                          {Object.entries(statusBadge).map(([v, { label }]) => (
+                            <option key={v} value={v}>{label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${statusBadge[p.status].cls}`}>
+                          {statusBadge[p.status].label}
+                        </span>
+                      )}
+                    </td>
+
                     {/* Modelo */}
                     <td className="py-2 pr-3 text-xs text-muted-foreground">
                       {isEditing ? field("serviceType") : <span className="truncate block">{p.serviceType ?? "—"}</span>}
                     </td>
 
                     {/* Start */}
-                    <td className="py-2 pr-3 text-xs text-muted-foreground">
-                      {isEditing ? field("startDate") : <span>{p.startDate || "—"}</span>}
+                    <td className="py-2 pr-4 text-xs text-muted-foreground whitespace-nowrap">
+                      {isEditing ? field("startDate") : fmtDate(p.startDate)}
                     </td>
 
                     {/* End */}
-                    <td className="py-2 pr-3 text-xs text-muted-foreground">
+                    <td className="py-2 pr-4 text-xs text-muted-foreground whitespace-nowrap">
                       {isEditing ? field("endDate") : (
                         p.endDate ? (
                           <span className="flex items-center gap-1">
                             <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusBar[p.status]}`} />
-                            {p.endDate}
+                            {fmtDate(p.endDate)}
                           </span>
                         ) : "—"
                       )}
@@ -942,7 +976,7 @@ export default function OverviewPage() {
                   {/* Fila expandida: weekly report */}
                   {isExpanded && (
                     <tr key={`${p.id}-expanded`}>
-                      <td colSpan={13} className="p-0 border-b border-border bg-slate-50">
+                      <td colSpan={14} className="p-0 border-b border-border bg-slate-50">
                         <WeeklyReportPanel
                           project={p}
                           report={reportData[p.id]}
