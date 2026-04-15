@@ -120,7 +120,30 @@ function WeeklyReportPanel({
   const [secDraft,    setSecDraft]    = useState<Partial<ProjectReport>>({});
 
   function openSec(key: string) {
-    setSecDraft({ ...data });
+    // Explicit field copy so no optional field is accidentally undefined in the draft
+    setSecDraft({
+      overallStatus:    data.overallStatus    ?? "grey",
+      currentStatus:    data.currentStatus    ?? "grey",
+      previousStatus:   data.previousStatus   ?? "grey",
+      milestonesStatus: data.milestonesStatus ?? "grey",
+      resourcesStatus:  data.resourcesStatus  ?? "grey",
+      issuesStatus:     data.issuesStatus     ?? "grey",
+      risksStatus:      data.risksStatus      ?? "grey",
+      statusTrend:      data.statusTrend      ?? "same",
+      teamMood:         data.teamMood         ?? "grey",
+      ftes:             data.ftes             ?? "",
+      commitmentLevel:  data.commitmentLevel  ?? "",
+      phase:            data.phase            ?? "",
+      reportDate:       data.reportDate       ?? new Date().toISOString().slice(0, 10),
+      marginImprovement: data.marginImprovement ?? "",
+      marginMonthly:    data.marginMonthly    ?? "",
+      otdPercent:       data.otdPercent       ?? "",
+      oqdPercent:       data.oqdPercent       ?? "",
+      statusNote:       data.statusNote       ?? "",
+      achievements:     data.achievements     ?? "",
+      focus:            data.focus            ?? "",
+      nextSteps:        data.nextSteps        ?? "",
+    });
     setEditSection(key);
   }
 
@@ -196,6 +219,21 @@ function WeeklyReportPanel({
                   <label className="text-xs text-gray-500 block mb-1">TMD (Margin delta)</label>
                   <input value={String(secDraft.marginImprovement ?? "")} onChange={e => setS("marginImprovement", e.target.value)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="+4pp" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">Margin %</label>
+                  <input value={String(secDraft.marginMonthly ?? "")} onChange={e => setS("marginMonthly", e.target.value)}
+                    className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="38%" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">OTD %</label>
+                  <input value={String(secDraft.otdPercent ?? "")} onChange={e => setS("otdPercent", e.target.value)}
+                    className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="95%" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 block mb-1">OQD %</label>
+                  <input value={String(secDraft.oqdPercent ?? "")} onChange={e => setS("oqdPercent", e.target.value)}
+                    className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="95%" />
                 </div>
                 <div className="col-span-2">
                   <label className="text-xs text-gray-500 block mb-1">Short Description</label>
@@ -931,6 +969,12 @@ export default function OverviewPage() {
                     {/* Margin */}
                     <td className="py-2 pr-2">
                       {(() => {
+                        const rpt = reportData[p.id]?.marginMonthly;
+                        if (rpt) {
+                          const n = parseFloat(rpt);
+                          const cls = !isNaN(n) ? (n >= 20 ? "text-emerald-600" : n >= 10 ? "text-amber-600" : "text-red-600") : "text-muted-foreground";
+                          return <span className={`font-medium ${cls}`}>{rpt}</span>;
+                        }
                         const m = calcMargin(p.revenueMonthly, p.costMonthly);
                         if (m === null) return <span className="text-muted-foreground">—</span>;
                         const cls = m >= 20 ? "text-emerald-600" : m >= 10 ? "text-amber-600" : "text-red-600";
@@ -950,16 +994,22 @@ export default function OverviewPage() {
 
                     {/* OTD */}
                     <td className="py-2 pr-2 text-center">
-                      {p.csvOtdPercent
-                        ? <span className={`inline-block px-1.5 py-0.5 rounded font-medium ${kpiCls(p.csvOtdPercent)}`}>{p.csvOtdPercent}</span>
-                        : <span className="text-muted-foreground">—</span>}
+                      {(() => {
+                        const val = reportData[p.id]?.otdPercent || p.csvOtdPercent;
+                        return val
+                          ? <span className={`inline-block px-1.5 py-0.5 rounded font-medium ${kpiCls(val)}`}>{val}</span>
+                          : <span className="text-muted-foreground">—</span>;
+                      })()}
                     </td>
 
                     {/* OQD */}
                     <td className="py-2 pr-2 text-center">
-                      {p.csvOqdPercent
-                        ? <span className={`inline-block px-1.5 py-0.5 rounded font-medium ${kpiCls(p.csvOqdPercent)}`}>{p.csvOqdPercent}</span>
-                        : <span className="text-muted-foreground">—</span>}
+                      {(() => {
+                        const val = reportData[p.id]?.oqdPercent || p.csvOqdPercent;
+                        return val
+                          ? <span className={`inline-block px-1.5 py-0.5 rounded font-medium ${kpiCls(val)}`}>{val}</span>
+                          : <span className="text-muted-foreground">—</span>;
+                      })()}
                     </td>
 
                     {/* Acciones */}

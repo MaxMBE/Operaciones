@@ -144,6 +144,9 @@ export interface ProjectReport {
   focus: string;
   statusNote: string;
   marginImprovement?: string;
+  marginMonthly?: string;
+  otdPercent?: string;
+  oqdPercent?: string;
   statusTrend?: "up" | "same" | "down";
   // Fixed Price specific
   projectScope?: string;
