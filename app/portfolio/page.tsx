@@ -1173,6 +1173,8 @@ function CORView() {
   const [saveStatus,     setSaveStatus]     = useState<string>("");
 
   const isCurrentMonth = activeMonth === currentMonth();
+  // Financial KPIs (Revenue, Margin, OTD, OQD) only show for months with a confirmed saved snapshot
+  const hasConfirmedData = !isCurrentMonth && monthData !== null;
   const projects   = monthData ? monthData.projects    : liveProjects;
   const reportData = monthData ? monthData.report_data : liveReportData;
 
@@ -1833,53 +1835,73 @@ function CORView() {
             <DollarSign className="w-3.5 h-3.5 text-indigo-500" />
             <span className="text-[10px] font-medium text-muted-foreground">{t.cor_revenue_total_kpi}</span>
           </div>
-          <p className="text-lg font-bold text-foreground leading-none">{formatClpToUsd(corKPIs.totalRevenue)}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">{t.cor_cost_label} {formatClpToUsd(corKPIs.totalCost)}</p>
+          {hasConfirmedData ? <>
+            <p className="text-lg font-bold text-foreground leading-none">{formatClpToUsd(corKPIs.totalRevenue)}</p>
+            <p className="text-[10px] text-muted-foreground mt-1">{t.cor_cost_label} {formatClpToUsd(corKPIs.totalCost)}</p>
+          </> : <>
+            <p className="text-lg font-bold text-gray-300 leading-none">—</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Pendiente de confirmar</p>
+          </>}
           <div className="mt-2 pt-1.5 border-t border-gray-100">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
 
         {/* Gross Margin */}
-        <div className={`rounded-xl border p-3 ${corKPIs.grossMargin>=34?"bg-emerald-50 border-emerald-200":corKPIs.grossMargin>=25?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
+        <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white border-border":corKPIs.grossMargin>=34?"bg-emerald-50 border-emerald-200":corKPIs.grossMargin>=25?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
           <div className="flex items-center gap-1.5 mb-2">
-            <TrendingUp className={`w-3.5 h-3.5 ${corKPIs.grossMargin>=34?"text-emerald-600":corKPIs.grossMargin>=25?"text-amber-600":"text-red-600"}`} />
+            <TrendingUp className={`w-3.5 h-3.5 ${!hasConfirmedData?"text-gray-300":corKPIs.grossMargin>=34?"text-emerald-600":corKPIs.grossMargin>=25?"text-amber-600":"text-red-600"}`} />
             <span className="text-[10px] font-medium text-muted-foreground">Gross Margin</span>
           </div>
-          <p className={`text-lg font-bold leading-none ${corKPIs.grossMargin>=34?"text-emerald-700":corKPIs.grossMargin>=25?"text-amber-700":"text-red-700"}`}>
-            {Math.round(corKPIs.grossMargin)}%
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-1">{t.cor_target_40}</p>
+          {hasConfirmedData ? <>
+            <p className={`text-lg font-bold leading-none ${corKPIs.grossMargin>=34?"text-emerald-700":corKPIs.grossMargin>=25?"text-amber-700":"text-red-700"}`}>
+              {Math.round(corKPIs.grossMargin)}%
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1">{t.cor_target_40}</p>
+          </> : <>
+            <p className="text-lg font-bold text-gray-300 leading-none">—</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Pendiente de confirmar</p>
+          </>}
           <div className="mt-2 pt-1.5 border-t border-gray-100">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
 
         {/* OTD */}
-        <div className={`rounded-xl border p-3 ${corKPIs.avgOTD===null?"bg-gray-50 border-gray-200":corKPIs.avgOTD>=95?"bg-emerald-50 border-emerald-200":corKPIs.avgOTD>=80?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
+        <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white border-border":corKPIs.avgOTD===null?"bg-gray-50 border-gray-200":corKPIs.avgOTD>=95?"bg-emerald-50 border-emerald-200":corKPIs.avgOTD>=80?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
           <div className="flex items-center gap-1.5 mb-2">
-            <Target className={`w-3.5 h-3.5 ${corKPIs.avgOTD===null?"text-gray-400":corKPIs.avgOTD>=95?"text-emerald-600":corKPIs.avgOTD>=80?"text-amber-600":"text-red-600"}`} />
+            <Target className={`w-3.5 h-3.5 ${!hasConfirmedData?"text-gray-300":corKPIs.avgOTD===null?"text-gray-400":corKPIs.avgOTD>=95?"text-emerald-600":corKPIs.avgOTD>=80?"text-amber-600":"text-red-600"}`} />
             <span className="text-[10px] font-medium text-muted-foreground">{t.cor_otd_global}</span>
           </div>
-          <p className={`text-lg font-bold leading-none ${corKPIs.avgOTD===null?"text-gray-400":corKPIs.avgOTD>=95?"text-emerald-700":corKPIs.avgOTD>=80?"text-amber-700":"text-red-700"}`}>
-            {corKPIs.avgOTD!==null?`${Math.round(corKPIs.avgOTD)}%`:t.cor_nd}
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
+          {hasConfirmedData ? <>
+            <p className={`text-lg font-bold leading-none ${corKPIs.avgOTD===null?"text-gray-400":corKPIs.avgOTD>=95?"text-emerald-700":corKPIs.avgOTD>=80?"text-amber-700":"text-red-700"}`}>
+              {corKPIs.avgOTD!==null?`${Math.round(corKPIs.avgOTD)}%`:t.cor_nd}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
+          </> : <>
+            <p className="text-lg font-bold text-gray-300 leading-none">—</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Pendiente de confirmar</p>
+          </>}
           <div className="mt-2 pt-1.5 border-t border-gray-100">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
 
         {/* OQD */}
-        <div className={`rounded-xl border p-3 ${corKPIs.avgOQD===null?"bg-gray-50 border-gray-200":corKPIs.avgOQD>=95?"bg-emerald-50 border-emerald-200":corKPIs.avgOQD>=80?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
+        <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white border-border":corKPIs.avgOQD===null?"bg-gray-50 border-gray-200":corKPIs.avgOQD>=95?"bg-emerald-50 border-emerald-200":corKPIs.avgOQD>=80?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
           <div className="flex items-center gap-1.5 mb-2">
-            <CheckCircle2 className={`w-3.5 h-3.5 ${corKPIs.avgOQD===null?"text-gray-400":corKPIs.avgOQD>=95?"text-emerald-600":corKPIs.avgOQD>=80?"text-amber-600":"text-red-600"}`} />
+            <CheckCircle2 className={`w-3.5 h-3.5 ${!hasConfirmedData?"text-gray-300":corKPIs.avgOQD===null?"text-gray-400":corKPIs.avgOQD>=95?"text-emerald-600":corKPIs.avgOQD>=80?"text-amber-600":"text-red-600"}`} />
             <span className="text-[10px] font-medium text-muted-foreground">{t.cor_oqd_global}</span>
           </div>
-          <p className={`text-lg font-bold leading-none ${corKPIs.avgOQD===null?"text-gray-400":corKPIs.avgOQD>=95?"text-emerald-700":corKPIs.avgOQD>=80?"text-amber-700":"text-red-700"}`}>
-            {corKPIs.avgOQD!==null?`${Math.round(corKPIs.avgOQD)}%`:t.cor_nd}
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
+          {hasConfirmedData ? <>
+            <p className={`text-lg font-bold leading-none ${corKPIs.avgOQD===null?"text-gray-400":corKPIs.avgOQD>=95?"text-emerald-700":corKPIs.avgOQD>=80?"text-amber-700":"text-red-700"}`}>
+              {corKPIs.avgOQD!==null?`${Math.round(corKPIs.avgOQD)}%`:t.cor_nd}
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
+          </> : <>
+            <p className="text-lg font-bold text-gray-300 leading-none">—</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Pendiente de confirmar</p>
+          </>}
           <div className="mt-2 pt-1.5 border-t border-gray-100">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
