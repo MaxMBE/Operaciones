@@ -305,7 +305,7 @@ const PERFILES: Perfil[] = [
 ];
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
-const fmt    = (n: number, locale = "es-CL") => Math.round(n).toLocaleString(locale);
+const fmt    = (n: number, locale = "en-US") => Math.round(n).toLocaleString(locale);
 const fmtUF  = (n: number) => Number(n).toFixed(2);
 const fmtPct = (n: number) => (n*100).toFixed(1)+"%";
 
@@ -378,37 +378,37 @@ function TabCaRMO({ onDataChange }: { onDataChange?: (d: CarmoExportData | null)
     const badgeColor = (bg: string) => bg === "#1b5e20" || bg === "#388e3c" ? "green" : bg === "#8bc34a" || bg === "#fdd835" ? "amber" : bg === "#f44336" ? "red" : "black";
     const sections = [
       {
-        title: "Parámetros",
+        title: "Parameters",
         rows: [
-          { label: "Mes / Año", value: `${mes} ${anio}` },
-          { label: "Valor UF", value: `$${fmt(uf)}` },
-          { label: "Tipo de recurso", value: tipoLabel },
-          { label: "Recurso", value: nombreRecurso || "—" },
-          { label: "Costo empresa / mes", value: `$${fmt(costoEmpresaMes)}` },
-          { label: "Costo c/ vac.+fnq", value: `$${fmt(result.costoConFnq)}` },
-          { label: "Margen objetivo", value: fmtPct(margenObj) },
+          { label: "Month / Year", value: `${mes} ${anio}` },
+          { label: "UF Value", value: `$${fmt(uf)}` },
+          { label: "Resource type", value: tipoLabel },
+          { label: "Resource", value: nombreRecurso || "—" },
+          { label: "Company cost / month", value: `$${fmt(costoEmpresaMes)}` },
+          { label: "Cost w/ vac.+benefits", value: `$${fmt(result.costoConFnq)}` },
+          { label: "Target margin", value: fmtPct(margenObj) },
         ],
       },
       {
-        title: "Resultado CaRMO",
+        title: "CaRMO Result",
         badge: { label: sm.label, color: badgeColor(sm.bg) },
         rows: [
-          { label: "Tarifa mínima día", value: `UF ${fmtUF(result.pvDiaUF)}  ·  $${fmt(result.pvDiaUF*uf)}/día`, bold: true },
-          { label: "Tarifa mínima mes", value: `UF ${fmtUF(result.pvMesUF)}  ·  $${fmt(result.pvMesCLP)}`, bold: true },
+          { label: "Min. daily rate", value: `UF ${fmtUF(result.pvDiaUF)}  ·  $${fmt(result.pvDiaUF*uf)}/day`, bold: true },
+          { label: "Min. monthly rate", value: `UF ${fmtUF(result.pvMesUF)}  ·  $${fmt(result.pvMesCLP)}`, bold: true },
         ],
       },
       ...(mgnNeg !== null && smNeg ? [{
-        title: "Tarifa negociada",
+        title: "Negotiated rate",
         badge: { label: smNeg.label, color: badgeColor(smNeg.bg) },
         rows: [
-          { label: "Tarifa acordada (UF/día)", value: `UF ${tarifaNeg}` },
-          { label: "Margen real obtenido", value: fmtPct(mgnNeg), bold: true },
+          { label: "Agreed rate (UF/day)", value: `UF ${tarifaNeg}` },
+          { label: "Actual margin obtained", value: fmtPct(mgnNeg), bold: true },
         ],
       }] : []),
       {
-        title: "Tabla de responsables validadores",
+        title: "Approver validation table",
         table: {
-          headers: ["Rango margen", "Responsable"],
+          headers: ["Margin range", "Approver"],
           rows: TABLA_VALIDADOR.map(r => [r.label.split("–")[0]?.trim() ?? r.label, r.label.split("–")[1]?.trim() ?? "—"]),
         },
       },
@@ -701,20 +701,20 @@ function TabPricing({ onDataChange }: { onDataChange?: (d: CarmoExportData | nul
     const badgeColor = (bg: string) => bg === "#1b5e20" || bg === "#388e3c" ? "green" : bg === "#8bc34a" || bg === "#fdd835" ? "amber" : bg === "#f44336" ? "red" : "black";
     const sections = [
       {
-        title: "Datos del proyecto",
+        title: "Project Data",
         rows: [
-          { label: "Proyecto", value: proyecto || "—" },
-          { label: "Cliente", value: cliente || "—" },
-          { label: "Mes inicio / Año", value: `${mes} ${anio}` },
-          { label: "Duración", value: `${mesesProy} mes(es)` },
-          { label: "Margen objetivo", value: fmtPct(margenObj) },
-          { label: "UF referencia", value: `$${fmt(uf)}` },
+          { label: "Project", value: proyecto || "—" },
+          { label: "Client", value: cliente || "—" },
+          { label: "Start month / Year", value: `${mes} ${anio}` },
+          { label: "Duration", value: `${mesesProy} month(s)` },
+          { label: "Target margin", value: fmtPct(margenObj) },
+          { label: "UF reference", value: `$${fmt(uf)}` },
         ],
       },
       {
-        title: "Recursos",
+        title: "Resources",
         table: {
-          headers: ["Recurso", "Tipo", "Periodo", "Cant.", "% Asig.", "Costo línea"],
+          headers: ["Resource", "Type", "Period", "Qty.", "% Alloc.", "Line cost"],
           rows: lineas.filter(l=>l.costoDiario>0).map(l=>[
             l.nombre||"—", l.tipo,
             l.tipoPeriodo, String(l.cantidad), `${l.pct*100}%`,
@@ -723,30 +723,30 @@ function TabPricing({ onDataChange }: { onDataChange?: (d: CarmoExportData | nul
         },
       },
       ...(otros.length > 0 ? [{
-        title: "Otros costos",
+        title: "Other costs",
         table: {
-          headers: ["Descripción", "Meses", "Costo/mes", "Total"],
+          headers: ["Description", "Months", "Cost/month", "Total"],
           rows: otros.map(o=>[o.desc||"—", String(o.meses), `$${fmt(o.costoMes)}`, `$${fmt((o.costoMes||0)*(o.meses||0))}`]),
         },
       }] : []),
       {
-        title: "Resumen financiero",
+        title: "Financial Summary",
         badge: { label: mc.label, color: badgeColor(mc.bg) },
         rows: [
-          { label: "Costo recursos", value: `$${fmt(costoRec)}` },
-          { label: "Otros costos", value: `$${fmt(costoOtros)}` },
-          { label: "Costo total", value: `$${fmt(costoTotal)}`, bold: true },
-          { label: `Margen ${fmtPct(margenObj)}`, value: `$${fmt(pvCLP - costoTotal)}` },
-          { label: "Tarifa total neta", value: `UF ${fmtUF(pvUF)}  ·  $${fmt(pvCLP)}`, bold: true },
-          { label: "Tarifa mensual neta", value: `UF ${fmtUF(pvMesUF)}  (c/IVA: UF ${fmtUF(pvMesUF*1.19)})`, bold: true },
+          { label: "Resource cost", value: `$${fmt(costoRec)}` },
+          { label: "Other costs", value: `$${fmt(costoOtros)}` },
+          { label: "Total cost", value: `$${fmt(costoTotal)}`, bold: true },
+          { label: `Margin ${fmtPct(margenObj)}`, value: `$${fmt(pvCLP - costoTotal)}` },
+          { label: "Net total rate", value: `UF ${fmtUF(pvUF)}  ·  $${fmt(pvCLP)}`, bold: true },
+          { label: "Net monthly rate", value: `UF ${fmtUF(pvMesUF)}  (w/VAT: UF ${fmtUF(pvMesUF*1.19)})`, bold: true },
         ],
       },
       ...(margenNeg !== null && mcNeg ? [{
-        title: "Tarifa negociada",
+        title: "Negotiated rate",
         badge: { label: mcNeg.label, color: badgeColor(mcNeg.bg) },
         rows: [
-          { label: "Tarifa ingresada (UF total)", value: `UF ${tarifaNeg}` },
-          { label: "Margen real obtenido", value: fmtPct(margenNeg), bold: true },
+          { label: "Entered rate (UF total)", value: `UF ${tarifaNeg}` },
+          { label: "Actual margin obtained", value: fmtPct(margenNeg), bold: true },
         ],
       }] : []),
     ];

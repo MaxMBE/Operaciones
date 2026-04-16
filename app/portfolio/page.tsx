@@ -560,7 +560,7 @@ function ProjectDetailPanel({
                   return (
                     <div className="col-span-2 flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-1.5">
                       <span className="text-[9px] text-indigo-700 font-medium">
-                        MC data: Rev {mc.produccion.toLocaleString("es-CL")} · Cost {Math.abs(mc.costoNorm).toLocaleString("es-CL")} · Margin {mc.produccion > 0 ? Math.round(mc.margen / mc.produccion * 100) : 0}%
+                        MC data: Rev {mc.produccion.toLocaleString("en-US")} · Cost {Math.abs(mc.costoNorm).toLocaleString("en-US")} · Margin {mc.produccion > 0 ? Math.round(mc.margen / mc.produccion * 100) : 0}%
                       </span>
                       <button
                         type="button"
@@ -1840,7 +1840,7 @@ function CORView() {
             <p className="text-[10px] text-muted-foreground mt-1">{t.cor_cost_label} {formatClpToUsd(corKPIs.totalCost)}</p>
           </> : <>
             <p className="text-lg font-bold text-gray-300 leading-none">—</p>
-            <p className="text-[10px] text-muted-foreground mt-1">Pendiente de confirmar</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Pending confirmation</p>
           </>}
           <div className="mt-2 pt-1.5 border-t border-gray-100">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
@@ -1860,7 +1860,7 @@ function CORView() {
             <p className="text-[10px] text-muted-foreground mt-1">{t.cor_target_40}</p>
           </> : <>
             <p className="text-lg font-bold text-gray-300 leading-none">—</p>
-            <p className="text-[10px] text-muted-foreground mt-1">Pendiente de confirmar</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Pending confirmation</p>
           </>}
           <div className="mt-2 pt-1.5 border-t border-gray-100">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
@@ -1880,7 +1880,7 @@ function CORView() {
             <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
           </> : <>
             <p className="text-lg font-bold text-gray-300 leading-none">—</p>
-            <p className="text-[10px] text-muted-foreground mt-1">Pendiente de confirmar</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Pending confirmation</p>
           </>}
           <div className="mt-2 pt-1.5 border-t border-gray-100">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
@@ -1900,7 +1900,7 @@ function CORView() {
             <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
           </> : <>
             <p className="text-lg font-bold text-gray-300 leading-none">—</p>
-            <p className="text-[10px] text-muted-foreground mt-1">Pendiente de confirmar</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Pending confirmation</p>
           </>}
           <div className="mt-2 pt-1.5 border-t border-gray-100">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
@@ -2487,8 +2487,8 @@ const MES_LABEL: Record<string,string> = {
 const margenBg   = (p: number) => p >= 0.34 ? "#1b5e20" : p >= 0.30 ? "#8bc34a" : p >= 0.25 ? "#fdd835" : p >= 0 ? "#f44336" : "#b71c1c";
 const margenTxt  = (p: number) => (p >= 0.25 && p < 0.30) ? "#333" : "#fff";
 const fmtPctSgn  = (p: number) => p === 0 ? "" : `${p>0?"+":""}${(p*100).toFixed(1)}%`;
-const fmtNum     = (n: number) => n === 0 ? "" : Math.abs(Math.round(n)).toLocaleString("es-CL");
-const fmtNeg     = (n: number) => n === 0 ? "" : `(${Math.abs(Math.round(n)).toLocaleString("es-CL")})`;
+const fmtNum     = (n: number) => n === 0 ? "" : Math.abs(Math.round(n)).toLocaleString("en-US");
+const fmtNeg     = (n: number) => n === 0 ? "" : `(${Math.abs(Math.round(n)).toLocaleString("en-US")})`;
 
 function BuscadorActividad({ onSelect, selected, catalogo }: { onSelect: (a: ActividadCatalogo) => void; selected: ActividadCatalogo | null; catalogo: ActividadCatalogo[]; }) {
   const [q, setQ] = useState("");
@@ -2580,7 +2580,7 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
               onMouseLeave={e => (e.currentTarget.style.background="transparent")}>
               <span style={{fontWeight:500}}>{c.nombre}</span>
               <span style={{ fontSize:10, color:"#888", marginLeft:8, flexShrink:0 }}>
-                ${Math.round(c.costoDiario).toLocaleString("es-CL")}/día
+                ${Math.round(c.costoDiario).toLocaleString("en-US")}/día
               </span>
             </div>
           ))}
@@ -2711,7 +2711,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
     let bold = false;
 
     switch (key) {
-      case "uf":          txt = d.uf > 0 ? Math.round(d.uf).toLocaleString("es-CL") : ""; break;
+      case "uf":          txt = d.uf > 0 ? Math.round(d.uf).toLocaleString("en-US") : ""; break;
       case "workingDays": txt = d.workingDays > 0 ? `${d.workingDays.toFixed(1)}` : ""; break;
       case "produccion":  txt = d.produccion !== 0 ? fmtNum(d.produccion) : ""; break;
       case "tarifaUF":    txt = d.tarifaUF > 0 ? d.tarifaUF.toFixed(1) : ""; break;

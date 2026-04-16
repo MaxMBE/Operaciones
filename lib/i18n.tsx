@@ -17,28 +17,16 @@ const I18nContext = createContext<I18nContextType | null>(null);
 const LANG_KEY = "ph_lang";
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>("es");
+  const [lang] = useState<Lang>("en");
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(LANG_KEY) as Lang | null;
-      if (saved === "en" || saved === "es") {
-        setLang(saved);
-        document.documentElement.lang = saved;
-      }
-    } catch {}
+    document.documentElement.lang = "en";
+    try { localStorage.setItem(LANG_KEY, "en"); } catch {}
   }, []);
 
-  function toggleLang() {
-    setLang((prev) => {
-      const next: Lang = prev === "es" ? "en" : "es";
-      try { localStorage.setItem(LANG_KEY, next); } catch {}
-      document.documentElement.lang = next;
-      return next;
-    });
-  }
+  function toggleLang() { /* language is fixed to English */ }
 
-  const t = lang === "en" ? en : es;
+  const t = en;
 
   return (
     <I18nContext.Provider value={{ lang, t, toggleLang }}>

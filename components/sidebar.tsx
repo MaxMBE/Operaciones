@@ -129,19 +129,6 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         </div>
       )}
 
-      {/* Language toggle */}
-      <div className="px-4 py-2.5 border-t border-border">
-        <button
-          onClick={toggleLang}
-          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full"
-          title={lang === "es" ? "Switch to English" : "Cambiar a Español"}
-        >
-          <Globe className="w-3.5 h-3.5 flex-shrink-0" />
-          <span className={lang === "es" ? "font-semibold text-foreground" : ""}>ES</span>
-          <span className="text-border">/</span>
-          <span className={lang === "en" ? "font-semibold text-foreground" : ""}>EN</span>
-        </button>
-      </div>
 
       {/* Logout */}
       <div className="px-3 py-3 border-t border-border">

@@ -647,7 +647,7 @@ export default function OverviewPage() {
       return {
         year: d.getFullYear(),
         month: d.getMonth(),
-        label: d.toLocaleDateString("es-CL", { month: "short", year: "2-digit" }).replace(". ", "-").replace(".", ""),
+        label: d.toLocaleDateString("en-US", { month: "short", year: "2-digit" }).replace(". ", "-").replace(".", ""),
         firstDay: new Date(d.getFullYear(), d.getMonth(), 1),
         lastDay:  new Date(d.getFullYear(), d.getMonth() + 1, 0),
       };

@@ -22,7 +22,7 @@ export function BudgetChart({ data }: Props) {
   });
 
   const fmt = (v: number) =>
-    new Intl.NumberFormat("es-CL", { style: "currency", currency: "USD", maximumFractionDigits: 0, notation: "compact" }).format(v);
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0, notation: "compact" }).format(v);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
