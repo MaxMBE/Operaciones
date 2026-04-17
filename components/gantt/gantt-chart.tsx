@@ -3,7 +3,7 @@
 import { tasks, projects } from "@/lib/data";
 import type { TaskStatus, Priority } from "@/types";
 import { differenceInDays, parseISO, format, startOfMonth, addDays } from "date-fns";
-import { es } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 
 const statusColors: Record<TaskStatus, string> = {
   "done":        "bg-emerald-400",
@@ -32,7 +32,7 @@ function getMonthHeaders() {
     const monthEnd   = nextMonth > CHART_END ? CHART_END : nextMonth;
     const left  = (differenceInDays(monthStart, CHART_START) / TOTAL_DAYS) * 100;
     const width = (differenceInDays(monthEnd, monthStart) / TOTAL_DAYS) * 100;
-    months.push({ label: format(cursor, "MMM yyyy", { locale: es }), left, width });
+    months.push({ label: format(cursor, "MMM yyyy", { locale: enUS }), left, width });
     cursor = nextMonth;
   }
   return months;
@@ -45,14 +45,14 @@ export function GanttChart() {
 
   return (
     <div className="bg-white rounded-xl border border-border p-5 overflow-x-auto">
-      <h3 className="font-semibold text-sm text-foreground mb-4">Diagrama de Gantt</h3>
+      <h3 className="font-semibold text-sm text-foreground mb-4">Gantt Chart</h3>
 
-      {/* Leyenda */}
+      {/* Legend */}
       <div className="flex flex-wrap gap-4 mb-4 text-xs">
         {(Object.entries(statusColors) as [TaskStatus, string][]).map(([s, c]) => (
           <span key={s} className="flex items-center gap-1.5">
             <span className={`w-3 h-3 rounded ${c}`} />
-            {{ done: "Completado", "in-progress": "En progreso", todo: "Pendiente", blocked: "Bloqueado" }[s]}
+            {{ done: "Done", "in-progress": "In Progress", todo: "To Do", blocked: "Blocked" }[s]}
           </span>
         ))}
       </div>
@@ -133,7 +133,7 @@ export function GanttChart() {
             className="absolute flex flex-col items-center"
             style={{ left: `${todayLeft}%`, transform: "translateX(-50%)" }}
           >
-            <span className="text-xs text-red-500 font-medium whitespace-nowrap">Hoy</span>
+            <span className="text-xs text-red-500 font-medium whitespace-nowrap">Today</span>
           </div>
         </div>
       </div>

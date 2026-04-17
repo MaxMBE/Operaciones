@@ -225,14 +225,14 @@ function GanttTable({ months, milestones, editing, onAdd, onUpdate, onRemove }: 
         </thead>
         <tbody>
           {milestones.length === 0 && !editing && (
-            <tr><td colSpan={3 + months.length} className="py-6 text-center text-muted-foreground italic">Sin fases — edita esta sección para agregar</td></tr>
+            <tr><td colSpan={3 + months.length} className="py-6 text-center text-muted-foreground italic">No phases — edit this section to add</td></tr>
           )}
           {milestones.map((ms, i) => (
             <tr key={ms.id} className={`border-b border-gray-200 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"}`}>
               <td className="px-2 py-1.5 border-r border-gray-200">
                 {editing ? (
                   <div className="flex items-center gap-1">
-                    <input value={ms.name} onChange={(e) => onUpdate(ms.id, { name: e.target.value })} placeholder="Fase / Hito"
+                    <input value={ms.name} onChange={(e) => onUpdate(ms.id, { name: e.target.value })} placeholder="Phase / Milestone"
                       className="flex-1 min-w-0 text-xs border border-primary rounded px-1 py-0.5 focus:outline-none" />
                     <button onClick={() => onRemove(ms.id)} className="text-red-400 hover:text-red-600 flex-shrink-0 p-0.5"><Trash2 className="w-3 h-3" /></button>
                   </div>
@@ -278,7 +278,7 @@ function GanttTable({ months, milestones, editing, onAdd, onUpdate, onRemove }: 
       </table>
       {editing && (
         <button onClick={onAdd} className="mt-2 flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors">
-          <Plus className="w-3.5 h-3.5" /> Agregar fase
+          <Plus className="w-3.5 h-3.5" /> Add phase
         </button>
       )}
     </div>
@@ -345,7 +345,7 @@ export default function ProjectReportPage() {
   if (!project) {
     return (
       <div className="p-8 text-center text-muted-foreground">
-        <p>Proyecto no encontrado.</p>
+        <p>Project not found.</p>
         <button onClick={() => router.back()} className="mt-4 text-primary text-sm hover:underline">← Volver</button>
       </div>
     );
@@ -401,7 +401,7 @@ export default function ProjectReportPage() {
       <PrintHeader title={project.name} subtitle={project.client} />
       <div className="flex items-center justify-between print:hidden">
         <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Volver
+          <ArrowLeft className="w-4 h-4" /> Back
         </button>
         <div className="flex items-center gap-2">
           <button onClick={toggleLayout}
@@ -419,7 +419,7 @@ export default function ProjectReportPage() {
     <>
       <div className="bg-gray-800 text-white px-5 py-3 flex items-center justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-xs text-gray-400 uppercase tracking-wide">{project.serviceType ?? "Servicio"}</p>
+          <p className="text-xs text-gray-400 uppercase tracking-wide">{project.serviceType ?? "Service"}</p>
           <h1 className="text-base font-bold leading-tight">{project.name}</h1>
           {project.client && <p className="text-xs text-gray-300">{project.client}</p>}
         </div>
@@ -430,14 +430,14 @@ export default function ProjectReportPage() {
               <div key={k} className="flex items-center gap-1">
                 <span className={`w-5 h-5 rounded text-[10px] font-bold flex items-center justify-center border ${m.bg} ${m.text} ${m.border}`}>{m.label}</span>
                 <span className="text-[10px] text-gray-300">
-                  {k === "G" ? "Verde" : k === "A" ? "Ámbar" : k === "R" ? "Rojo" : k === "B" ? "Azul" : "Gris"}
+                  {k === "G" ? "Green" : k === "A" ? "Amber" : k === "R" ? "Red" : k === "B" ? "Blue" : "Grey"}
                 </span>
               </div>
             ))}
           </div>
           {showStatusDot && (
             <div className="text-right">
-              <p className="text-xs text-gray-400">Estado general</p>
+              <p className="text-xs text-gray-400">Overall Status</p>
               <StatusDot value={data.overallStatus} editable={false} />
             </div>
           )}
@@ -450,11 +450,11 @@ export default function ProjectReportPage() {
           {[
             { label: "BM",            value: project.manager || "—" },
             { label: "Team Lead",     value: project.leader  || "—" },
-            { label: "Margen YTD",    value: data.marginYTD    || "—" },
-            { label: "Margen Actual", value: data.marginActual || "—" },
-            { label: "FTEs",          value: data.ftes || String(project.teamSize || "—") },
-            { label: "Fase",          value: data.phase        || "—" },
-            { label: "Fecha Reporte", value: data.reportDate   || "—" },
+            { label: "YTD Margin",      value: data.marginYTD    || "—" },
+            { label: "Current Margin", value: data.marginActual || "—" },
+            { label: "FTEs",           value: data.ftes || String(project.teamSize || "—") },
+            { label: "Phase",          value: data.phase        || "—" },
+            { label: "Report Date",    value: data.reportDate   || "—" },
           ].map((col) => (
             <div key={col.label} className="px-3 py-2">
               <p className="text-muted-foreground font-medium mb-0.5">{col.label}</p>
@@ -462,14 +462,14 @@ export default function ProjectReportPage() {
             </div>
           ))}
         </div>
-        <EditBtn onClick={() => openSec("meta", ["marginYTD", "marginActual", "ftes", "phase", "reportDate", "commitmentLevel", "hitoPago"])} label="Editar metadatos" />
+        <EditBtn onClick={() => openSec("meta", ["marginYTD", "marginActual", "ftes", "phase", "reportDate", "commitmentLevel", "hitoPago"])} label="Edit metadata" />
       </div>
 
       <div className="grid grid-cols-3 border-b border-gray-200 text-xs divide-x divide-gray-200">
         {[
-          { label: "Nivel de Compromiso", value: data.commitmentLevel || project.serviceLevel || "—" },
-          { label: "Hito de Pago",        value: data.hitoPago  || "—" },
-          { label: "Inicio → Fin",        value: `${project.startDate || "—"} → ${project.endDate || "—"}` },
+          { label: "Commitment Level", value: data.commitmentLevel || project.serviceLevel || "—" },
+          { label: "Payment Milestone", value: data.hitoPago  || "—" },
+          { label: "Start → End",       value: `${project.startDate || "—"} → ${project.endDate || "—"}` },
         ].map((col) => (
           <div key={col.label} className="px-3 py-2">
             <p className="text-muted-foreground font-medium mb-0.5">{col.label}</p>
@@ -487,15 +487,15 @@ export default function ProjectReportPage() {
     // Meta
     if (editSection === "meta") {
       return (
-        <SectionModal title="Editar Metadatos" onSave={saveSec} onClose={() => setEditSection(null)}>
+        <SectionModal title="Edit Metadata" onSave={saveSec} onClose={() => setEditSection(null)}>
           <div className="grid grid-cols-2 gap-4">
-            <MRow label="Margen YTD"><Field value={String(secDraft.marginYTD ?? "")} onChange={v => setSec("marginYTD", v)} placeholder="TBC" /></MRow>
-            <MRow label="Margen Actual"><Field value={String(secDraft.marginActual ?? "")} onChange={v => setSec("marginActual", v)} placeholder="TBC" /></MRow>
-            <MRow label="FTEs"><Field value={String(secDraft.ftes ?? "")} onChange={v => setSec("ftes", v)} placeholder="Ej: 5" /></MRow>
-            <MRow label="Fase"><Field value={String(secDraft.phase ?? "")} onChange={v => setSec("phase", v)} placeholder="Ej: Diseño" /></MRow>
-            <MRow label="Fecha Reporte"><Field value={String(secDraft.reportDate ?? "")} onChange={v => setSec("reportDate", v)} placeholder="YYYY-MM-DD" /></MRow>
-            <MRow label="Nivel de Compromiso"><Field value={String(secDraft.commitmentLevel ?? "")} onChange={v => setSec("commitmentLevel", v)} placeholder="Fixed Price / CC / SC" /></MRow>
-            <MRow label="Hito de Pago" className="col-span-2"><Field value={String(secDraft.hitoPago ?? "")} onChange={v => setSec("hitoPago", v)} placeholder="Descripción del hito de pago" /></MRow>
+            <MRow label="YTD Margin"><Field value={String(secDraft.marginYTD ?? "")} onChange={v => setSec("marginYTD", v)} placeholder="TBC" /></MRow>
+            <MRow label="Current Margin"><Field value={String(secDraft.marginActual ?? "")} onChange={v => setSec("marginActual", v)} placeholder="TBC" /></MRow>
+            <MRow label="FTEs"><Field value={String(secDraft.ftes ?? "")} onChange={v => setSec("ftes", v)} placeholder="e.g. 5" /></MRow>
+            <MRow label="Phase"><Field value={String(secDraft.phase ?? "")} onChange={v => setSec("phase", v)} placeholder="e.g. Design" /></MRow>
+            <MRow label="Report Date"><Field value={String(secDraft.reportDate ?? "")} onChange={v => setSec("reportDate", v)} placeholder="YYYY-MM-DD" /></MRow>
+            <MRow label="Commitment Level"><Field value={String(secDraft.commitmentLevel ?? "")} onChange={v => setSec("commitmentLevel", v)} placeholder="Fixed Price / CC / SC" /></MRow>
+            <MRow label="Payment Milestone" className="col-span-2"><Field value={String(secDraft.hitoPago ?? "")} onChange={v => setSec("hitoPago", v)} placeholder="Payment milestone description" /></MRow>
           </div>
         </SectionModal>
       );
@@ -504,16 +504,16 @@ export default function ProjectReportPage() {
     // CC Status dots
     if (editSection === "cc-status") {
       const dotFields: { label: string; key: keyof ProjectReport }[] = [
-        { label: "Overall Status",  key: "overallStatus"    },
-        { label: "Estado Actual",   key: "currentStatus"    },
-        { label: "Estado Anterior", key: "previousStatus"   },
-        { label: "Hitos",           key: "milestonesStatus" },
-        { label: "Recursos",        key: "resourcesStatus"  },
-        { label: "Issues",          key: "issuesStatus"     },
-        { label: "Riesgos",         key: "risksStatus"      },
+        { label: "Overall Status",   key: "overallStatus"    },
+        { label: "Current Status",   key: "currentStatus"    },
+        { label: "Previous Status",  key: "previousStatus"   },
+        { label: "Milestones",       key: "milestonesStatus" },
+        { label: "Resources",        key: "resourcesStatus"  },
+        { label: "Issues",           key: "issuesStatus"     },
+        { label: "Risks",            key: "risksStatus"      },
       ];
       return (
-        <SectionModal title="Editar Estados" onSave={saveSec} onClose={() => setEditSection(null)}>
+        <SectionModal title="Edit Statuses" onSave={saveSec} onClose={() => setEditSection(null)}>
           <div className="grid grid-cols-2 gap-4">
             {dotFields.map(({ label, key }) => (
               <MRow key={key} label={label}>
@@ -528,9 +528,9 @@ export default function ProjectReportPage() {
     // Issues & Acciones
     if (editSection === "issues") {
       return (
-        <SectionModal title="Editar Issues & Acciones" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Issues Activos"><Field value={String(secDraft.currentIssues ?? "")} onChange={v => setSec("currentIssues", v)} multiline placeholder="• Issue 1&#10;• Issue 2" /></MRow>
-          <MRow label="Acciones en Curso"><Field value={String(secDraft.actionsInProgress ?? "")} onChange={v => setSec("actionsInProgress", v)} multiline placeholder="• Acción 1&#10;• Acción 2" /></MRow>
+        <SectionModal title="Edit Issues & Actions" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Active Issues"><Field value={String(secDraft.currentIssues ?? "")} onChange={v => setSec("currentIssues", v)} multiline placeholder="• Issue 1&#10;• Issue 2" /></MRow>
+          <MRow label="Ongoing Actions"><Field value={String(secDraft.actionsInProgress ?? "")} onChange={v => setSec("actionsInProgress", v)} multiline placeholder="• Action 1&#10;• Action 2" /></MRow>
         </SectionModal>
       );
     }
@@ -538,10 +538,10 @@ export default function ProjectReportPage() {
     // Service Health
     if (editSection === "health") {
       return (
-        <SectionModal title="Editar Service Health" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Delivery Cadence"><Field value={String(secDraft.healthDelivery ?? "")} onChange={v => setSec("healthDelivery", v)} multiline placeholder="• Estado delivery&#10;• ..." /></MRow>
-          <MRow label="Governance"><Field value={String(secDraft.healthGovernance ?? "")} onChange={v => setSec("healthGovernance", v)} multiline placeholder="• Estado governance&#10;• ..." /></MRow>
-          <MRow label="Team Stability"><Field value={String(secDraft.healthTeam ?? "")} onChange={v => setSec("healthTeam", v)} multiline placeholder="• Estado equipo&#10;• ..." /></MRow>
+        <SectionModal title="Edit Service Health" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Delivery Cadence"><Field value={String(secDraft.healthDelivery ?? "")} onChange={v => setSec("healthDelivery", v)} multiline placeholder="• Delivery status&#10;• ..." /></MRow>
+          <MRow label="Governance"><Field value={String(secDraft.healthGovernance ?? "")} onChange={v => setSec("healthGovernance", v)} multiline placeholder="• Governance status&#10;• ..." /></MRow>
+          <MRow label="Team Stability"><Field value={String(secDraft.healthTeam ?? "")} onChange={v => setSec("healthTeam", v)} multiline placeholder="• Team status&#10;• ..." /></MRow>
         </SectionModal>
       );
     }
@@ -549,9 +549,9 @@ export default function ProjectReportPage() {
     // Alcance
     if (editSection === "scope") {
       return (
-        <SectionModal title="Editar Alcance del Servicio" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Alcance del Servicio"><Field value={String(secDraft.scopeService ?? "")} onChange={v => setSec("scopeService", v)} multiline placeholder="• Describe el alcance&#10;• ..." /></MRow>
-          <MRow label="Tipo de Alcance"><Field value={String(secDraft.scopeType ?? "")} onChange={v => setSec("scopeType", v)} placeholder="Recurrente / T&M / Retainer" /></MRow>
+        <SectionModal title="Edit Service Scope" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Service Scope"><Field value={String(secDraft.scopeService ?? "")} onChange={v => setSec("scopeService", v)} multiline placeholder="• Describe the scope&#10;• ..." /></MRow>
+          <MRow label="Scope Type"><Field value={String(secDraft.scopeType ?? "")} onChange={v => setSec("scopeType", v)} placeholder="Recurring / T&M / Retainer" /></MRow>
         </SectionModal>
       );
     }
@@ -559,9 +559,9 @@ export default function ProjectReportPage() {
     // Logros & Valor
     if (editSection === "achievements") {
       return (
-        <SectionModal title="Editar Logros & Valor al Cliente" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Logros Relevantes"><Field value={String(secDraft.achievements ?? "")} onChange={v => setSec("achievements", v)} multiline placeholder="• Logro 1&#10;• Logro 2" /></MRow>
-          <MRow label="Valor al Cliente"><Field value={String(secDraft.valueToClient ?? "")} onChange={v => setSec("valueToClient", v)} multiline placeholder="• Valor 1&#10;• Valor 2" /></MRow>
+        <SectionModal title="Edit Achievements & Client Value" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Key Achievements"><Field value={String(secDraft.achievements ?? "")} onChange={v => setSec("achievements", v)} multiline placeholder="• Achievement 1&#10;• Achievement 2" /></MRow>
+          <MRow label="Client Value"><Field value={String(secDraft.valueToClient ?? "")} onChange={v => setSec("valueToClient", v)} multiline placeholder="• Value 1&#10;• Value 2" /></MRow>
         </SectionModal>
       );
     }
@@ -569,9 +569,9 @@ export default function ProjectReportPage() {
     // Riesgos & Mitigación
     if (editSection === "risks") {
       return (
-        <SectionModal title="Editar Riesgos & Mitigación" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Riesgos Identificados"><Field value={String(secDraft.keyRisks ?? "")} onChange={v => setSec("keyRisks", v)} multiline placeholder="• Riesgo 1&#10;• Riesgo 2" /></MRow>
-          <MRow label="Plan de Mitigación"><Field value={String(secDraft.mitigation ?? "")} onChange={v => setSec("mitigation", v)} multiline placeholder="• Acción 1&#10;• Acción 2" /></MRow>
+        <SectionModal title="Edit Risks & Mitigation" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Identified Risks"><Field value={String(secDraft.keyRisks ?? "")} onChange={v => setSec("keyRisks", v)} multiline placeholder="• Risk 1&#10;• Risk 2" /></MRow>
+          <MRow label="Mitigation Plan"><Field value={String(secDraft.mitigation ?? "")} onChange={v => setSec("mitigation", v)} multiline placeholder="• Action 1&#10;• Action 2" /></MRow>
         </SectionModal>
       );
     }
@@ -579,9 +579,9 @@ export default function ProjectReportPage() {
     // Próximos pasos
     if (editSection === "nextsteps") {
       return (
-        <SectionModal title="Editar Próximos Pasos & Foco" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Próximos Pasos"><Field value={String(secDraft.nextSteps ?? "")} onChange={v => setSec("nextSteps", v)} multiline placeholder="• Paso 1&#10;• Paso 2" /></MRow>
-          <MRow label="Foco / CSF"><Field value={String(secDraft.focus ?? "")} onChange={v => setSec("focus", v)} multiline placeholder="• Factor 1&#10;• Factor 2" /></MRow>
+        <SectionModal title="Edit Next Steps & Focus" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Next Steps"><Field value={String(secDraft.nextSteps ?? "")} onChange={v => setSec("nextSteps", v)} multiline placeholder="• Step 1&#10;• Step 2" /></MRow>
+          <MRow label="Focus / CSF"><Field value={String(secDraft.focus ?? "")} onChange={v => setSec("focus", v)} multiline placeholder="• Factor 1&#10;• Factor 2" /></MRow>
         </SectionModal>
       );
     }
@@ -589,9 +589,9 @@ export default function ProjectReportPage() {
     // Nota de Estado
     if (editSection === "nota-estado") {
       return (
-        <SectionModal title="Editar Nota de Estado" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Nota de Estado (resumen ejecutivo)">
-            <Field value={String(secDraft.statusNote ?? "")} onChange={v => setSec("statusNote", v)} multiline placeholder="Resumen ejecutivo del estado del servicio en 2-3 oraciones…" className="!rows-6" />
+        <SectionModal title="Edit Status Note" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Status Note (executive summary)">
+            <Field value={String(secDraft.statusNote ?? "")} onChange={v => setSec("statusNote", v)} multiline placeholder="Executive summary of service status in 2-3 sentences…" className="!rows-6" />
           </MRow>
         </SectionModal>
       );
@@ -600,7 +600,7 @@ export default function ProjectReportPage() {
     // FP Status
     if (editSection === "fp-status") {
       return (
-        <SectionModal title="Editar Estado Fixed Price" onSave={saveSec} onClose={() => setEditSection(null)}>
+        <SectionModal title="Edit Fixed Price Status" onSave={saveSec} onClose={() => setEditSection(null)}>
           <div className="grid grid-cols-2 gap-4">
             {([
               { label: "Overall Status",   key: "overallStatus"   },
@@ -625,8 +625,8 @@ export default function ProjectReportPage() {
     // FP Scope
     if (editSection === "fp-scope") {
       return (
-        <SectionModal title="Editar Project Scope" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Project Scope"><Field value={String(secDraft.projectScope ?? "")} onChange={v => setSec("projectScope", v)} multiline placeholder="• Describe el alcance&#10;• ..." /></MRow>
+        <SectionModal title="Edit Project Scope" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Project Scope"><Field value={String(secDraft.projectScope ?? "")} onChange={v => setSec("projectScope", v)} multiline placeholder="• Describe the scope&#10;• ..." /></MRow>
         </SectionModal>
       );
     }
@@ -634,8 +634,8 @@ export default function ProjectReportPage() {
     // FP Current Status
     if (editSection === "fp-current") {
       return (
-        <SectionModal title="Editar Project Current Status" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Estado Actual del Proyecto"><Field value={String(secDraft.projectCurrentStatus ?? "")} onChange={v => setSec("projectCurrentStatus", v)} multiline placeholder="Describe el estado actual del proyecto…" /></MRow>
+        <SectionModal title="Edit Project Current Status" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Current Project Status"><Field value={String(secDraft.projectCurrentStatus ?? "")} onChange={v => setSec("projectCurrentStatus", v)} multiline placeholder="Describe current project status…" /></MRow>
         </SectionModal>
       );
     }
@@ -643,8 +643,8 @@ export default function ProjectReportPage() {
     // FP Risks
     if (editSection === "fp-risks") {
       return (
-        <SectionModal title="Editar Key Risks & Issues" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Riesgos e Issues Clave"><Field value={String(secDraft.keyRisks ?? "")} onChange={v => setSec("keyRisks", v)} multiline placeholder="• Riesgo 1&#10;• Riesgo 2" /></MRow>
+        <SectionModal title="Edit Key Risks & Issues" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Key Risks & Issues"><Field value={String(secDraft.keyRisks ?? "")} onChange={v => setSec("keyRisks", v)} multiline placeholder="• Risk 1&#10;• Risk 2" /></MRow>
         </SectionModal>
       );
     }
@@ -652,8 +652,8 @@ export default function ProjectReportPage() {
     // FP Achievements
     if (editSection === "fp-achievements") {
       return (
-        <SectionModal title="Editar Key Achievements" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Logros Principales"><Field value={String(secDraft.achievements ?? "")} onChange={v => setSec("achievements", v)} multiline placeholder="• Logro 1&#10;• Logro 2" /></MRow>
+        <SectionModal title="Edit Key Achievements" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Key Achievements"><Field value={String(secDraft.achievements ?? "")} onChange={v => setSec("achievements", v)} multiline placeholder="• Achievement 1&#10;• Achievement 2" /></MRow>
         </SectionModal>
       );
     }
@@ -661,9 +661,9 @@ export default function ProjectReportPage() {
     // FP Next Steps
     if (editSection === "fp-nextsteps") {
       return (
-        <SectionModal title="Editar Next Steps / CSF's" onSave={saveSec} onClose={() => setEditSection(null)}>
-          <MRow label="Next Steps"><Field value={String(secDraft.nextSteps ?? "")} onChange={v => setSec("nextSteps", v)} multiline placeholder="• Paso 1&#10;• Paso 2" /></MRow>
-          <MRow label="Foco / CSF"><Field value={String(secDraft.focus ?? "")} onChange={v => setSec("focus", v)} multiline placeholder="• Factor 1&#10;• Factor 2" /></MRow>
+        <SectionModal title="Edit Next Steps / CSF's" onSave={saveSec} onClose={() => setEditSection(null)}>
+          <MRow label="Next Steps"><Field value={String(secDraft.nextSteps ?? "")} onChange={v => setSec("nextSteps", v)} multiline placeholder="• Step 1&#10;• Step 2" /></MRow>
+          <MRow label="Focus / CSF"><Field value={String(secDraft.focus ?? "")} onChange={v => setSec("focus", v)} multiline placeholder="• Factor 1&#10;• Factor 2" /></MRow>
         </SectionModal>
       );
     }
@@ -671,7 +671,7 @@ export default function ProjectReportPage() {
     // Milestones
     if (editSection === "milestones") {
       return (
-        <SectionModal title="Editar Fases / Milestones" onSave={saveMilestones} onClose={() => setEditSection(null)}>
+        <SectionModal title="Edit Phases / Milestones" onSave={saveMilestones} onClose={() => setEditSection(null)}>
           <GanttTable
             months={ganttMonths}
             milestones={msDraft}
@@ -725,7 +725,7 @@ export default function ProjectReportPage() {
                 </div>
               ))}
             </div>
-            <EditBtn onClick={() => openSec("fp-status", ["overallStatus", "currentStatus", "previousStatus", "otd", "oqd", "issuesStatus", "risksStatus", "actualProgress", "plannedProgress"])} label="Editar estados" />
+            <EditBtn onClick={() => openSec("fp-status", ["overallStatus", "currentStatus", "previousStatus", "otd", "oqd", "issuesStatus", "risksStatus", "actualProgress", "plannedProgress"])} label="Edit statuses" />
           </div>
 
           {/* Gantt */}
@@ -735,10 +735,10 @@ export default function ProjectReportPage() {
                 onAdd={() => {}} onUpdate={() => {}} onRemove={() => {}} />
             ) : (
               <p className="text-xs text-muted-foreground italic py-2">
-                Sin fechas de proyecto — configura Inicio y Fin en la tabla principal para ver el Gantt.
+                No project dates — set Start and End in the main table to view the Gantt.
               </p>
             )}
-            <EditBtn onClick={openMilestones} label="Editar fases" />
+            <EditBtn onClick={openMilestones} label="Edit phases" />
           </div>
 
           {/* 5 content sections */}
@@ -746,25 +746,25 @@ export default function ProjectReportPage() {
 
             <div className="relative group p-3 space-y-2">
               <p className="text-xs font-semibold text-gray-700 border-b-2 border-blue-500 pb-1 mb-2">Project Scope</p>
-              <Bullets text={data.projectScope ?? ""} placeholder="Sin datos…" />
+              <Bullets text={data.projectScope ?? ""} placeholder="No data…" />
               <EditBtn onClick={() => openSec("fp-scope", ["projectScope"])} />
             </div>
 
             <div className="relative group p-3 space-y-2">
               <p className="text-xs font-semibold text-gray-700 border-b-2 border-blue-500 pb-1 mb-2">Project Current Status</p>
-              <Bullets text={data.projectCurrentStatus ?? ""} placeholder="Sin datos…" />
+              <Bullets text={data.projectCurrentStatus ?? ""} placeholder="No data…" />
               <EditBtn onClick={() => openSec("fp-current", ["projectCurrentStatus"])} />
             </div>
 
             <div className="relative group p-3 space-y-2">
               <p className="text-xs font-semibold text-gray-700 border-b-2 border-red-500 pb-1 mb-2">Key Risks &amp; Issues</p>
-              <Bullets text={data.keyRisks} placeholder="Sin datos…" />
+              <Bullets text={data.keyRisks} placeholder="No data…" />
               <EditBtn onClick={() => openSec("fp-risks", ["keyRisks"])} />
             </div>
 
             <div className="relative group p-3 space-y-2">
               <p className="text-xs font-semibold text-gray-700 border-b-2 border-blue-500 pb-1 mb-2">Key Achievements</p>
-              <Bullets text={data.achievements} placeholder="Sin datos…" />
+              <Bullets text={data.achievements} placeholder="No data…" />
               <EditBtn onClick={() => openSec("fp-achievements", ["achievements"])} />
             </div>
 
@@ -772,10 +772,10 @@ export default function ProjectReportPage() {
               <p className="text-xs font-semibold text-gray-700 border-b-2 border-emerald-500 pb-1 mb-2">Next Steps / CSF&apos;s</p>
               <div>
                 <p className="text-xs font-semibold text-gray-500 mb-1">Next Steps</p>
-                <Bullets text={data.nextSteps} placeholder="Sin datos…" />
+                <Bullets text={data.nextSteps} placeholder="No data…" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-gray-500 mb-1">Foco</p>
+                <p className="text-xs font-semibold text-gray-500 mb-1">Focus</p>
                 <Bullets text={data.focus} placeholder="Sin datos…" />
               </div>
               <EditBtn onClick={() => openSec("fp-nextsteps", ["nextSteps", "focus"])} />
@@ -800,15 +800,15 @@ export default function ProjectReportPage() {
 
         {/* Status indicators */}
         <div className="relative group border-b border-gray-200 px-4 py-3">
-          <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Estado por dimensión</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Status by dimension</p>
           <div className="grid grid-cols-6 gap-3">
             {([
-              { label: "Estado Actual",   key: "currentStatus"    },
-              { label: "Estado Anterior", key: "previousStatus"   },
-              { label: "Hitos",           key: "milestonesStatus" },
-              { label: "Recursos",        key: "resourcesStatus"  },
+              { label: "Current Status",  key: "currentStatus"    },
+              { label: "Previous Status", key: "previousStatus"   },
+              { label: "Milestones",      key: "milestonesStatus" },
+              { label: "Resources",       key: "resourcesStatus"  },
               { label: "Issues",          key: "issuesStatus"     },
-              { label: "Riesgos",         key: "risksStatus"      },
+              { label: "Risks",           key: "risksStatus"      },
             ] as { label: string; key: keyof ProjectReport }[]).map(({ label, key }) => (
               <div key={key} className="flex flex-col items-center gap-1">
                 <StatusDot value={data[key] as HealthStatus} editable={false} />
@@ -816,7 +816,7 @@ export default function ProjectReportPage() {
               </div>
             ))}
           </div>
-          <EditBtn onClick={() => openSec("cc-status", ["overallStatus", "currentStatus", "previousStatus", "milestonesStatus", "resourcesStatus", "issuesStatus", "risksStatus"])} label="Editar estados" />
+          <EditBtn onClick={() => openSec("cc-status", ["overallStatus", "currentStatus", "previousStatus", "milestonesStatus", "resourcesStatus", "issuesStatus", "risksStatus"])} label="Edit statuses" />
         </div>
 
         {/* 4 content columns */}
@@ -824,12 +824,12 @@ export default function ProjectReportPage() {
 
           <div className="relative group p-3 space-y-3">
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Issues Activos</p>
-              <Bullets text={data.currentIssues} placeholder="Sin issues registrados" />
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Active Issues</p>
+              <Bullets text={data.currentIssues} placeholder="No issues recorded" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Acciones en Curso</p>
-              <Bullets text={data.actionsInProgress} placeholder="Sin acciones registradas" />
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Ongoing Actions</p>
+              <Bullets text={data.actionsInProgress} placeholder="No actions recorded" />
             </div>
             <EditBtn onClick={() => openSec("issues", ["currentIssues", "actionsInProgress"])} />
           </div>
@@ -851,11 +851,11 @@ export default function ProjectReportPage() {
 
           <div className="relative group p-3 space-y-3">
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Alcance del Servicio</p>
-              <Bullets text={data.scopeService} placeholder="Sin descripción de alcance" />
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Service Scope</p>
+              <Bullets text={data.scopeService} placeholder="No scope description" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Tipo de Alcance</p>
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Scope Type</p>
               <p className="text-xs text-foreground">{data.scopeType || "—"}</p>
             </div>
             <EditBtn onClick={() => openSec("scope", ["scopeService", "scopeType"])} />
@@ -863,12 +863,12 @@ export default function ProjectReportPage() {
 
           <div className="relative group p-3 space-y-3">
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Logros Relevantes</p>
-              <Bullets text={data.achievements} placeholder="Sin logros registrados" />
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Key Achievements</p>
+              <Bullets text={data.achievements} placeholder="No achievements recorded" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Valor al Cliente</p>
-              <Bullets text={data.valueToClient} placeholder="Sin datos" />
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Client Value</p>
+              <Bullets text={data.valueToClient} placeholder="No data" />
             </div>
             <EditBtn onClick={() => openSec("achievements", ["achievements", "valueToClient"])} />
           </div>
@@ -880,32 +880,32 @@ export default function ProjectReportPage() {
 
           <div className="relative group p-3 space-y-3">
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Riesgos Identificados</p>
-              <Bullets text={data.keyRisks} placeholder="Sin riesgos registrados" />
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Identified Risks</p>
+              <Bullets text={data.keyRisks} placeholder="No risks recorded" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Plan de Mitigación</p>
-              <Bullets text={data.mitigation} placeholder="Sin plan de mitigación" />
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Mitigation Plan</p>
+              <Bullets text={data.mitigation} placeholder="No mitigation plan" />
             </div>
             <EditBtn onClick={() => openSec("risks", ["keyRisks", "mitigation"])} />
           </div>
 
           <div className="relative group p-3 space-y-3">
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Próximos Pasos</p>
-              <Bullets text={data.nextSteps} placeholder="Sin próximos pasos" />
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Next Steps</p>
+              <Bullets text={data.nextSteps} placeholder="No next steps" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Foco / CSF</p>
-              <Bullets text={data.focus} placeholder="Sin foco definido" />
+              <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Focus / CSF</p>
+              <Bullets text={data.focus} placeholder="No focus defined" />
             </div>
             <EditBtn onClick={() => openSec("nextsteps", ["nextSteps", "focus"])} />
           </div>
 
           <div className="relative group p-3 space-y-2">
-            <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Nota de Estado</p>
+            <p className="text-xs font-semibold text-gray-600 uppercase mb-1.5">Status Note</p>
             <p className="text-xs text-foreground whitespace-pre-wrap">
-              {data.statusNote || <span className="text-muted-foreground italic">Sin nota</span>}
+              {data.statusNote || <span className="text-muted-foreground italic">No note</span>}
             </p>
             <EditBtn onClick={() => openSec("nota-estado", ["statusNote"])} />
           </div>

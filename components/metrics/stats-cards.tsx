@@ -14,23 +14,23 @@ export function StatsCards() {
 
   const stats = [
     {
-      label: "Proyectos Activos",
+      label: "Active Projects",
       value: activeProjects,
-      sub: `${atRisk} en riesgo`,
+      sub: `${atRisk} at risk`,
       icon: TrendingUp,
       color: "text-blue-600",
       bg: "bg-blue-50",
     },
     {
-      label: "Presupuesto Total",
+      label: "Total Budget",
       value: formatCurrency(totalBudget),
-      sub: `${budgetUsedPct}% ejecutado`,
+      sub: `${budgetUsedPct}% used`,
       icon: CheckCircle,
       color: "text-emerald-600",
       bg: "bg-emerald-50",
     },
     {
-      label: "Margen Bruto Global",
+      label: "Global Gross Margin",
       value: `${grossMargin}%`,
       sub: `Revenue ${formatCurrency(totalRevenue)}`,
       icon: TrendingUp,
@@ -38,9 +38,9 @@ export function StatsCards() {
       bg: "bg-violet-50",
     },
     {
-      label: "Equipo",
+      label: "Team",
       value: teamMembers.length,
-      sub: "miembros activos",
+      sub: "active members",
       icon: Users,
       color: "text-orange-600",
       bg: "bg-orange-50",

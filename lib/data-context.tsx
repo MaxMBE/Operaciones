@@ -180,7 +180,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     try {
       const result = parseServicesCSV(text);
       if (result.rowCount === 0) {
-        return { success: false, error: "El CSV no contiene filas de datos válidos." };
+        return { success: false, error: "The CSV does not contain valid data rows." };
       }
       setProjects(prev => {
         const manualProjects = prev.filter(p => p.id.startsWith("manual-"));
@@ -204,7 +204,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setRowCount(result.rowCount);
       return { success: true };
     } catch (e) {
-      return { success: false, error: `Error al parsear el CSV: ${(e as Error).message}` };
+      return { success: false, error: `Error parsing CSV: ${(e as Error).message}` };
     }
   }, []);
 

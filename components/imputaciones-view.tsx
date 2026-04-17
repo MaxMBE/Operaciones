@@ -18,23 +18,23 @@ interface CatColor { bg: string; text: string; }
 
 // ─── CALENDARIO 2026 ──────────────────────────────────────────────────────────
 const CALENDAR_2026: Record<number, CalendarMonth> = {
-  1:  { nombre:"Enero",      dias:31, habiles:[2,5,6,7,8,9,12,13,14,15,16,19,20,21,22,23,26,27,28,29,30] },
-  2:  { nombre:"Febrero",    dias:28, habiles:[2,3,4,5,6,9,10,11,12,13,16,17,18,19,20,23,24,25,26,27] },
-  3:  { nombre:"Marzo",      dias:31, habiles:[2,3,4,5,6,9,10,11,12,13,16,17,18,19,20,23,24,25,26,27,30,31] },
-  4:  { nombre:"Abril",      dias:30, habiles:[1,2,3,6,7,8,9,10,13,14,15,16,17,20,21,22,23,24,27,28,29,30] },
-  5:  { nombre:"Mayo",       dias:31, habiles:[4,5,6,7,8,11,12,13,14,15,18,19,20,21,22,25,26,27,28,29] },
-  6:  { nombre:"Junio",      dias:30, habiles:[1,2,3,4,5,8,9,10,11,12,15,16,17,18,19,22,23,24,25,26,29,30] },
-  7:  { nombre:"Julio",      dias:31, habiles:[1,2,3,6,7,8,9,10,13,14,15,16,17,20,21,22,23,24,27,28,29,30,31] },
-  8:  { nombre:"Agosto",     dias:31, habiles:[3,4,5,6,7,10,11,12,13,14,17,18,19,20,21,24,25,26,27,28,31] },
-  9:  { nombre:"Septiembre", dias:30, habiles:[1,2,3,4,7,8,9,10,11,14,15,16,17,18,21,22,23,24,25,28,29,30] },
-  10: { nombre:"Octubre",    dias:31, habiles:[1,2,5,6,7,8,9,12,13,14,15,16,19,20,21,22,23,26,27,28,29,30] },
-  11: { nombre:"Noviembre",  dias:30, habiles:[2,3,4,5,6,9,10,11,12,13,16,17,18,19,20,23,24,25,26,27,30] },
-  12: { nombre:"Diciembre",  dias:31, habiles:[1,2,3,4,7,8,9,10,11,14,15,16,17,18,21,22,23,28,29,30,31] },
+  1:  { nombre:"January",    dias:31, habiles:[2,5,6,7,8,9,12,13,14,15,16,19,20,21,22,23,26,27,28,29,30] },
+  2:  { nombre:"February",   dias:28, habiles:[2,3,4,5,6,9,10,11,12,13,16,17,18,19,20,23,24,25,26,27] },
+  3:  { nombre:"March",      dias:31, habiles:[2,3,4,5,6,9,10,11,12,13,16,17,18,19,20,23,24,25,26,27,30,31] },
+  4:  { nombre:"April",      dias:30, habiles:[1,2,3,6,7,8,9,10,13,14,15,16,17,20,21,22,23,24,27,28,29,30] },
+  5:  { nombre:"May",        dias:31, habiles:[4,5,6,7,8,11,12,13,14,15,18,19,20,21,22,25,26,27,28,29] },
+  6:  { nombre:"June",       dias:30, habiles:[1,2,3,4,5,8,9,10,11,12,15,16,17,18,19,22,23,24,25,26,29,30] },
+  7:  { nombre:"July",       dias:31, habiles:[1,2,3,6,7,8,9,10,13,14,15,16,17,20,21,22,23,24,27,28,29,30,31] },
+  8:  { nombre:"August",     dias:31, habiles:[3,4,5,6,7,10,11,12,13,14,17,18,19,20,21,24,25,26,27,28,31] },
+  9:  { nombre:"September",  dias:30, habiles:[1,2,3,4,7,8,9,10,11,14,15,16,17,18,21,22,23,24,25,28,29,30] },
+  10: { nombre:"October",    dias:31, habiles:[1,2,5,6,7,8,9,12,13,14,15,16,19,20,21,22,23,26,27,28,29,30] },
+  11: { nombre:"November",   dias:30, habiles:[2,3,4,5,6,9,10,11,12,13,16,17,18,19,20,23,24,25,26,27,30] },
+  12: { nombre:"December",   dias:31, habiles:[1,2,3,4,7,8,9,10,11,14,15,16,17,18,21,22,23,28,29,30,31] },
 };
 
 // ─── CATEGORÍAS ───────────────────────────────────────────────────────────────
-const CATEGORIAS_ESPECIALES = ["Vacaciones", "Bench", "FNQ", "REN", "Licencia Médica", "Permiso"];
-const CATEGORIAS_INTERNAS   = ["Proyecto Interno"];
+const CATEGORIAS_ESPECIALES = ["Vacation", "Bench", "FNQ", "REN", "Sick Leave", "Leave"];
+const CATEGORIAS_INTERNAS   = ["Internal Project"];
 
 const esBillable = (proyecto: string) =>
   !CATEGORIAS_ESPECIALES.includes(proyecto) &&
@@ -43,10 +43,10 @@ const esBillable = (proyecto: string) =>
 
 const categoriaColor = (proyecto: string): CatColor => {
   if (proyecto === "Bench")       return { bg:"#f44336", text:"#fff" };
-  if (proyecto === "Vacaciones")  return { bg:"#ff9800", text:"#fff" };
+  if (proyecto === "Vacation")    return { bg:"#ff9800", text:"#fff" };
   if (proyecto === "FNQ")         return { bg:"#9c27b0", text:"#fff" };
   if (proyecto === "REN")         return { bg:"#607d8b", text:"#fff" };
-  if (proyecto === "Licencia Médica" || proyecto === "Permiso") return { bg:"#795548", text:"#fff" };
+  if (proyecto === "Sick Leave" || proyecto === "Leave") return { bg:"#795548", text:"#fff" };
   if (CATEGORIAS_INTERNAS.includes(proyecto)) return { bg:"#78909c", text:"#fff" };
   return { bg:"#1565c0", text:"#fff" };
 };

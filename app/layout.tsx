@@ -8,13 +8,13 @@ import { LanguageProvider } from "@/lib/i18n";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "SII Operaciones",
-  description: "Dashboard de gestión de servicios y proyectos",
+  title: "SII Operations",
+  description: "Service and project management dashboard",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
         <LanguageProvider>
           <DataProvider>

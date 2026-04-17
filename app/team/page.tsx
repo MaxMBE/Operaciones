@@ -570,11 +570,11 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
                     {confirmDeleteId === m.memberId ? (
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] text-red-600 font-medium whitespace-nowrap">{t.action_confirm_delete}</span>
-                        <button onClick={() => confirmDelete(m.memberId)} title="Confirmar"
+                        <button onClick={() => confirmDelete(m.memberId)} title="Confirm"
                           className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
                           <Check className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => setConfirmDeleteId(null)} title="Cancelar"
+                        <button onClick={() => setConfirmDeleteId(null)} title="Cancel"
                           className="p-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors">
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -585,7 +585,7 @@ function BenchView({ teamMembersOverride, projectsOverride, isHistorical }: {
                           className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => requestDelete(m.memberId)} title="Eliminar"
+                        <button onClick={() => requestDelete(m.memberId)} title="Delete"
                           className="p-1.5 rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -1215,7 +1215,7 @@ function PeopleDirectoryView() {
               {editConsultantId !== m.id && (
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <button onClick={() => { setEditConsultantId(m.id); setEditConsultantName(m.name); }} className="p-1 rounded text-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors" title="Edit"><Pencil className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => deleteMember(m.id)} className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => deleteMember(m.id)} className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Delete"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               )}
             </div>
@@ -1409,7 +1409,7 @@ export default function TeamPage() {
               <button
                 onClick={() => { setEditDateProjectId(projectId); setEditDateMemberId(m.id); setEditDateValue(memberEndDate); }}
                 className="group/date flex items-center gap-1 text-xs text-gray-600 hover:text-primary transition-colors"
-                title="Editar fecha de término"
+                title="Edit end date"
               >
                 <span>{memberEndDate ? formatDate(memberEndDate) : <span className="text-muted-foreground italic">{t.no_date}</span>}</span>
                 <Pencil className="w-2.5 h-2.5 opacity-0 group-hover/date:opacity-60 transition-opacity" />
@@ -1441,7 +1441,7 @@ export default function TeamPage() {
                 className="p-1 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                 <Pencil className="w-3.5 h-3.5" />
               </button>
-              <button onClick={() => { setConfirmDeleteEquipoId(m.id); setEditId(null); }} title="Eliminar"
+              <button onClick={() => { setConfirmDeleteEquipoId(m.id); setEditId(null); }} title="Delete"
                 className="p-1 rounded text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -1591,14 +1591,14 @@ export default function TeamPage() {
                                   onClick={() => handleAddMember(projectId)}
                                   disabled={!newName.trim()}
                                   className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-40 transition-colors"
-                                  title="Agregar"
+                                  title="Add"
                                 >
                                   <Check className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => setAddingToProjectId(null)}
                                   className="p-1.5 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
-                                  title="Cancelar"
+                                  title="Cancel"
                                 >
                                   <X className="w-3.5 h-3.5" />
                                 </button>

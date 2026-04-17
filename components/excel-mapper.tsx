@@ -14,14 +14,14 @@ interface Props {
 }
 
 const FIELD_LABELS: { key: keyof ColumnMapping; label: string; required: boolean; hint: string }[] = [
-  { key: "serviceNameCol",  label: "Nombre del servicio",  required: true,  hint: "Columna que identifica el proyecto" },
-  { key: "revenueCol",      label: "Revenue / Ingresos",   required: false, hint: "Valor facturado o proyectado" },
-  { key: "grossMarginCol",  label: "Margen Bruto (%)",     required: false, hint: "Porcentaje ya calculado (ej. 35.2)" },
-  { key: "netMarginCol",    label: "Margen Neto (%)",      required: false, hint: "Porcentaje ya calculado (ej. 18.4)" },
-  { key: "directCostsCol",  label: "Costos Directos",      required: false, hint: "Se calcula desde Margen Bruto si no se indica" },
-  { key: "opexCol",         label: "OPEX / Gastos Operac.", required: false, hint: "Se calcula desde Margen Neto si no se indica" },
-  { key: "budgetCol",       label: "Presupuesto",          required: false, hint: "Budget aprobado" },
-  { key: "spentCol",        label: "Gasto Real",           required: false, hint: "Gasto ejecutado" },
+  { key: "serviceNameCol",  label: "Service name",         required: true,  hint: "Column that identifies the project" },
+  { key: "revenueCol",      label: "Revenue",              required: false, hint: "Billed or projected value" },
+  { key: "grossMarginCol",  label: "Gross Margin (%)",     required: false, hint: "Already calculated percentage (e.g. 35.2)" },
+  { key: "netMarginCol",    label: "Net Margin (%)",       required: false, hint: "Already calculated percentage (e.g. 18.4)" },
+  { key: "directCostsCol",  label: "Direct Costs",         required: false, hint: "Calculated from Gross Margin if not provided" },
+  { key: "opexCol",         label: "OPEX / Operating Exp.", required: false, hint: "Calculated from Net Margin if not provided" },
+  { key: "budgetCol",       label: "Budget",               required: false, hint: "Approved budget" },
+  { key: "spentCol",        label: "Actual Spend",         required: false, hint: "Executed spend" },
 ];
 
 function SelectCol({
@@ -41,7 +41,7 @@ function SelectCol({
           onChange={(e) => onChange(e.target.value)}
           className="w-full appearance-none pl-2.5 pr-7 py-1.5 text-xs border border-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary"
         >
-          <option value="">— no mapear —</option>
+          <option value="">— do not map —</option>
           {columns.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
@@ -117,7 +117,7 @@ export function ExcelMapper({ buffer, fileName, onClose, onSuccess }: Props) {
             <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
             <div>
               <p className="font-semibold text-sm text-foreground">{fileName}</p>
-              <p className="text-xs text-muted-foreground">{preview.totalRows} filas · {preview.sheetNames.length} hoja(s)</p>
+              <p className="text-xs text-muted-foreground">{preview.totalRows} rows · {preview.sheetNames.length} sheet(s)</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
@@ -130,7 +130,7 @@ export function ExcelMapper({ buffer, fileName, onClose, onSuccess }: Props) {
           {/* Selector de hoja */}
           {preview.sheetNames.length > 1 && (
             <div>
-              <label className="block text-xs font-medium text-foreground mb-1">Hoja de Excel</label>
+              <label className="block text-xs font-medium text-foreground mb-1">Excel Sheet</label>
               <div className="flex flex-wrap gap-2">
                 {preview.sheetNames.map((s) => (
                   <button
@@ -153,7 +153,7 @@ export function ExcelMapper({ buffer, fileName, onClose, onSuccess }: Props) {
           {preview.columns.length > 0 && (
             <div>
               <p className="text-xs font-medium text-foreground mb-2">
-                Columnas detectadas ({preview.columns.length}) — primeras filas:
+                Detected columns ({preview.columns.length}) — first rows:
               </p>
               <div className="overflow-x-auto border border-border rounded-lg">
                 <table className="text-xs w-max">
@@ -182,7 +182,7 @@ export function ExcelMapper({ buffer, fileName, onClose, onSuccess }: Props) {
 
           {/* Mapeo de columnas */}
           <div>
-            <p className="text-xs font-medium text-foreground mb-3">Asignar columnas a campos financieros</p>
+            <p className="text-xs font-medium text-foreground mb-3">Map columns to financial fields</p>
             <div className="grid grid-cols-2 gap-3">
               {FIELD_LABELS.map(({ key, label, required, hint }) => (
                 <SelectCol
@@ -208,12 +208,12 @@ export function ExcelMapper({ buffer, fileName, onClose, onSuccess }: Props) {
                 }
                 <div>
                   <p className="text-xs font-medium">
-                    {result.count} filas importadas correctamente.
+                    {result.count} rows imported successfully.
                   </p>
                   {result.unmapped.length > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      No se encontró coincidencia para: <strong>{result.unmapped.join(", ")}</strong>
-                      . Se agregaron como proyectos nuevos.
+                      No match found for: <strong>{result.unmapped.join(", ")}</strong>
+                      . Added as new projects.
                     </p>
                   )}
                 </div>
@@ -225,14 +225,14 @@ export function ExcelMapper({ buffer, fileName, onClose, onSuccess }: Props) {
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            {!mapping.serviceNameCol ? "Selecciona al menos la columna de nombre de servicio" : "Los márgenes se calculan automáticamente si ingresas Revenue + Costos"}
+            {!mapping.serviceNameCol ? "Select at least the service name column" : "Margins are calculated automatically if you provide Revenue + Costs"}
           </p>
           <div className="flex gap-2">
             <button
               onClick={onClose}
               className="px-4 py-2 text-xs rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors"
             >
-              {applied ? "Cerrar" : "Cancelar"}
+              {applied ? "Close" : "Cancel"}
             </button>
             {!applied ? (
               <button
@@ -240,14 +240,14 @@ export function ExcelMapper({ buffer, fileName, onClose, onSuccess }: Props) {
                 disabled={!mapping.serviceNameCol}
                 className="px-4 py-2 text-xs rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Importar datos financieros
+                Import financial data
               </button>
             ) : (
               <button
                 onClick={onSuccess}
                 className="px-4 py-2 text-xs rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors"
               >
-                Ver en Finanzas →
+                View in Finance →
               </button>
             )}
           </div>

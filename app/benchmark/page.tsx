@@ -94,10 +94,10 @@ const trendData = [
 ];
 
 const radarData = [
-  { metric: "Tasa de Canje", Pepsi: 85, "Coca-Cola": 72, "7UP/Sprite": 61, "Fanta/Mirinda": 65 },
-  { metric: "Alcance",       Pepsi: 75, "Coca-Cola": 88, "7UP/Sprite": 68, "Fanta/Mirinda": 62 },
-  { metric: "Lealtad",       Pepsi: 88, "Coca-Cola": 82, "7UP/Sprite": 74, "Fanta/Mirinda": 72 },
-  { metric: "Recompra",      Pepsi: 78, "Coca-Cola": 71, "7UP/Sprite": 65, "Fanta/Mirinda": 61 },
+  { metric: "Redemption Rate", Pepsi: 85, "Coca-Cola": 72, "7UP/Sprite": 61, "Fanta/Mirinda": 65 },
+  { metric: "Reach",           Pepsi: 75, "Coca-Cola": 88, "7UP/Sprite": 68, "Fanta/Mirinda": 62 },
+  { metric: "Loyalty",         Pepsi: 88, "Coca-Cola": 82, "7UP/Sprite": 74, "Fanta/Mirinda": 72 },
+  { metric: "Repurchase",      Pepsi: 78, "Coca-Cola": 71, "7UP/Sprite": 65, "Fanta/Mirinda": 61 },
   { metric: "NPS",           Pepsi: 82, "Coca-Cola": 76, "7UP/Sprite": 71, "Fanta/Mirinda": 68 },
 ];
 
@@ -251,7 +251,7 @@ export default function BenchmarkPage() {
               {t === "digital" && <Smartphone className="w-3.5 h-3.5" />}
               {t === "fisico" && <Store className="w-3.5 h-3.5" />}
               {t === "todos" && <TrendingUp className="w-3.5 h-3.5" />}
-              {t === "todos" ? "Todos" : t === "digital" ? "Digital" : "Físico"}
+              {t === "todos" ? "All" : t === "digital" ? "Digital" : "Physical"}
             </button>
           ))}
         </div>
@@ -263,17 +263,17 @@ export default function BenchmarkPage() {
           title="Redemption Rate · Pepsi"
           value={`${pepsiRedemption}%`}
           change={`${Number(diffVsBenchmark) >= 0 ? "+" : ""}${diffVsBenchmark}pp`}
-          changeLabel="vs benchmark promedio"
+          changeLabel="vs avg benchmark"
           icon={Tag}
           positive={Number(diffVsBenchmark) >= 0}
           color="blue"
         />
         <KpiCard
-          title="Alcance Total"
+          title="Total Reach"
           value="4.2M"
-          unit="usuarios"
+          unit="users"
           change="+15%"
-          changeLabel="vs Q anterior"
+          changeLabel="vs previous Q"
           icon={Users}
           positive={true}
           color="green"
@@ -283,17 +283,17 @@ export default function BenchmarkPage() {
           value="7.8"
           unit="/10"
           change="#1"
-          changeLabel="en categoría refrescos"
+          changeLabel="in soft drinks category"
           icon={Award}
           positive={true}
           color="purple"
         />
         <KpiCard
-          title="Costo por Canje"
+          title="Cost per Redemption"
           value="$12.50"
           unit="MXN"
           change="-12%"
-          changeLabel="vs benchmark promedio"
+          changeLabel="vs avg benchmark"
           icon={DollarSign}
           positive={true}
           color="orange"
@@ -306,10 +306,10 @@ export default function BenchmarkPage() {
         <div className="bg-white rounded-xl border p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-gray-700">
-              Redemption Rate por Marca
+              Redemption Rate by Brand
             </h2>
             <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-md">
-              {selectedType === "todos" ? "Total" : selectedType === "digital" ? "Digital" : "Físico"} (%)
+              {selectedType === "todos" ? "Total" : selectedType === "digital" ? "Digital" : "Physical"} (%)
             </span>
           </div>
           <ResponsiveContainer width="100%" height={260}>
@@ -341,7 +341,7 @@ export default function BenchmarkPage() {
             </BarChart>
           </ResponsiveContainer>
           <p className="text-xs text-gray-400 mt-2">
-            Línea punteada = promedio de marcas de refrescos (excl. plataformas).
+            Dotted line = average of soft drink brands (excl. platforms).
           </p>
         </div>
 
@@ -349,10 +349,10 @@ export default function BenchmarkPage() {
         <div className="bg-white rounded-xl border p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-gray-700">
-              Alcance e Impresiones
+              Reach & Impressions
             </h2>
             <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-md">
-              Miles de personas
+              Thousands of people
             </span>
           </div>
           <ResponsiveContainer width="100%" height={260}>
@@ -362,8 +362,8 @@ export default function BenchmarkPage() {
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="alcance" name="Alcance" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="impresiones" name="Impresiones" fill="#bfdbfe" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="alcance" name="Reach" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="impresiones" name="Impressions" fill="#bfdbfe" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -374,7 +374,7 @@ export default function BenchmarkPage() {
         {/* Radar multi-dimensional */}
         <div className="bg-white rounded-xl border p-5 lg:col-span-2">
           <h2 className="text-sm font-semibold text-gray-700 mb-4">
-            Scorecard Multi-dimensional · Refrescos
+            Multi-dimensional Scorecard · Soft Drinks
           </h2>
           <ResponsiveContainer width="100%" height={290}>
             <RadarChart data={radarData}>
@@ -480,7 +480,7 @@ export default function BenchmarkPage() {
               })}
           </div>
           <p className="text-xs text-gray-400 mt-5 leading-relaxed">
-            Score de lealtad 0–10 basado en tasa de recompra, NPS y engagement de campaña.
+            Loyalty score 0–10 based on repurchase rate, NPS and campaign engagement.
           </p>
         </div>
       </div>
@@ -489,10 +489,10 @@ export default function BenchmarkPage() {
       <div className="bg-white rounded-xl border p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-gray-700">
-            Evolución Redemption Rate · Q1 2024 – Q1 2025
+            Redemption Rate Trend · Q1 2024 – Q1 2025
           </h2>
           <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-md">
-            Pepsi vs principales competidores (%)
+            Pepsi vs main competitors (%)
           </span>
         </div>
         <ResponsiveContainer width="100%" height={220}>
@@ -533,7 +533,7 @@ export default function BenchmarkPage() {
       {/* ── Mix Digital vs Físico ───────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border p-5">
         <h2 className="text-sm font-semibold text-gray-700 mb-4">
-          Mix de Canal · Digital vs Físico (% de cupones emitidos)
+          Channel Mix · Digital vs Physical (% of coupons issued)
         </h2>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={campaignTypeData} layout="vertical" barSize={18}>
@@ -543,7 +543,7 @@ export default function BenchmarkPage() {
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar dataKey="digital" name="Digital" stackId="a" fill="#3b82f6" radius={[4, 0, 0, 4]} />
-            <Bar dataKey="fisico" name="Físico" stackId="a" fill="#bfdbfe" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="fisico" name="Physical" stackId="a" fill="#bfdbfe" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -552,23 +552,23 @@ export default function BenchmarkPage() {
       <div className="bg-white rounded-xl border overflow-hidden">
         <div className="px-5 py-4 border-b flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-700">
-            Resumen Comparativo — Todas las Marcas
+            Comparative Summary — All Brands
           </h2>
           <span className="text-xs text-gray-400">
-            Campañas:{" "}
-            {selectedType === "todos" ? "Todos los tipos" : selectedType === "digital" ? "Digital" : "Físico"}
+            Campaigns:{" "}
+            {selectedType === "todos" ? "All types" : selectedType === "digital" ? "Digital" : "Physical"}
           </span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b">
-                <th className="text-left px-5 py-3">Marca</th>
+                <th className="text-left px-5 py-3">Brand</th>
                 <th className="text-right px-4 py-3">Redemption Rate</th>
-                <th className="text-right px-4 py-3">Alcance</th>
-                <th className="text-right px-4 py-3">Impresiones</th>
+                <th className="text-right px-4 py-3">Reach</th>
+                <th className="text-right px-4 py-3">Impressions</th>
                 <th className="text-right px-4 py-3">Loyalty Score</th>
-                <th className="text-right px-4 py-3">Costo/Canje</th>
+                <th className="text-right px-4 py-3">Cost/Redemption</th>
                 <th className="text-right px-4 py-3">% Digital</th>
               </tr>
             </thead>

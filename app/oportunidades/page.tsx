@@ -136,7 +136,7 @@ function ImageAnalysisModal({ open, oportunidades, onApply, onClose }: {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Error en el análisis.");
+      if (!res.ok) throw new Error(data.error ?? "Analysis error.");
 
       const ps: OportunidadProposal[] = data.proposals ?? [];
       setProposals(ps);
@@ -262,10 +262,10 @@ function ImageAnalysisModal({ open, oportunidades, onApply, onClose }: {
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-xs font-semibold text-gray-800">{p.titulo || p.cliente || "Sin título"}</span>
+                        <span className="text-xs font-semibold text-gray-800">{p.titulo || p.cliente || "No title"}</span>
                         {p.isNew
-                          ? <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700 flex-shrink-0">Nueva</span>
-                          : <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700 flex-shrink-0">Actualización</span>
+                          ? <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700 flex-shrink-0">New</span>
+                          : <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700 flex-shrink-0">Update</span>
                         }
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground">

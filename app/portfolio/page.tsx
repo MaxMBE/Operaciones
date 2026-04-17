@@ -962,14 +962,14 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
           {/* Nombre */}
           <div>
             <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">
-              Nombre del Servicio <span className="text-red-500">*</span>
+              Service Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={form.name}
               onChange={e => setF("name", e.target.value)}
               required
-              placeholder="Ej: Soporte Producción Transbank"
+              placeholder="e.g. Production Support Transbank"
               className="w-full text-[11px] border border-indigo-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               autoFocus
             />
@@ -978,9 +978,9 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
           <div className="grid grid-cols-2 gap-3">
             {/* Cliente y BU: texto libre */}
             {([
-              { label: t.cor_client_label, key: "client" as const, ph: "Nombre cliente" },
+              { label: t.cor_client_label, key: "client" as const, ph: "Client name" },
               { label: "BU",               key: "bu" as const,      ph: "Business Unit"  },
-              { label: t.cor_model_label,  key: "serviceType" as const, ph: "Ej: Competence Center" },
+              { label: t.cor_model_label,  key: "serviceType" as const, ph: "e.g. Competence Center" },
             ] as { label: string; key: keyof typeof EMPTY_NEW_SERVICE; ph: string }[]).map(({ label, key, ph }) => (
               <div key={key}>
                 <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{label}</label>
@@ -1756,10 +1756,10 @@ function CORView() {
           {/* KPI global inputs */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: `${t.cor_revenue_total_kpi} (número)`, key: "revenue" as const, ph: `ej: ${corKPIsCalc.totalRevenue.toFixed(0)}` },
-              { label: `Costo Total (número)`,                 key: "cost"    as const, ph: `ej: ${corKPIsCalc.totalCost.toFixed(0)}` },
-              { label: `OTD % (0-100)`,                        key: "otd"     as const, ph: `ej: ${corKPIsCalc.avgOTD!==null?corKPIsCalc.avgOTD.toFixed(1):"N/D"}` },
-              { label: `OQD % (0-100)`,                        key: "oqd"     as const, ph: `ej: ${corKPIsCalc.avgOQD!==null?corKPIsCalc.avgOQD.toFixed(1):"N/D"}` },
+              { label: `${t.cor_revenue_total_kpi} (number)`, key: "revenue" as const, ph: `e.g. ${corKPIsCalc.totalRevenue.toFixed(0)}` },
+              { label: `Total Cost (number)`,                   key: "cost"    as const, ph: `e.g. ${corKPIsCalc.totalCost.toFixed(0)}` },
+              { label: `OTD % (0-100)`,                         key: "otd"     as const, ph: `e.g. ${corKPIsCalc.avgOTD!==null?corKPIsCalc.avgOTD.toFixed(1):"N/A"}` },
+              { label: `OQD % (0-100)`,                         key: "oqd"     as const, ph: `e.g. ${corKPIsCalc.avgOQD!==null?corKPIsCalc.avgOQD.toFixed(1):"N/A"}` },
             ].map(({ label, key, ph }) => (
               <div key={key} className="bg-white rounded-lg border border-indigo-200 p-2.5">
                 <label className="text-[9px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{label}</label>
@@ -1777,8 +1777,8 @@ function CORView() {
           {/* Chart data textareas */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "Customer Delivery", key: "customers" as const, hint: "Una línea por cliente: Cliente,Revenue\nEj: Transbank,500000" },
-              { label: "Delivery Model",    key: "models"    as const, hint: "Una línea por modelo: Modelo,Revenue\nEj: Fixed Price,300000" },
+              { label: "Customer Delivery", key: "customers" as const, hint: "One line per client: Client,Revenue\ne.g. Transbank,500000" },
+              { label: "Delivery Model",    key: "models"    as const, hint: "One line per model: Model,Revenue\ne.g. Fixed Price,300000" },
             ].map(({ label, key, hint }) => (
               <div key={key} className="bg-white rounded-lg border border-indigo-200 p-2.5">
                 <label className="text-[9px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{label}</label>
