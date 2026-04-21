@@ -439,6 +439,24 @@ export default function OverviewPage() {
     serviceType: "", manager: "", leader: "", bu: "",
     ifsCode: "", serviceLevel: "", teamSize: 0,
   });
+  const [corReportData, setCorReportData] = useState<Record<string, ProjectReport> | null>(null);
+  const [corMonthLabel, setCorMonthLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    const nowMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+    fetch("/api/snapshots")
+      .then(r => r.json())
+      .then(async (list: { id: string; snapshot_date: string }[]) => {
+        const confirmed = list.find(s => s.snapshot_date.slice(0, 7) !== nowMonth);
+        if (!confirmed) return;
+        const full = await fetch(`/api/snapshots/${confirmed.id}`).then(r => r.json());
+        setCorReportData(full.report_data ?? {});
+        const [y, m] = confirmed.snapshot_date.split("-").map(Number);
+        setCorMonthLabel(new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }));
+      })
+      .catch(() => {});
+  }, []);
+
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     function h(e: MouseEvent) { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); }
@@ -981,7 +999,7 @@ export default function OverviewPage() {
                     {/* Margin */}
                     <td className="py-2 pr-2">
                       {(() => {
-                        const rpt = reportData[p.id]?.marginMonthly;
+                        const rpt = corReportData?.[p.id]?.marginMonthly ?? reportData[p.id]?.marginMonthly;
                         if (rpt) {
                           const n = parseFloat(rpt);
                           const cls = !isNaN(n) ? (n >= 20 ? "text-emerald-600" : n >= 10 ? "text-amber-600" : "text-red-600") : "text-muted-foreground";
@@ -997,7 +1015,7 @@ export default function OverviewPage() {
                     {/* TMD */}
                     <td className="py-2 pr-2">
                       {(() => {
-                        const tmd = reportData[p.id]?.marginImprovement;
+                        const tmd = corReportData?.[p.id]?.marginImprovement ?? reportData[p.id]?.marginImprovement;
                         if (!tmd) return <span className="text-muted-foreground">—</span>;
                         const cls = tmd.startsWith("+") ? "text-emerald-600" : "text-red-600";
                         return <span className={`font-medium ${cls}`}>{tmd}</span>;
