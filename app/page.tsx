@@ -457,6 +457,18 @@ export default function OverviewPage() {
     terminated: "bg-slate-400",
   };
 
+  function endDateDotCls(endDate: string | undefined, status: ProjectStatus): string {
+    if (!endDate) return statusBar[status];
+    const end = new Date(endDate + "T00:00:00");
+    if (isNaN(end.getTime())) return statusBar[status];
+    const now = new Date();
+    const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysLeft < 0) return statusBar[status];
+    if (daysLeft <= 30) return "bg-red-500";
+    if (daysLeft <= 60) return "bg-yellow-500";
+    return statusBar[status];
+  }
+
   function kpiCls(pctStr?: string) {
     const n = parseFloat(pctStr ?? "");
     if (isNaN(n)) return "bg-gray-100 text-gray-500";
@@ -944,7 +956,7 @@ export default function OverviewPage() {
                       {isEditing ? field("endDate") : (
                         p.endDate ? (
                           <span className="flex items-center gap-1">
-                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusBar[p.status]}`} />
+                            <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${endDateDotCls(p.endDate, p.status)}`} />
                             {fmtDate(p.endDate)}
                           </span>
                         ) : "—"
