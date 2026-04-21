@@ -567,7 +567,7 @@ export const en: typeof es = {
   pdf_label:              "PDF",
 
   // ── Charts ────────────────────────────────────────────────────────────────────
-  bench_chart_title:      "Bench Evolution",
+  bench_chart_title:      "Capacity Evolution",
   bench_chart_prefix:     "Risk projection by month ·",
   bench_chart_consultant: "consultant",
   bench_chart_plural_s:   "s",
