@@ -479,6 +479,19 @@ export default function OverviewPage() {
     terminated: "bg-slate-400",
   };
 
+  function resolveMargin(p: Project): number | null {
+    const corProj = corProjectsById?.[p.id];
+    if (corProj && corProj.revenueMonthly && corProj.revenueMonthly > 0) {
+      return Math.round((corProj.revenueMonthly - (corProj.costMonthly || 0)) / corProj.revenueMonthly * 100);
+    }
+    const rptStr = corReportData?.[p.id]?.marginMonthly ?? reportData[p.id]?.marginMonthly;
+    if (rptStr) {
+      const n = parseFloat(rptStr.replace("%", "").replace(",", "."));
+      if (!isNaN(n)) return Math.round(n);
+    }
+    return calcMargin(p.revenueMonthly, p.costMonthly);
+  }
+
   function endDateDotCls(endDate: string | undefined, status: ProjectStatus): string {
     if (!endDate) return statusBar[status];
     const end = new Date(endDate + "T00:00:00");
@@ -1003,21 +1016,7 @@ export default function OverviewPage() {
                     {/* Margin */}
                     <td className="py-2 pr-2">
                       {(() => {
-                        const corProj = corProjectsById?.[p.id];
-                        const corMargin = corProj && corProj.revenueMonthly && corProj.revenueMonthly > 0
-                          ? Math.round((corProj.revenueMonthly - (corProj.costMonthly || 0)) / corProj.revenueMonthly * 100)
-                          : null;
-                        if (corMargin !== null) {
-                          const cls = corMargin >= 20 ? "text-emerald-600" : corMargin >= 10 ? "text-amber-600" : "text-red-600";
-                          return <span className={`font-medium ${cls}`}>{corMargin}%</span>;
-                        }
-                        const rpt = corReportData?.[p.id]?.marginMonthly ?? reportData[p.id]?.marginMonthly;
-                        if (rpt) {
-                          const n = parseFloat(rpt);
-                          const cls = !isNaN(n) ? (n >= 20 ? "text-emerald-600" : n >= 10 ? "text-amber-600" : "text-red-600") : "text-muted-foreground";
-                          return <span className={`font-medium ${cls}`}>{rpt}</span>;
-                        }
-                        const m = calcMargin(p.revenueMonthly, p.costMonthly);
+                        const m = resolveMargin(p);
                         if (m === null) return <span className="text-muted-foreground">—</span>;
                         const cls = m >= 20 ? "text-emerald-600" : m >= 10 ? "text-amber-600" : "text-red-600";
                         return <span className={`font-medium ${cls}`}>{m}%</span>;
@@ -1027,19 +1026,11 @@ export default function OverviewPage() {
                     {/* TMD */}
                     <td className="py-2 pr-2">
                       {(() => {
-                        const corProj = corProjectsById?.[p.id];
-                        const corMargin = corProj && corProj.revenueMonthly && corProj.revenueMonthly > 0
-                          ? Math.round((corProj.revenueMonthly - (corProj.costMonthly || 0)) / corProj.revenueMonthly * 100)
-                          : null;
-                        if (corMargin !== null) {
-                          const tmd = corMargin - 34;
-                          const cls = tmd >= 0 ? "text-emerald-600" : "text-red-600";
-                          return <span className={`font-medium ${cls}`}>{tmd > 0 ? "+" : ""}{tmd}pp</span>;
-                        }
-                        const tmd = corReportData?.[p.id]?.marginImprovement ?? reportData[p.id]?.marginImprovement;
-                        if (!tmd) return <span className="text-muted-foreground">—</span>;
-                        const cls = tmd.startsWith("+") ? "text-emerald-600" : "text-red-600";
-                        return <span className={`font-medium ${cls}`}>{tmd}</span>;
+                        const m = resolveMargin(p);
+                        if (m === null) return <span className="text-muted-foreground">—</span>;
+                        const tmd = m - 34;
+                        const cls = tmd >= 0 ? "text-emerald-600" : "text-red-600";
+                        return <span className={`font-medium ${cls}`}>{tmd > 0 ? "+" : ""}{tmd}pp</span>;
                       })()}
                     </td>
 
