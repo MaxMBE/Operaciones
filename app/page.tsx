@@ -440,6 +440,7 @@ export default function OverviewPage() {
     ifsCode: "", serviceLevel: "", teamSize: 0,
   });
   const [corReportData, setCorReportData] = useState<Record<string, ProjectReport> | null>(null);
+  const [corProjectsById, setCorProjectsById] = useState<Record<string, Project> | null>(null);
   const [corMonthLabel, setCorMonthLabel] = useState<string | null>(null);
 
   useEffect(() => {
@@ -451,6 +452,9 @@ export default function OverviewPage() {
         if (!confirmed) return;
         const full = await fetch(`/api/snapshots/${confirmed.id}`).then(r => r.json());
         setCorReportData(full.report_data ?? {});
+        const byId: Record<string, Project> = {};
+        for (const sp of (full.projects ?? []) as Project[]) byId[sp.id] = sp;
+        setCorProjectsById(byId);
         const [y, m] = confirmed.snapshot_date.split("-").map(Number);
         setCorMonthLabel(new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" }));
       })
@@ -999,6 +1003,14 @@ export default function OverviewPage() {
                     {/* Margin */}
                     <td className="py-2 pr-2">
                       {(() => {
+                        const corProj = corProjectsById?.[p.id];
+                        const corMargin = corProj && corProj.revenueMonthly && corProj.revenueMonthly > 0
+                          ? Math.round((corProj.revenueMonthly - (corProj.costMonthly || 0)) / corProj.revenueMonthly * 100)
+                          : null;
+                        if (corMargin !== null) {
+                          const cls = corMargin >= 20 ? "text-emerald-600" : corMargin >= 10 ? "text-amber-600" : "text-red-600";
+                          return <span className={`font-medium ${cls}`}>{corMargin}%</span>;
+                        }
                         const rpt = corReportData?.[p.id]?.marginMonthly ?? reportData[p.id]?.marginMonthly;
                         if (rpt) {
                           const n = parseFloat(rpt);
@@ -1015,6 +1027,15 @@ export default function OverviewPage() {
                     {/* TMD */}
                     <td className="py-2 pr-2">
                       {(() => {
+                        const corProj = corProjectsById?.[p.id];
+                        const corMargin = corProj && corProj.revenueMonthly && corProj.revenueMonthly > 0
+                          ? Math.round((corProj.revenueMonthly - (corProj.costMonthly || 0)) / corProj.revenueMonthly * 100)
+                          : null;
+                        if (corMargin !== null) {
+                          const tmd = corMargin - 34;
+                          const cls = tmd >= 0 ? "text-emerald-600" : "text-red-600";
+                          return <span className={`font-medium ${cls}`}>{tmd > 0 ? "+" : ""}{tmd}pp</span>;
+                        }
                         const tmd = corReportData?.[p.id]?.marginImprovement ?? reportData[p.id]?.marginImprovement;
                         if (!tmd) return <span className="text-muted-foreground">—</span>;
                         const cls = tmd.startsWith("+") ? "text-emerald-600" : "text-red-600";
