@@ -481,13 +481,16 @@ export default function OverviewPage() {
 
   function resolveMargin(p: Project): number | null {
     const corProj = corProjectsById?.[p.id];
-    if (corProj && corProj.revenueMonthly && corProj.revenueMonthly > 0) {
-      return Math.round((corProj.revenueMonthly - (corProj.costMonthly || 0)) / corProj.revenueMonthly * 100);
-    }
-    const rptStr = corReportData?.[p.id]?.marginMonthly ?? reportData[p.id]?.marginMonthly;
-    if (rptStr) {
-      const n = parseFloat(rptStr.replace("%", "").replace(",", "."));
-      if (!isNaN(n)) return Math.round(n);
+    const corRep  = corReportData?.[p.id];
+    if (corProj) {
+      if (corProj.revenueMonthly && corProj.revenueMonthly > 0) {
+        return Math.round((corProj.revenueMonthly - (corProj.costMonthly || 0)) / corProj.revenueMonthly * 100);
+      }
+      const ytd = corRep?.marginYTD;
+      if (ytd) {
+        const n = parseFloat(ytd.replace("%", "").replace(",", "."));
+        if (!isNaN(n)) return Math.round(n);
+      }
     }
     return calcMargin(p.revenueMonthly, p.costMonthly);
   }
