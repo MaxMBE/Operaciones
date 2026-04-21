@@ -799,14 +799,13 @@ export default function OverviewPage() {
           { label: t.kpi_gross_margin,    value: totalRevenue > 0 ? `${grossMargin}%` : t.kpi_no_finance_data, sub: totalRevenue > 0 ? `Revenue ${formatClpToUsd(totalRevenue)}` : t.kpi_enter_finance, color: "text-emerald-600", bg: "bg-emerald-50" },
           { label: t.kpi_team,            value: teamMembers.length, sub: t.kpi_people_identified, color: "text-orange-600", bg: "bg-orange-50" },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-border p-5 flex items-start gap-4">
-            <div className={`${s.bg} rounded-lg w-10 h-10 flex items-center justify-center flex-shrink-0`}>
-              <span className={`text-base font-bold ${s.color}`}>{typeof s.value === "number" ? s.value : "—"}</span>
+          <div key={s.label} className="bg-white rounded-xl border border-border px-4 py-2.5 flex items-center gap-3">
+            <div className={`${s.bg} rounded-lg w-8 h-8 flex items-center justify-center flex-shrink-0`}>
+              <span className={`text-xs font-bold ${s.color}`}>{typeof s.value === "number" ? s.value : "—"}</span>
             </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{s.value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
-              <p className="text-xs text-muted-foreground">{s.sub}</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-foreground leading-tight">{s.value}</p>
+              <p className="text-[11px] text-muted-foreground leading-tight">{s.label} · {s.sub}</p>
             </div>
           </div>
         ))}
