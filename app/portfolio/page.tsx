@@ -74,7 +74,7 @@ function parsePercent(val: string | undefined): number | null {
 }
 
 function pctBadge(val: number | null): string {
-  if (val === null) return "bg-gray-100 text-gray-500";
+  if (val === null) return "bg-gray-100 text-gray-500 dark:text-gray-400 dark:text-gray-500";
   if (val >= 95) return "bg-emerald-100 text-emerald-700";
   if (val >= 80) return "bg-amber-100 text-amber-700";
   return "bg-red-100 text-red-700";
@@ -101,7 +101,7 @@ function makeWeather(t: ReturnType<typeof useT>) {
     G:    { icon: "☀️",  label: t.cor_weather_on_track, bg: "bg-green-50",  text: "text-green-700",  border: "border-green-300" },
     A:    { icon: "⛅",  label: t.cor_weather_at_risk,  bg: "bg-amber-50",  text: "text-amber-700",  border: "border-amber-300" },
     R:    { icon: "⛈️", label: t.cor_weather_critical, bg: "bg-red-50",    text: "text-red-700",    border: "border-red-300"   },
-    grey: { icon: "☁️",  label: t.cor_weather_na,       bg: "bg-gray-50",   text: "text-gray-500",   border: "border-gray-200"  },
+    grey: { icon: "☁️",  label: t.cor_weather_na,       bg: "bg-gray-50 dark:bg-muted/40",   text: "text-gray-500 dark:text-gray-400 dark:text-gray-500",   border: "border-gray-200 dark:border-border"  },
     B:    { icon: "🌤️", label: t.cor_weather_stable,   bg: "bg-blue-50",   text: "text-blue-600",   border: "border-blue-200"  },
     done: { icon: "✅",  label: t.cor_weather_done,     bg: "bg-teal-50",   text: "text-teal-700",   border: "border-teal-300"  },
   } as Record<WeatherKey, { icon: string; label: string; bg: string; text: string; border: string }>;
@@ -147,14 +147,14 @@ function EF({
             value={value}
             onChange={e => onChange(e.target.value)}
             rows={3}
-            className="w-full text-[10px] border border-indigo-200 rounded px-1.5 py-0.5 mt-0.5 bg-white resize-none focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            className="w-full text-[10px] border border-indigo-200 dark:border-indigo-900 rounded px-1.5 py-0.5 mt-0.5 bg-white dark:bg-card resize-none focus:outline-none focus:ring-1 focus:ring-indigo-400"
           />
         ) : (
           <input
             type={type}
             value={value}
             onChange={e => onChange(e.target.value)}
-            className="w-full text-[10px] border border-indigo-200 rounded px-1.5 py-0.5 mt-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            className="w-full text-[10px] border border-indigo-200 dark:border-indigo-900 rounded px-1.5 py-0.5 mt-0.5 bg-white dark:bg-card focus:outline-none focus:ring-1 focus:ring-indigo-400"
           />
         )
       ) : (
@@ -170,7 +170,7 @@ function SEF({
   label: string; value: string; editMode: boolean;
   onChange?: (v: string) => void;
 }) {
-  const w = (makeWeather as unknown as (t: { cor_weather_on_track: string; cor_weather_at_risk: string; cor_weather_critical: string; cor_weather_na: string; cor_weather_stable: string; cor_weather_done: string }) => ReturnType<typeof makeWeather>)({ cor_weather_on_track: "On Track", cor_weather_at_risk: "At Risk", cor_weather_critical: "Critical", cor_weather_na: "N/A", cor_weather_stable: "Stable", cor_weather_done: "Terminado" })[value as WeatherKey] ?? { icon: "☁️", label: "N/A", text: "text-gray-500" };
+  const w = (makeWeather as unknown as (t: { cor_weather_on_track: string; cor_weather_at_risk: string; cor_weather_critical: string; cor_weather_na: string; cor_weather_stable: string; cor_weather_done: string }) => ReturnType<typeof makeWeather>)({ cor_weather_on_track: "On Track", cor_weather_at_risk: "At Risk", cor_weather_critical: "Critical", cor_weather_na: "N/A", cor_weather_stable: "Stable", cor_weather_done: "Terminado" })[value as WeatherKey] ?? { icon: "☁️", label: "N/A", text: "text-gray-500 dark:text-gray-400 dark:text-gray-500" };
   return (
     <div>
       <span className="text-[8px] text-muted-foreground uppercase tracking-wide block">{label}</span>
@@ -178,7 +178,7 @@ function SEF({
         <select
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="w-full text-[10px] border border-indigo-200 rounded px-1.5 py-0.5 mt-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          className="w-full text-[10px] border border-indigo-200 dark:border-indigo-900 rounded px-1.5 py-0.5 mt-0.5 bg-white dark:bg-card focus:outline-none focus:ring-1 focus:ring-indigo-400"
         >
           <option value="G">☀️ On Track</option>
           <option value="A">⛅ At Risk</option>
@@ -209,7 +209,7 @@ function NumericInput({
         inputMode="numeric"
         value={display}
         onChange={e => onChange(e.target.value.replace(/[^0-9]/g, ""))}
-        className="w-full text-[10px] border border-indigo-200 rounded px-1.5 py-0.5 mt-0.5 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400"
+        className="w-full text-[10px] border border-indigo-200 dark:border-indigo-900 rounded px-1.5 py-0.5 mt-0.5 bg-white dark:bg-card focus:outline-none focus:ring-1 focus:ring-indigo-400"
         placeholder="0"
       />
     </div>
@@ -447,17 +447,17 @@ function ProjectDetailPanel({
     return `${v > 0 ? "+" : ""}${v}pp`;
   }
   function devClass(v: number | null): string {
-    if (v === null) return "text-gray-400";
+    if (v === null) return "text-gray-400 dark:text-gray-500";
     return v >= 0 ? "text-emerald-700" : "text-red-600";
   }
 
   const fmtDate = (d: string) => d ? new Date(d + "T00:00:00").toLocaleDateString(lang === "en" ? "en-US" : "es-CL", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
   return (
-    <div className="p-4 border-t border-indigo-200">
+    <div className="p-4 border-t border-indigo-200 dark:border-indigo-900">
       {/* Toolbar */}
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-[10px] font-bold text-indigo-700 uppercase tracking-wide">
+        <h4 className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">
           {p.name}
         </h4>
         <div className="flex items-center gap-2">
@@ -473,7 +473,7 @@ function ProjectDetailPanel({
               </button>
               <button
                 onClick={handleCancel}
-                className="flex items-center gap-1 px-3 py-1 bg-white border border-gray-300 text-gray-600 rounded-lg text-[10px] font-semibold hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-1 px-3 py-1 bg-white dark:bg-card border border-gray-300 dark:border-border text-gray-600 dark:text-gray-300 rounded-lg text-[10px] font-semibold hover:bg-gray-50 dark:bg-muted/40 transition-colors"
               >
                 {t.cor_cancel_edit}
               </button>
@@ -481,7 +481,7 @@ function ProjectDetailPanel({
           ) : (
             <button
               onClick={() => setEditMode(true)}
-              className="flex items-center gap-1.5 px-3 py-1 bg-white border border-indigo-300 text-indigo-600 rounded-lg text-[10px] font-semibold hover:bg-indigo-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-card border border-indigo-300 text-indigo-600 dark:text-indigo-400 rounded-lg text-[10px] font-semibold hover:bg-indigo-50 dark:bg-indigo-950/30 transition-colors"
             >
               <Pencil className="w-3 h-3" />
               {t.cor_edit_fields}
@@ -494,9 +494,9 @@ function ProjectDetailPanel({
 
         {/* ── Left: General Info + Highlights ──────────────────────────── */}
         <div className="space-y-3">
-          <div className="bg-white rounded-lg border border-indigo-200 p-3">
+          <div className="bg-white dark:bg-card rounded-lg border border-indigo-200 dark:border-indigo-900 p-3">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide">{t.cor_general_info}</h4>
+              <h4 className="text-[10px] font-bold text-indigo-800 dark:text-indigo-200 uppercase tracking-wide">{t.cor_general_info}</h4>
               {!editMode && <span className="text-sm">{weather[draftR.overallStatus as WeatherKey]?.icon ?? "☁️"}</span>}
             </div>
             <div className="grid grid-cols-2 gap-x-3 gap-y-2">
@@ -519,12 +519,12 @@ function ProjectDetailPanel({
           </div>
 
           {/* Highlights */}
-          <div className="bg-white rounded-lg border border-indigo-200 overflow-hidden">
+          <div className="bg-white dark:bg-card rounded-lg border border-indigo-200 dark:border-indigo-900 overflow-hidden">
             <button
               className="w-full flex items-center justify-between px-3 py-2 hover:bg-indigo-50/50 transition-colors"
               onClick={() => setHighlightsOpen(o => !o)}
             >
-              <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide">Highlights</h4>
+              <h4 className="text-[10px] font-bold text-indigo-800 dark:text-indigo-200 uppercase tracking-wide">Highlights</h4>
               {highlightsOpen || editMode ? <ChevronDown className="w-3 h-3 text-indigo-400" /> : <ChevronRight className="w-3 h-3 text-indigo-400" />}
             </button>
             {(highlightsOpen || editMode) && (
@@ -550,16 +550,16 @@ function ProjectDetailPanel({
 
         {/* ── Center: Financial KPIs + Improvement Plan ─────────────────── */}
         <div className="space-y-3">
-          <div className="bg-white rounded-lg border border-indigo-200 p-3">
-            <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide mb-2">Financial KPIs</h4>
+          <div className="bg-white dark:bg-card rounded-lg border border-indigo-200 dark:border-indigo-900 p-3">
+            <h4 className="text-[10px] font-bold text-indigo-800 dark:text-indigo-200 uppercase tracking-wide mb-2">Financial KPIs</h4>
             {editMode ? (
               <div className="grid grid-cols-2 gap-x-3 gap-y-2">
                 {actMonthLookup && p.ifsCode && (() => {
                   const mc = actMonthLookup(p.ifsCode!);
                   if (!mc) return null;
                   return (
-                    <div className="col-span-2 flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-1.5">
-                      <span className="text-[9px] text-indigo-700 font-medium">
+                    <div className="col-span-2 flex items-center justify-between bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900 rounded-lg px-3 py-1.5">
+                      <span className="text-[9px] text-indigo-700 dark:text-indigo-300 font-medium">
                         MC data: Rev {mc.produccion.toLocaleString("en-US")} · Cost {Math.abs(mc.costoNorm).toLocaleString("en-US")} · Margin {mc.produccion > 0 ? Math.round(mc.margen / mc.produccion * 100) : 0}%
                       </span>
                       <button
@@ -590,10 +590,10 @@ function ProjectDetailPanel({
               <table className="w-full text-[9px]">
                 <thead>
                   <tr>
-                    <th className="text-left font-semibold text-muted-foreground py-1 pr-2 border-b border-gray-200">KPI</th>
-                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200">{lang === "en" ? "Monthly" : "Mensual"}</th>
-                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200">{lang === "en" ? "YTD Actual" : "Real YTD"}</th>
-                    <th className="text-right font-semibold text-muted-foreground py-1 pl-1 border-b border-gray-200">{lang === "en" ? "FY Projection" : "Proyección FY"}</th>
+                    <th className="text-left font-semibold text-muted-foreground py-1 pr-2 border-b border-gray-200 dark:border-border">KPI</th>
+                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200 dark:border-border">{lang === "en" ? "Monthly" : "Mensual"}</th>
+                    <th className="text-right font-semibold text-muted-foreground py-1 px-1 border-b border-gray-200 dark:border-border">{lang === "en" ? "YTD Actual" : "Real YTD"}</th>
+                    <th className="text-right font-semibold text-muted-foreground py-1 pl-1 border-b border-gray-200 dark:border-border">{lang === "en" ? "FY Projection" : "Proyección FY"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -617,12 +617,12 @@ function ProjectDetailPanel({
                   </tr>
                   <tr>
                     <td className="py-1 pr-2 font-medium">Gross Margin</td>
-                    <td className={`py-1 px-1 text-right ${mrgMes!==null?(mrgMes>=34?"text-emerald-700":mrgMes>=25?"text-amber-700":"text-red-600"):"text-gray-400"}`}>{fmtPct(mrgMes)}</td>
-                    <td className={`py-1 px-1 text-right font-semibold ${mrgYTD!==null?(mrgYTD>=34?"text-emerald-700":mrgYTD>=25?"text-amber-700":"text-red-600"):"text-gray-400"}`}>{fmtPct(mrgYTD)}</td>
-                    <td className={`py-1 pl-1 text-right ${mrgProj!==null?(mrgProj>=34?"text-emerald-700":mrgProj>=25?"text-amber-700":"text-red-600"):"text-gray-400"}`}>{fmtPct(mrgProj)}</td>
+                    <td className={`py-1 px-1 text-right ${mrgMes!==null?(mrgMes>=34?"text-emerald-700":mrgMes>=25?"text-amber-700":"text-red-600"):"text-gray-400 dark:text-gray-500"}`}>{fmtPct(mrgMes)}</td>
+                    <td className={`py-1 px-1 text-right font-semibold ${mrgYTD!==null?(mrgYTD>=34?"text-emerald-700":mrgYTD>=25?"text-amber-700":"text-red-600"):"text-gray-400 dark:text-gray-500"}`}>{fmtPct(mrgYTD)}</td>
+                    <td className={`py-1 pl-1 text-right ${mrgProj!==null?(mrgProj>=34?"text-emerald-700":mrgProj>=25?"text-amber-700":"text-red-600"):"text-gray-400 dark:text-gray-500"}`}>{fmtPct(mrgProj)}</td>
                   </tr>
                   <tr className="bg-indigo-50/50">
-                    <td className="py-1 pr-2 font-bold text-indigo-700">TMD <span className="text-gray-400 font-normal">(vs 34%)</span></td>
+                    <td className="py-1 pr-2 font-bold text-indigo-700 dark:text-indigo-300">TMD <span className="text-gray-400 dark:text-gray-500 font-normal">(vs 34%)</span></td>
                     <td className={`py-1 px-1 text-right font-semibold ${devClass(tmdMes)}`}>{fmtDev(tmdMes)}</td>
                     <td className={`py-1 px-1 text-right font-bold ${devClass(tmdYTD)}`}>{fmtDev(tmdYTD)}</td>
                     <td className={`py-1 pl-1 text-right font-semibold ${devClass(tmdProj)}`}>{fmtDev(tmdProj)}</td>
@@ -637,10 +637,10 @@ function ProjectDetailPanel({
                             className="w-16 text-right text-[9px] border border-indigo-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
                           {actBillingLookup && p.ifsCode && (
                             <button type="button" onClick={() => { const v = actBillingLookup(p.ifsCode!); if (v !== null) setP("billingMonthly", String(v)); }}
-                              title="Load from Margin Calculator" className="text-[8px] bg-indigo-100 text-indigo-700 px-1 py-0.5 rounded hover:bg-indigo-200">MC</button>
+                              title="Load from Margin Calculator" className="text-[8px] bg-indigo-100 text-indigo-700 dark:text-indigo-300 px-1 py-0.5 rounded hover:bg-indigo-200">MC</button>
                           )}
                         </div>
-                      ) : draftP.billingMonthly ? <span>{draftP.billingMonthly}</span> : <span className="text-gray-400">—</span>}
+                      ) : draftP.billingMonthly ? <span>{draftP.billingMonthly}</span> : <span className="text-gray-400 dark:text-gray-500">—</span>}
                     </td>
                     {/* YTD */}
                     <td className="py-1 px-1 text-right font-semibold">
@@ -651,7 +651,7 @@ function ProjectDetailPanel({
                         (() => {
                           const autoVal = actBillingLookup && p.ifsCode ? actBillingLookup(p.ifsCode) : null;
                           const display = draftR.ftes || (autoVal !== null ? String(autoVal) : null);
-                          return display ? <span className={!draftR.ftes && autoVal !== null ? "text-indigo-500 italic" : ""}>{display}</span> : <span className="text-gray-400">—</span>;
+                          return display ? <span className={!draftR.ftes && autoVal !== null ? "text-indigo-500 italic" : ""}>{display}</span> : <span className="text-gray-400 dark:text-gray-500">—</span>;
                         })()
                       )}
                     </td>
@@ -660,7 +660,7 @@ function ProjectDetailPanel({
                       {editMode ? (
                         <input type="number" value={draftP.billingProjection} onChange={e => setP("billingProjection", e.target.value)}
                           className="w-16 text-right text-[9px] border border-indigo-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400" />
-                      ) : draftP.billingProjection ? <span>{draftP.billingProjection}</span> : <span className="text-gray-400">—</span>}
+                      ) : draftP.billingProjection ? <span>{draftP.billingProjection}</span> : <span className="text-gray-400 dark:text-gray-500">—</span>}
                     </td>
                   </tr>
                   {draftP.serviceType === "Fixed Price" && (
@@ -681,12 +681,12 @@ function ProjectDetailPanel({
           </div>
 
           {/* Improvement Plan */}
-          <div className="bg-white rounded-lg border border-indigo-200 overflow-hidden">
+          <div className="bg-white dark:bg-card rounded-lg border border-indigo-200 dark:border-indigo-900 overflow-hidden">
             <button
               className="w-full flex items-center justify-between px-3 py-2 hover:bg-indigo-50/50 transition-colors"
               onClick={() => setImprovementOpen(o => !o)}
             >
-              <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide">Improvement Plan</h4>
+              <h4 className="text-[10px] font-bold text-indigo-800 dark:text-indigo-200 uppercase tracking-wide">Improvement Plan</h4>
               {improvementOpen || editMode ? <ChevronDown className="w-3 h-3 text-indigo-400" /> : <ChevronRight className="w-3 h-3 text-indigo-400" />}
             </button>
             {(improvementOpen || editMode) && (
@@ -721,7 +721,7 @@ function ProjectDetailPanel({
                           ))
                         : <p className="text-[10px] text-muted-foreground italic">—</p>}
                     </div>
-                    <div className="pt-1 border-t border-gray-100">
+                    <div className="pt-1 border-t border-gray-100 dark:border-border">
                       <p className="text-[9px] font-semibold text-emerald-700 mb-0.5">Margin Improvement</p>
                       <p className="text-[10px] text-muted-foreground leading-relaxed">{draftR.marginImprovement || "—"}</p>
                     </div>
@@ -732,12 +732,12 @@ function ProjectDetailPanel({
           </div>
 
           {/* FTEs / Consultores */}
-          <div className="bg-white rounded-lg border border-indigo-200 overflow-hidden">
+          <div className="bg-white dark:bg-card rounded-lg border border-indigo-200 dark:border-indigo-900 overflow-hidden">
             <button
               className="w-full flex items-center justify-between px-3 py-2 hover:bg-indigo-50/50 transition-colors"
               onClick={() => setFtesOpen(o => !o)}
             >
-              <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide">
+              <h4 className="text-[10px] font-bold text-indigo-800 dark:text-indigo-200 uppercase tracking-wide">
                 FTEs {projectFTEs.length > 0 && <span className="ml-1 text-indigo-400 font-normal">({projectFTEs.length})</span>}
               </h4>
               {ftesOpen ? <ChevronDown className="w-3 h-3 text-indigo-400" /> : <ChevronRight className="w-3 h-3 text-indigo-400" />}
@@ -748,7 +748,7 @@ function ProjectDetailPanel({
                   <p className="text-[10px] text-muted-foreground italic">No consultants assigned. Assign them in Team → Directory.</p>
                 ) : projectFTEs.map(m => (
                   <div key={m.id} className="flex items-center gap-2 py-1 border-b border-gray-50 last:border-0">
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[9px] font-bold flex-shrink-0">
+                    <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 dark:text-indigo-300 flex items-center justify-center text-[9px] font-bold flex-shrink-0">
                       {m.avatar || m.name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -771,8 +771,8 @@ function ProjectDetailPanel({
         <div className="space-y-3">
 
           {/* OTD / OQD */}
-          <div className="bg-white rounded-lg border border-indigo-200 p-3">
-            <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide mb-3">{t.cor_otd_global} &amp; {t.cor_oqd_global}</h4>
+          <div className="bg-white dark:bg-card rounded-lg border border-indigo-200 dark:border-indigo-900 p-3">
+            <h4 className="text-[10px] font-bold text-indigo-800 dark:text-indigo-200 uppercase tracking-wide mb-3">{t.cor_otd_global} &amp; {t.cor_oqd_global}</h4>
             {editMode ? (
               <div className="grid grid-cols-2 gap-3">
                 <EF label="OTD %" value={draftP.csvOtdPercent} editMode={editMode} onChange={v => setP("csvOtdPercent", v)} />
@@ -784,9 +784,9 @@ function ProjectDetailPanel({
                   { label: "OTD", val: otdVal },
                   { label: "OQD", val: oqdVal },
                 ].map(({ label, val }) => (
-                  <div key={label} className="rounded-lg p-3 text-center border border-gray-200">
+                  <div key={label} className="rounded-lg p-3 text-center border border-gray-200 dark:border-border">
                     <p className="text-[9px] font-semibold text-muted-foreground mb-1">{label}</p>
-                    <p className={`text-2xl font-bold leading-none ${val===null?"text-gray-400":val>=95?"text-emerald-700":val>=80?"text-amber-600":"text-red-600"}`}>
+                    <p className={`text-2xl font-bold leading-none ${val===null?"text-gray-400 dark:text-gray-500":val>=95?"text-emerald-700":val>=80?"text-amber-600":"text-red-600"}`}>
                       {val!==null?`${Math.round(val)}%`:t.cor_nd}
                     </p>
                     <p className="text-[9px] text-muted-foreground mt-1">Target ≥ 95%</p>
@@ -800,8 +800,8 @@ function ProjectDetailPanel({
           </div>
 
           {/* Health Indicators */}
-          <div className="bg-white rounded-lg border border-indigo-200 p-3">
-            <h4 className="text-[10px] font-bold text-indigo-800 uppercase tracking-wide mb-2">Health Indicators</h4>
+          <div className="bg-white dark:bg-card rounded-lg border border-indigo-200 dark:border-indigo-900 p-3">
+            <h4 className="text-[10px] font-bold text-indigo-800 dark:text-indigo-200 uppercase tracking-wide mb-2">Health Indicators</h4>
             <div className="space-y-2">
               {(["currentStatus","milestonesStatus","resourcesStatus","issuesStatus","risksStatus"] as const).map((field, idx) => {
                 const labels = ["Delivery","Governance","Resources","Issues","Risks"];
@@ -813,7 +813,7 @@ function ProjectDetailPanel({
                       <select
                         value={draftR[field]}
                         onChange={e => setR(field, e.target.value)}
-                        className="flex-1 text-[9px] border border-indigo-200 rounded px-1 py-0.5 bg-white"
+                        className="flex-1 text-[9px] border border-indigo-200 dark:border-indigo-900 rounded px-1 py-0.5 bg-white dark:bg-card"
                       >
                         <option value="G">☀️ On Track</option>
                         <option value="A">⛅ At Risk</option>
@@ -834,7 +834,7 @@ function ProjectDetailPanel({
           </div>
 
           {/* Risks & Mitigation */}
-          <div className="bg-white rounded-lg border border-indigo-200 overflow-hidden">
+          <div className="bg-white dark:bg-card rounded-lg border border-indigo-200 dark:border-indigo-900 overflow-hidden">
             <button
               className="w-full flex items-center justify-between px-3 py-2 hover:bg-red-50/50 transition-colors"
               onClick={() => setRisksOpen(o => !o)}
@@ -866,13 +866,13 @@ function ProjectDetailPanel({
       {/* ── Modal confirmación guardar ──────────────────────────────────── */}
       {confirmOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-indigo-100">
-            <h3 className="text-sm font-bold text-gray-800 mb-1">{lang === "en" ? "Confirm changes?" : "¿Confirmar cambios?"}</h3>
+          <div className="bg-white dark:bg-card rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-indigo-100">
+            <h3 className="text-sm font-bold text-gray-800 dark:text-foreground mb-1">{lang === "en" ? "Confirm changes?" : "¿Confirmar cambios?"}</h3>
             <p className="text-xs text-muted-foreground mb-5">{lang === "en" ? <>All changes to <strong>{p.name}</strong> will be saved.</> : <>Se guardarán todos los cambios realizados en <strong>{p.name}</strong>.</>}</p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmOpen(false)}
-                className="px-4 py-2 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-xs border border-gray-200 dark:border-border rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:bg-muted/40 transition-colors"
               >
                 {lang === "en" ? "Cancel" : "Cancelar"}
               </button>
@@ -949,11 +949,11 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl border border-indigo-200 shadow-2xl w-full max-w-lg mx-4">
+      <div className="bg-white dark:bg-card rounded-2xl border border-indigo-200 dark:border-indigo-900 shadow-2xl w-full max-w-lg mx-4">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-sm font-bold text-indigo-800">{t.pf_new_service}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-border">
+          <h2 className="text-sm font-bold text-indigo-800 dark:text-indigo-200">{t.pf_new_service}</h2>
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-300 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -961,7 +961,7 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Nombre */}
           <div>
-            <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">
+            <label className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide block mb-1">
               Service Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -970,7 +970,7 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
               onChange={e => setF("name", e.target.value)}
               required
               placeholder="e.g. Production Support Transbank"
-              className="w-full text-[11px] border border-indigo-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full text-[11px] border border-indigo-200 dark:border-indigo-900 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               autoFocus
             />
           </div>
@@ -983,24 +983,24 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
               { label: t.cor_model_label,  key: "serviceType" as const, ph: "e.g. Competence Center" },
             ] as { label: string; key: keyof typeof EMPTY_NEW_SERVICE; ph: string }[]).map(({ label, key, ph }) => (
               <div key={key}>
-                <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{label}</label>
+                <label className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide block mb-1">{label}</label>
                 <input
                   type="text"
                   value={form[key]}
                   onChange={e => setF(key, e.target.value)}
                   placeholder={ph}
-                  className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="w-full text-[11px] border border-gray-200 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
               </div>
             ))}
 
             {/* BM — dropdown */}
             <div>
-              <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">BM / Manager</label>
+              <label className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide block mb-1">BM / Manager</label>
               <select
                 value={form.manager}
                 onChange={e => setF("manager", e.target.value)}
-                className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                className="w-full text-[11px] border border-gray-200 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-card"
               >
                 <option value="">— Seleccionar BM —</option>
                 {knownManagers.map(m => <option key={m} value={m}>{m}</option>)}
@@ -1012,11 +1012,11 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
 
             {/* Team Leader — dropdown */}
             <div>
-              <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">Team Leader</label>
+              <label className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide block mb-1">Team Leader</label>
               <select
                 value={form.leader}
                 onChange={e => setF("leader", e.target.value)}
-                className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                className="w-full text-[11px] border border-gray-200 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-card"
               >
                 <option value="">— Seleccionar Team Leader —</option>
                 {knownLeaders.map(l => <option key={l} value={l}>{l}</option>)}
@@ -1029,11 +1029,11 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">Estado</label>
+              <label className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide block mb-1">Estado</label>
               <select
                 value={form.status}
                 onChange={e => setF("status", e.target.value)}
-                className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                className="w-full text-[11px] border border-gray-200 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-card"
               >
                 {STATUS_OPTIONS.map(s => (
                   <option key={s} value={s}>{STATUS_LABELS[s]}</option>
@@ -1041,31 +1041,31 @@ function NewServiceModal({ onClose, onSave }: { onClose: () => void; onSave: (p:
               </select>
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{t.cor_start_label}</label>
+              <label className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide block mb-1">{t.cor_start_label}</label>
               <input
                 type="date"
                 value={form.startDate}
                 onChange={e => setF("startDate", e.target.value)}
-                className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full text-[11px] border border-gray-200 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{t.cor_end_label}</label>
+              <label className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide block mb-1">{t.cor_end_label}</label>
               <input
                 type="date"
                 value={form.endDate}
                 onChange={e => setF("endDate", e.target.value)}
-                className="w-full text-[11px] border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full text-[11px] border border-gray-200 dark:border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-border">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-[11px] font-semibold border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 text-[11px] font-semibold border border-gray-300 dark:border-border text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:bg-muted/40 transition-colors"
             >
               Cancelar
             </button>
@@ -1579,7 +1579,7 @@ function CORView() {
               setEditingCell(null);
             }}
             onBlur={() => setEditingCell(null)}
-            className="text-[9px] border border-indigo-300 rounded p-0.5 bg-white w-full"
+            className="text-[9px] border border-indigo-300 rounded p-0.5 bg-white dark:bg-card w-full"
           >
             <option value="">⬚ Auto</option>
             <option value="up">↗ Mejora</option>
@@ -1599,7 +1599,7 @@ function CORView() {
               setEditingCell(null);
             }}
             onBlur={() => setEditingCell(null)}
-            className="text-[9px] border border-indigo-300 rounded p-0.5 bg-white w-full"
+            className="text-[9px] border border-indigo-300 rounded p-0.5 bg-white dark:bg-card w-full"
           >
             <option value="G">☀️ On Track</option>
             <option value="A">⛅ At Risk</option>
@@ -1637,7 +1637,7 @@ function CORView() {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span className="bg-muted/40 border border-border px-3 py-1.5 rounded-lg">{today}</span>
-          <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-medium px-3 py-1.5 rounded-lg">
+          <span className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900 text-indigo-700 dark:text-indigo-300 font-medium px-3 py-1.5 rounded-lg">
             {kpiMonthProjects.length} {t.pf_services}
           </span>
           {saveStatus && <span className="text-[10px] text-emerald-600 font-medium">{saveStatus}</span>}
@@ -1648,7 +1648,7 @@ function CORView() {
               type="month"
               value={activeMonth}
               onChange={e => { setActiveMonth(e.target.value); setSelectedId(null); }}
-              className="text-[11px] border border-border rounded-lg px-2 py-1.5 bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="text-[11px] border border-border rounded-lg px-2 py-1.5 bg-white dark:bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-400"
               disabled={monthLoading}
             />
             {monthLoading && <span className="text-[10px] text-muted-foreground animate-pulse">…</span>}
@@ -1666,13 +1666,13 @@ function CORView() {
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(o => !o)}
-              className="flex items-center gap-1.5 bg-white border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium px-3 py-1.5 rounded-lg transition-colors"
+              className="flex items-center gap-1.5 bg-white dark:bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium px-3 py-1.5 rounded-lg transition-colors"
             >
               {t.pf_actions}
               <ChevronDown className="w-3 h-3" />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
                 <button
                   onClick={() => { setShowNewModal(true); setMenuOpen(false); }}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
@@ -1708,15 +1708,15 @@ function CORView() {
 
       {/* ── Banner mes anterior ────────────────────────────────────────── */}
       {!isCurrentMonth && (
-        <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-2.5 print:hidden">
-          <Clock className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+        <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900 rounded-xl px-4 py-2.5 print:hidden">
+          <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
           <div className="flex-1">
-            <span className="text-xs font-semibold text-indigo-800 capitalize">{activeMonthLabel}</span>
-            {!monthData && <span className="text-[10px] text-indigo-600 ml-2">— {lang === "en" ? "no saved data yet" : "sin datos guardados aún"}</span>}
+            <span className="text-xs font-semibold text-indigo-800 dark:text-indigo-200 capitalize">{activeMonthLabel}</span>
+            {!monthData && <span className="text-[10px] text-indigo-600 dark:text-indigo-400 ml-2">— {lang === "en" ? "no saved data yet" : "sin datos guardados aún"}</span>}
           </div>
           <button
             onClick={() => { setActiveMonth(currentMonth()); setMonthData(null); }}
-            className="text-[10px] font-semibold text-indigo-700 border border-indigo-300 bg-white px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition-colors"
+            className="text-[10px] font-semibold text-indigo-700 dark:text-indigo-300 border border-indigo-300 bg-white dark:bg-card px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition-colors"
           >
             {lang === "en" ? "Current month" : "Mes actual"}
           </button>
@@ -1725,16 +1725,16 @@ function CORView() {
 
       {/* ── Manual Override Panel ──────────────────────────────────────── */}
       {overrideMode && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-4">
+        <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900 rounded-xl p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-xs font-bold text-indigo-800 uppercase tracking-wide">📊 Ingreso Manual de Datos del Overview</h3>
-              <p className="text-[10px] text-indigo-600 mt-0.5">Los datos manuales tienen prioridad sobre los calculados automáticamente. Deja en blanco para usar el valor calculado.</p>
+              <h3 className="text-xs font-bold text-indigo-800 dark:text-indigo-200 uppercase tracking-wide">📊 Ingreso Manual de Datos del Overview</h3>
+              <p className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-0.5">Los datos manuales tienen prioridad sobre los calculados automáticamente. Deja en blanco para usar el valor calculado.</p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setDraftManual(EMPTY_MANUAL)}
-                className="px-3 py-1 text-[10px] font-semibold border border-red-300 text-red-600 bg-white rounded-lg hover:bg-red-50 transition-colors"
+                className="px-3 py-1 text-[10px] font-semibold border border-red-300 text-red-600 bg-white dark:bg-card rounded-lg hover:bg-red-50 transition-colors"
               >
                 🗑️ Limpiar todo
               </button>
@@ -1746,7 +1746,7 @@ function CORView() {
               </button>
               <button
                 onClick={cancelOverride}
-                className="px-3 py-1 text-[10px] font-semibold border border-gray-300 text-gray-600 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-3 py-1 text-[10px] font-semibold border border-gray-300 dark:border-border text-gray-600 dark:text-gray-300 bg-white dark:bg-card rounded-lg hover:bg-gray-50 dark:bg-muted/40 transition-colors"
               >
                 {t.cor_cancel_edit}
               </button>
@@ -1761,14 +1761,14 @@ function CORView() {
               { label: `OTD % (0-100)`,                         key: "otd"     as const, ph: `e.g. ${corKPIsCalc.avgOTD!==null?corKPIsCalc.avgOTD.toFixed(1):"N/A"}` },
               { label: `OQD % (0-100)`,                         key: "oqd"     as const, ph: `e.g. ${corKPIsCalc.avgOQD!==null?corKPIsCalc.avgOQD.toFixed(1):"N/A"}` },
             ].map(({ label, key, ph }) => (
-              <div key={key} className="bg-white rounded-lg border border-indigo-200 p-2.5">
-                <label className="text-[9px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{label}</label>
+              <div key={key} className="bg-white dark:bg-card rounded-lg border border-indigo-200 dark:border-indigo-900 p-2.5">
+                <label className="text-[9px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide block mb-1">{label}</label>
                 <input
                   type="text"
                   value={draftManual[key]}
                   onChange={e => setDM(key, e.target.value)}
                   placeholder={ph}
-                  className="w-full text-[11px] border border-indigo-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
+                  className="w-full text-[11px] border border-indigo-200 dark:border-indigo-900 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white dark:bg-card"
                 />
               </div>
             ))}
@@ -1780,15 +1780,15 @@ function CORView() {
               { label: "Customer Delivery", key: "customers" as const, hint: "One line per client: Client,Revenue\ne.g. Transbank,500000" },
               { label: "Delivery Model",    key: "models"    as const, hint: "One line per model: Model,Revenue\ne.g. Fixed Price,300000" },
             ].map(({ label, key, hint }) => (
-              <div key={key} className="bg-white rounded-lg border border-indigo-200 p-2.5">
-                <label className="text-[9px] font-semibold text-indigo-700 uppercase tracking-wide block mb-1">{label}</label>
+              <div key={key} className="bg-white dark:bg-card rounded-lg border border-indigo-200 dark:border-indigo-900 p-2.5">
+                <label className="text-[9px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wide block mb-1">{label}</label>
                 <p className="text-[9px] text-indigo-500 mb-1.5 whitespace-pre-line leading-relaxed">{hint}</p>
                 <textarea
                   value={draftManual[key]}
                   onChange={e => setDM(key, e.target.value)}
                   rows={5}
                   placeholder={hint}
-                  className="w-full text-[10px] font-mono border border-indigo-200 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white resize-none"
+                  className="w-full text-[10px] font-mono border border-indigo-200 dark:border-indigo-900 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white dark:bg-card resize-none"
                 />
               </div>
             ))}
@@ -1799,13 +1799,13 @@ function CORView() {
       {/* ── Modal confirmación KPIs manuales ───────────────────────────── */}
       {confirmKPI && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-indigo-100">
-            <h3 className="text-sm font-bold text-gray-800 mb-1">{lang === "en" ? "Confirm manual KPIs?" : "¿Confirmar KPIs manuales?"}</h3>
+          <div className="bg-white dark:bg-card rounded-xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-indigo-100">
+            <h3 className="text-sm font-bold text-gray-800 dark:text-foreground mb-1">{lang === "en" ? "Confirm manual KPIs?" : "¿Confirmar KPIs manuales?"}</h3>
             <p className="text-xs text-muted-foreground mb-5">{lang === "en" ? "COR override values will be saved to Supabase." : "Se guardarán los valores de override del COR en Supabase."}</p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmKPI(false)}
-                className="px-4 py-2 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-xs border border-gray-200 dark:border-border rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:bg-muted/40 transition-colors"
               >
                 {lang === "en" ? "Cancel" : "Cancelar"}
               </button>
@@ -1830,7 +1830,7 @@ function CORView() {
       {/* ── Global KPI Cards ───────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {/* Revenue */}
-        <div className="rounded-xl border border-border bg-white p-3">
+        <div className="rounded-xl border border-border bg-white dark:bg-card p-3">
           <div className="flex items-center gap-1.5 mb-2">
             <DollarSign className="w-3.5 h-3.5 text-indigo-500" />
             <span className="text-[10px] font-medium text-muted-foreground">{t.cor_revenue_total_kpi}</span>
@@ -1842,13 +1842,13 @@ function CORView() {
             <p className="text-lg font-bold text-gray-300 leading-none">—</p>
             <p className="text-[10px] text-muted-foreground mt-1">Pending confirmation</p>
           </>}
-          <div className="mt-2 pt-1.5 border-t border-gray-100">
+          <div className="mt-2 pt-1.5 border-t border-gray-100 dark:border-border">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
 
         {/* Gross Margin */}
-        <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white border-border":corKPIs.grossMargin>=34?"bg-emerald-50 border-emerald-200":corKPIs.grossMargin>=25?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
+        <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white dark:bg-card border-border":corKPIs.grossMargin>=34?"bg-emerald-50 border-emerald-200":corKPIs.grossMargin>=25?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
           <div className="flex items-center gap-1.5 mb-2">
             <TrendingUp className={`w-3.5 h-3.5 ${!hasConfirmedData?"text-gray-300":corKPIs.grossMargin>=34?"text-emerald-600":corKPIs.grossMargin>=25?"text-amber-600":"text-red-600"}`} />
             <span className="text-[10px] font-medium text-muted-foreground">Gross Margin</span>
@@ -1862,19 +1862,19 @@ function CORView() {
             <p className="text-lg font-bold text-gray-300 leading-none">—</p>
             <p className="text-[10px] text-muted-foreground mt-1">Pending confirmation</p>
           </>}
-          <div className="mt-2 pt-1.5 border-t border-gray-100">
+          <div className="mt-2 pt-1.5 border-t border-gray-100 dark:border-border">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
 
         {/* OTD */}
-        <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white border-border":corKPIs.avgOTD===null?"bg-gray-50 border-gray-200":corKPIs.avgOTD>=95?"bg-emerald-50 border-emerald-200":corKPIs.avgOTD>=80?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
+        <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white dark:bg-card border-border":corKPIs.avgOTD===null?"bg-gray-50 dark:bg-muted/40 border-gray-200 dark:border-border":corKPIs.avgOTD>=95?"bg-emerald-50 border-emerald-200":corKPIs.avgOTD>=80?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
           <div className="flex items-center gap-1.5 mb-2">
-            <Target className={`w-3.5 h-3.5 ${!hasConfirmedData?"text-gray-300":corKPIs.avgOTD===null?"text-gray-400":corKPIs.avgOTD>=95?"text-emerald-600":corKPIs.avgOTD>=80?"text-amber-600":"text-red-600"}`} />
+            <Target className={`w-3.5 h-3.5 ${!hasConfirmedData?"text-gray-300":corKPIs.avgOTD===null?"text-gray-400 dark:text-gray-500":corKPIs.avgOTD>=95?"text-emerald-600":corKPIs.avgOTD>=80?"text-amber-600":"text-red-600"}`} />
             <span className="text-[10px] font-medium text-muted-foreground">{t.cor_otd_global}</span>
           </div>
           {hasConfirmedData ? <>
-            <p className={`text-lg font-bold leading-none ${corKPIs.avgOTD===null?"text-gray-400":corKPIs.avgOTD>=95?"text-emerald-700":corKPIs.avgOTD>=80?"text-amber-700":"text-red-700"}`}>
+            <p className={`text-lg font-bold leading-none ${corKPIs.avgOTD===null?"text-gray-400 dark:text-gray-500":corKPIs.avgOTD>=95?"text-emerald-700":corKPIs.avgOTD>=80?"text-amber-700":"text-red-700"}`}>
               {corKPIs.avgOTD!==null?`${Math.round(corKPIs.avgOTD)}%`:t.cor_nd}
             </p>
             <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
@@ -1882,19 +1882,19 @@ function CORView() {
             <p className="text-lg font-bold text-gray-300 leading-none">—</p>
             <p className="text-[10px] text-muted-foreground mt-1">Pending confirmation</p>
           </>}
-          <div className="mt-2 pt-1.5 border-t border-gray-100">
+          <div className="mt-2 pt-1.5 border-t border-gray-100 dark:border-border">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
 
         {/* OQD */}
-        <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white border-border":corKPIs.avgOQD===null?"bg-gray-50 border-gray-200":corKPIs.avgOQD>=95?"bg-emerald-50 border-emerald-200":corKPIs.avgOQD>=80?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
+        <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white dark:bg-card border-border":corKPIs.avgOQD===null?"bg-gray-50 dark:bg-muted/40 border-gray-200 dark:border-border":corKPIs.avgOQD>=95?"bg-emerald-50 border-emerald-200":corKPIs.avgOQD>=80?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
           <div className="flex items-center gap-1.5 mb-2">
-            <CheckCircle2 className={`w-3.5 h-3.5 ${!hasConfirmedData?"text-gray-300":corKPIs.avgOQD===null?"text-gray-400":corKPIs.avgOQD>=95?"text-emerald-600":corKPIs.avgOQD>=80?"text-amber-600":"text-red-600"}`} />
+            <CheckCircle2 className={`w-3.5 h-3.5 ${!hasConfirmedData?"text-gray-300":corKPIs.avgOQD===null?"text-gray-400 dark:text-gray-500":corKPIs.avgOQD>=95?"text-emerald-600":corKPIs.avgOQD>=80?"text-amber-600":"text-red-600"}`} />
             <span className="text-[10px] font-medium text-muted-foreground">{t.cor_oqd_global}</span>
           </div>
           {hasConfirmedData ? <>
-            <p className={`text-lg font-bold leading-none ${corKPIs.avgOQD===null?"text-gray-400":corKPIs.avgOQD>=95?"text-emerald-700":corKPIs.avgOQD>=80?"text-amber-700":"text-red-700"}`}>
+            <p className={`text-lg font-bold leading-none ${corKPIs.avgOQD===null?"text-gray-400 dark:text-gray-500":corKPIs.avgOQD>=95?"text-emerald-700":corKPIs.avgOQD>=80?"text-amber-700":"text-red-700"}`}>
               {corKPIs.avgOQD!==null?`${Math.round(corKPIs.avgOQD)}%`:t.cor_nd}
             </p>
             <p className="text-[10px] text-muted-foreground mt-1">Target ≥ 95%</p>
@@ -1902,13 +1902,13 @@ function CORView() {
             <p className="text-lg font-bold text-gray-300 leading-none">—</p>
             <p className="text-[10px] text-muted-foreground mt-1">Pending confirmation</p>
           </>}
-          <div className="mt-2 pt-1.5 border-t border-gray-100">
+          <div className="mt-2 pt-1.5 border-t border-gray-100 dark:border-border">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
 
         {/* Weather summary */}
-        <div className="rounded-xl border border-border bg-white p-3">
+        <div className="rounded-xl border border-border bg-white dark:bg-card p-3">
           <div className="flex items-center gap-1.5 mb-2">
             <Gauge className="w-3.5 h-3.5 text-indigo-500" />
             <span className="text-[10px] font-medium text-muted-foreground">{t.cor_overall_status}</span>
@@ -1920,7 +1920,7 @@ function CORView() {
             <span className="text-sm">✅</span><span className="text-[11px] font-bold text-teal-700">{corKPIs.wc.done}</span>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1">{corKPIs.activeCount} {t.cor_active_services}</p>
-          <div className="mt-2 pt-1.5 border-t border-gray-100">
+          <div className="mt-2 pt-1.5 border-t border-gray-100 dark:border-border">
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
@@ -1930,7 +1930,7 @@ function CORView() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
         {/* Customer Delivery Pie */}
-        <div className="bg-white rounded-xl border border-border p-4">
+        <div className="bg-white dark:bg-card rounded-xl border border-border p-4">
           <h3 className="text-xs font-semibold mb-1">Customer Delivery</h3>
           <p className="text-[10px] text-muted-foreground mb-2">{t.cor_revenue_by_client}</p>
           <div className="flex items-center gap-2">
@@ -1958,7 +1958,7 @@ function CORView() {
         </div>
 
         {/* Delivery Model Pie */}
-        <div className="bg-white rounded-xl border border-border p-4">
+        <div className="bg-white dark:bg-card rounded-xl border border-border p-4">
           <h3 className="text-xs font-semibold mb-1">Delivery Model</h3>
           <p className="text-[10px] text-muted-foreground mb-2">{t.cor_revenue_by_type}</p>
           <div className="flex items-center gap-2">
@@ -1985,7 +1985,7 @@ function CORView() {
         </div>
 
         {/* Revenue per Model Bar */}
-        <div className="bg-white rounded-xl border border-border p-4">
+        <div className="bg-white dark:bg-card rounded-xl border border-border p-4">
           <h3 className="text-xs font-semibold mb-1">{t.cor_revenue_by_model}</h3>
           <p className="text-[10px] text-muted-foreground mb-2">{t.cor_comparative}</p>
           <ResponsiveContainer width="100%" height={130}>
@@ -2002,7 +2002,7 @@ function CORView() {
       </div>
 
       {/* ── Gross Margin Bar ────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-border p-4">
+      <div className="bg-white dark:bg-card rounded-xl border border-border p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-xs font-semibold">{t.cor_margin_by_service}</h3>
           <div className="flex items-center gap-4 text-[9px] text-muted-foreground">
@@ -2055,7 +2055,7 @@ function CORView() {
       </div>
 
       {/* ── KPI Definitions ─────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-border p-4">
+      <div className="bg-white dark:bg-card rounded-xl border border-border p-4">
         <h3 className="text-xs font-semibold mb-3">{t.cor_kpi_def_title}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-2">
           {[
@@ -2076,7 +2076,7 @@ function CORView() {
       </div>
 
       {/* ── Projects Overview Table ─────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
+      <div className="bg-white dark:bg-card rounded-xl border border-border overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex items-center justify-between">
           <h3 className="text-xs font-semibold">
             {t.cor_projects_overview}
@@ -2170,7 +2170,7 @@ function CORView() {
                   >
                     <span className="inline-flex items-center gap-1">
                       {col.label}
-                      <span className="text-gray-400 text-[9px]">
+                      <span className="text-gray-400 dark:text-gray-500 text-[9px]">
                         {sortField === col.field ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
                       </span>
                     </span>
@@ -2201,7 +2201,7 @@ function CORView() {
                 return (
                   <Fragment key={p.id}>
                     <tr
-                      className={`cursor-pointer transition-colors border-t border-gray-100 ${isOpen?"bg-indigo-50":i%2===0?"bg-white hover:bg-gray-50":"bg-gray-50/50 hover:bg-gray-100/50"}`}
+                      className={`cursor-pointer transition-colors border-t border-gray-100 dark:border-border ${isOpen?"bg-indigo-50 dark:bg-indigo-950/30":i%2===0?"bg-white dark:bg-card hover:bg-gray-50 dark:bg-muted/40":"bg-gray-50/50 hover:bg-gray-100/50"}`}
                       onClick={() => { if (!editingCell) setSelectedId(isOpen?null:p.id); }}
                     >
                       <td className="px-3 py-2 text-muted-foreground">
@@ -2216,8 +2216,8 @@ function CORView() {
                           ? p.serviceType.toLowerCase().includes("competence") ? "3"
                           : p.serviceType.toLowerCase().includes("service center") ? "4"
                           : p.serviceType.toLowerCase().includes("fixed") ? "5"
-                          : <span className="text-gray-400">—</span>
-                          : <span className="text-gray-400">—</span>}
+                          : <span className="text-gray-400 dark:text-gray-500">—</span>
+                          : <span className="text-gray-400 dark:text-gray-500">—</span>}
                       </td>
                       <td className="px-3 py-2 text-center text-muted-foreground whitespace-nowrap">
                         {p.startDate ? new Date(p.startDate + "T00:00:00").toLocaleDateString(lang === "en" ? "en-US" : "es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}
@@ -2252,7 +2252,7 @@ function CORView() {
                         {cellInput(p.id,"ftes",ftes) || (
                           <div className="flex items-center justify-center gap-1">
                             {ftes}
-                            <Pencil className="w-2.5 h-2.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Pencil className="w-2.5 h-2.5 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                         )}
                       </td>
@@ -2268,8 +2268,8 @@ function CORView() {
                           <div className="flex items-center justify-end gap-1">
                             {marginPct!==null
                               ? <span className={`font-semibold ${marginPct>=34?"text-emerald-700":marginPct>=25?"text-amber-700":"text-red-600"}`}>{marginPct}%</span>
-                              : <span className="text-gray-400">{t.cor_nd}</span>}
-                            <Pencil className="w-2.5 h-2.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              : <span className="text-gray-400 dark:text-gray-500">{t.cor_nd}</span>}
+                            <Pencil className="w-2.5 h-2.5 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                         )}
                       </td>
@@ -2280,7 +2280,7 @@ function CORView() {
                           <span className={`font-semibold text-[9px] ${tmd >= 0 ? "text-emerald-700" : "text-red-600"}`}>
                             {tmd > 0 ? "+" : ""}{tmd}pp
                           </span>
-                        ) : <span className="text-gray-400">{t.cor_nd}</span>}
+                        ) : <span className="text-gray-400 dark:text-gray-500">{t.cor_nd}</span>}
                       </td>
 
                       {/* OTD — inline edit */}
@@ -2293,7 +2293,7 @@ function CORView() {
                             <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${pctBadge(otdVal)}`}>
                               {otdVal!==null?`${Math.round(otdVal)}%`:t.cor_nd}
                             </span>
-                            <Pencil className="w-2.5 h-2.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Pencil className="w-2.5 h-2.5 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                         )}
                       </td>
@@ -2308,7 +2308,7 @@ function CORView() {
                             <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${pctBadge(oqdVal)}`}>
                               {oqdVal!==null?`${Math.round(oqdVal)}%`:t.cor_nd}
                             </span>
-                            <Pencil className="w-2.5 h-2.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Pencil className="w-2.5 h-2.5 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                           </div>
                         )}
                       </td>
@@ -2325,7 +2325,7 @@ function CORView() {
                             </span>
                             <div className="flex items-center gap-0.5">
                               <span className="text-[9px] text-muted-foreground">{csat}</span>
-                              <Pencil className="w-2 h-2 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <Pencil className="w-2 h-2 text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                           </div>
                         )}
@@ -2354,10 +2354,10 @@ function CORView() {
                         {cellInput(p.id,"trend","") || (() => {
                           const manual = rep?.statusTrend;
                           if (manual === "up")   return <span className="text-emerald-500 text-xl leading-none">↗</span>;
-                          if (manual === "same") return <span className="text-gray-400 text-xl leading-none">→</span>;
+                          if (manual === "same") return <span className="text-gray-400 dark:text-gray-500 text-xl leading-none">→</span>;
                           if (manual === "down") return <span className="text-red-500 text-xl leading-none">↘</span>;
                           if (!rep?.previousStatus || rep.previousStatus === "grey")
-                            return <span className="text-gray-300 text-sm group-hover:text-gray-400 transition-colors">↔</span>;
+                            return <span className="text-gray-300 text-sm group-hover:text-gray-400 dark:text-gray-500 transition-colors">↔</span>;
                           const diff = (STATUS_RANK[rep.overallStatus ?? "grey"]??3) - (STATUS_RANK[rep.previousStatus]??3);
                           if (diff > 0) return <span className="text-emerald-300 text-xl leading-none">↗</span>;
                           if (diff < 0) return <span className="text-red-300 text-xl leading-none">↘</span>;
@@ -2458,7 +2458,7 @@ function CORView() {
 
 function TransformationView() {
   return (
-    <div className="bg-white rounded-xl border border-border overflow-hidden" style={{ height: "calc(100vh - 180px)" }}>
+    <div className="bg-white dark:bg-card rounded-xl border border-border overflow-hidden" style={{ height: "calc(100vh - 180px)" }}>
       <iframe
         src="/commitment-models.pdf"
         className="w-full h-full"
@@ -3053,7 +3053,7 @@ function FinancialKPIView() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white rounded-xl border border-border p-5">
+      <div className="bg-white dark:bg-card rounded-xl border border-border p-5">
         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">SII Group Chile</div>
         <h2 className="text-xl font-medium text-foreground mb-1">Activity Detail & Calculator</h2>
         <p className="text-sm text-muted-foreground">
@@ -3062,7 +3062,7 @@ function FinancialKPIView() {
       </div>
 
       {/* Search */}
-      <div className="bg-white rounded-xl border border-border p-5">
+      <div className="bg-white dark:bg-card rounded-xl border border-border p-5">
         <div className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Activity</div>
         <BuscadorActividad onSelect={a => { setActSel(a); }} selected={actSel} catalogo={catalogo} />
         {actSel && (
@@ -3072,7 +3072,7 @@ function FinancialKPIView() {
       </div>
 
       {!actSel ? (
-        <div className="bg-white rounded-xl border border-border p-12 text-center">
+        <div className="bg-white dark:bg-card rounded-xl border border-border p-12 text-center">
           <p className="text-sm text-muted-foreground mb-4">
             {loading ? "Loading activity data..." : "Select an activity to view monthly KPIs with headcount and projection"}
           </p>
@@ -3088,7 +3088,7 @@ function FinancialKPIView() {
           )}
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-border overflow-hidden">
+        <div className="bg-white dark:bg-card rounded-xl border border-border overflow-hidden">
           {/* Activity header */}
           <div style={{background:"#17375e",color:"#fff",padding:"12px 18px",
             display:"flex",gap:24,alignItems:"center",flexWrap:"wrap"}}>
@@ -3191,7 +3191,7 @@ export default function PortfolioPage() {
             onClick={() => setActiveTab(tab)}
             className={`px-5 py-2 text-xs font-semibold rounded-t-lg transition-colors -mb-px ${
               activeTab===tab
-                ? "bg-white border border-b-white border-border text-foreground"
+                ? "bg-white dark:bg-card border border-b-white border-border text-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
             }`}
           >

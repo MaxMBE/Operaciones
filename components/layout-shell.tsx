@@ -42,7 +42,7 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
       {!sidebarOpen && (
         <button
           onClick={toggleSidebar}
-          className="fixed left-0 top-1/2 -translate-y-1/2 z-50 w-6 h-14 bg-white border border-l-0 border-border rounded-r-lg flex items-center justify-center shadow-md hover:bg-indigo-50 transition-colors print:hidden"
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-50 w-6 h-14 bg-card border border-l-0 border-border rounded-r-lg flex items-center justify-center shadow-md hover:bg-muted transition-colors print:hidden"
           title="Show menu"
         >
           <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />

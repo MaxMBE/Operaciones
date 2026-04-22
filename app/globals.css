@@ -21,6 +21,24 @@
     --ring: 221 83% 53%;
     --radius: 0.5rem;
   }
+
+  .dark {
+    --background: 222 20% 9%;
+    --foreground: 220 15% 92%;
+    --card: 222 18% 13%;
+    --card-foreground: 220 15% 92%;
+    --primary: 221 83% 62%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 222 15% 20%;
+    --secondary-foreground: 220 15% 92%;
+    --muted: 222 15% 18%;
+    --muted-foreground: 220 10% 62%;
+    --accent: 222 15% 20%;
+    --accent-foreground: 220 15% 92%;
+    --border: 222 15% 22%;
+    --input: 222 15% 22%;
+    --ring: 221 83% 62%;
+  }
 }
 
 @layer base {

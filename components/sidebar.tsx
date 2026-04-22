@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { LayoutDashboard, Users, TrendingUp, Globe, PieChart, LogOut, ChevronLeft, Calculator } from "lucide-react";
+import { LayoutDashboard, Users, TrendingUp, Globe, PieChart, LogOut, ChevronLeft, Calculator, Moon, Sun } from "lucide-react";
 import { cn, getFiscalQuarter } from "@/lib/utils";
 import { useT, useLang } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 import { createClient } from "@/lib/supabase-client";
 
 interface SidebarProps {
@@ -18,6 +19,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   const router = useRouter();
   const t = useT();
   const { lang, toggleLang } = useLang();
+  const { theme, toggleTheme } = useTheme();
   const [fq, setFq] = useState<ReturnType<typeof getFiscalQuarter> | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
 
@@ -71,7 +73,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 h-full w-56 bg-white border-r border-border flex flex-col z-40 print:hidden transition-transform duration-300 ease-in-out",
+        "fixed left-0 top-0 h-full w-56 bg-card border-r border-border flex flex-col z-40 print:hidden transition-transform duration-300 ease-in-out",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}
     >
@@ -82,7 +84,7 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
         {/* Botón colapsar */}
         <button
           onClick={onToggle}
-          className="absolute -right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-white border border-border rounded-full flex items-center justify-center shadow-sm hover:bg-gray-50 transition-colors z-50"
+          className="absolute -right-3.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-card border border-border rounded-full flex items-center justify-center shadow-sm hover:bg-muted transition-colors z-50"
           title="Hide menu"
         >
           <ChevronLeft className="w-3.5 h-3.5 text-muted-foreground" />
@@ -91,9 +93,9 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
       {/* Bienvenida */}
       {userName && (
-        <div className="px-4 py-3 border-b border-border bg-indigo-50/60">
-          <p className="text-[9px] text-indigo-400 uppercase tracking-wide font-semibold">Welcome</p>
-          <p className="text-xs font-semibold text-indigo-800 truncate mt-0.5">{userName}</p>
+        <div className="px-4 py-3 border-b border-border bg-indigo-50/60 dark:bg-indigo-950/30">
+          <p className="text-[9px] text-indigo-400 dark:text-indigo-300 uppercase tracking-wide font-semibold">Welcome</p>
+          <p className="text-xs font-semibold text-indigo-800 dark:text-indigo-200 truncate mt-0.5">{userName}</p>
         </div>
       )}
 
@@ -130,11 +132,23 @@ export function Sidebar({ isOpen, onToggle }: SidebarProps) {
       )}
 
 
+      {/* Theme toggle */}
+      <div className="px-3 pt-3 border-t border-border">
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun className="w-3.5 h-3.5 flex-shrink-0" /> : <Moon className="w-3.5 h-3.5 flex-shrink-0" />}
+          {theme === "dark" ? "Light mode" : "Dark mode"}
+        </button>
+      </div>
+
       {/* Logout */}
-      <div className="px-3 py-3 border-t border-border">
+      <div className="px-3 py-3">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          className="flex items-center gap-2 w-full px-3 py-2 text-xs text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
         >
           <LogOut className="w-3.5 h-3.5 flex-shrink-0" />
           Sign out
