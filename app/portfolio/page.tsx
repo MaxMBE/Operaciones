@@ -14,6 +14,7 @@ import CareerPathTab from "@/components/career-path-tab";
 import { PrintHeader } from "@/components/print-header";
 import { MultiFilter } from "@/components/multi-filter";
 import { CsvUploadMenuItems } from "@/components/csv-upload-menu-items";
+import { MarginBandsChart } from "@/components/metrics/margin-bands-chart";
 import type { Project, ProjectReport, HealthStatus, TeamMember } from "@/types";
 import {
   CheckCircle2, TrendingUp, DollarSign,
@@ -2053,6 +2054,9 @@ function CORView() {
           </BarChart>
         </ResponsiveContainer>
       </div>
+
+      {/* ── Margin Bands Evolution ──────────────────────────────────────── */}
+      <MarginBandsChart />
 
       {/* ── KPI Definitions ─────────────────────────────────────────────── */}
       <div className="bg-white dark:bg-card rounded-xl border border-border p-4">
