@@ -2002,59 +2002,6 @@ function CORView() {
         </div>
       </div>
 
-      {/* ── Gross Margin Bar ────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-card rounded-xl border border-border p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold">{t.cor_margin_by_service}</h3>
-          <div className="flex items-center gap-4 text-[9px] text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block" />
-              Margen YTD %
-            </div>
-            <div className="flex items-center gap-1.5">
-              <svg width="20" height="6"><line x1="0" y1="3" x2="20" y2="3" stroke="#f97316" strokeWidth="2" strokeDasharray="5 3" /></svg>
-              Target 34%
-            </div>
-          </div>
-        </div>
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={marginBarData} margin={{ top:4, right:12, bottom:48, left:-8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-            <XAxis
-              dataKey="name"
-              tick={{ fontSize:8, fill:"#6b7280" }}
-              interval={0}
-              angle={-35}
-              textAnchor="end"
-              height={56}
-            />
-            <YAxis
-              domain={[0, 100]}
-              tick={{ fontSize:9, fill:"#6b7280" }}
-              tickFormatter={v=>`${v}%`}
-              axisLine={false}
-              tickLine={false}
-            />
-            <ReTT
-              contentStyle={{ fontSize:10, padding:"4px 10px", borderRadius:6, border:"1px solid #e5e7eb" }}
-              formatter={(v:number, _:string, props: { payload?: { fullName?: string } }) => [`${v}%`, props.payload?.fullName || "Margen YTD"]}
-            />
-            <ReferenceLine
-              y={34}
-              stroke="#f97316"
-              strokeWidth={2}
-              strokeDasharray="5 3"
-              ifOverflow="extendDomain"
-            />
-            <Bar dataKey="margin" radius={[3,3,0,0]} maxBarSize={48}>
-              {marginBarData.map((d,i) => (
-                <Cell key={i} fill={d.margin>=34?"#10b981":"#f59e0b"} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
       {/* ── Margin Bands Evolution ──────────────────────────────────────── */}
       <MarginBandsChart />
 
