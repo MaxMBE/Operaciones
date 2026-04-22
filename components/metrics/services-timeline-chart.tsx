@@ -48,7 +48,7 @@ function buildTimeline(
 function CustomTooltip({ active, payload, label, activeLabel, finalizedLabel }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-border rounded-lg shadow-sm px-3 py-2 text-xs">
+    <div className="bg-white dark:bg-card border border-border rounded-lg shadow-sm px-3 py-2 text-xs">
       <p className="font-semibold text-foreground mb-1">{label}</p>
       {payload.map((entry: { dataKey: string; value: number; color: string }) => (
         <div key={entry.dataKey} className="flex items-center gap-2">
@@ -75,7 +75,7 @@ export function ServicesTimelineChart() {
   const todayLabel = todayIndex >= 0 ? data[todayIndex].month : undefined;
 
   return (
-    <div className="bg-white rounded-xl border border-border p-5">
+    <div className="bg-white dark:bg-card rounded-xl border border-border p-5">
       <div className="mb-4">
         <h3 className="font-semibold text-sm text-foreground">{t.timeline_chart_title}</h3>
         <p className="text-xs text-muted-foreground mt-0.5">{t.timeline_chart_sub}</p>

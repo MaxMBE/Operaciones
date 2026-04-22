@@ -20,7 +20,7 @@ const HEALTH_META: Record<HealthStatus, { label: string; bg: string; text: strin
   G:    { label: "G",  bg: "bg-emerald-500", text: "text-white",    border: "border-emerald-600" },
   A:    { label: "A",  bg: "bg-amber-400",   text: "text-white",    border: "border-amber-500"   },
   R:    { label: "R",  bg: "bg-red-500",     text: "text-white",    border: "border-red-600"     },
-  grey: { label: "—",  bg: "bg-gray-300",    text: "text-gray-600", border: "border-gray-400"    },
+  grey: { label: "—",  bg: "bg-gray-300",    text: "text-gray-600 dark:text-gray-300", border: "border-gray-400"    },
   B:    { label: "B",  bg: "bg-blue-500",    text: "text-white",    border: "border-blue-600"    },
   done: { label: "✅", bg: "bg-teal-500",    text: "text-white",    border: "border-teal-600"    },
 };
@@ -29,7 +29,7 @@ const RISK_LABEL: Record<string, { label: string; bg: string; text: string }> = 
   G:    { label: "LOW",      bg: "bg-emerald-100", text: "text-emerald-700" },
   A:    { label: "ELEVATED", bg: "bg-amber-100",   text: "text-amber-700"   },
   R:    { label: "CRITICAL", bg: "bg-red-100",     text: "text-red-700"     },
-  grey: { label: "N/A",      bg: "bg-gray-100",    text: "text-gray-500"    },
+  grey: { label: "N/A",      bg: "bg-gray-100",    text: "text-gray-500 dark:text-gray-400 dark:text-gray-500"    },
   B:    { label: "STABLE",   bg: "bg-blue-100",    text: "text-blue-700"    },
   done: { label: "DONE",     bg: "bg-teal-100",    text: "text-teal-700"    },
 };
@@ -167,20 +167,20 @@ function WeeklyReportPanel({
       {editSection && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setEditSection(null)} />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg p-5 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+          <div className="relative bg-white dark:bg-card rounded-xl shadow-2xl w-full max-w-lg p-5 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
 
             {editSection === "header" && <>
               <h2 className="font-semibold text-sm text-foreground">Edit Status & Header Info</h2>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Overall Status</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Overall Status</label>
                   <select value={String(secDraft.overallStatus ?? "grey")} onChange={e => setS("overallStatus", e.target.value as HealthStatus)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none">
                     {HEALTH_OPTIONS.map(s => <option key={s} value={s}>{WEATHER_ICON[s]} {s === "grey" ? "N/A" : s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Status Trend</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Status Trend</label>
                   <select value={String(secDraft.statusTrend ?? "same")} onChange={e => setS("statusTrend", e.target.value as "up" | "same" | "down")}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none">
                     <option value="up">↑ Improving</option>
@@ -189,54 +189,54 @@ function WeeklyReportPanel({
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Risk Level</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Risk Level</label>
                   <select value={String(secDraft.risksStatus ?? "grey")} onChange={e => setS("risksStatus", e.target.value as HealthStatus)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none">
                     {HEALTH_OPTIONS.map(s => <option key={s} value={s}>{RISK_LABEL[s]?.label ?? s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">FTEs</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">FTEs</label>
                   <input value={String(secDraft.ftes ?? "")} onChange={e => setS("ftes", e.target.value)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="5" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Commitment Mode</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Commitment Mode</label>
                   <input value={String(secDraft.commitmentLevel ?? "")} onChange={e => setS("commitmentLevel", e.target.value)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="Fixed Price / CC" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Phase</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Phase</label>
                   <input value={String(secDraft.phase ?? "")} onChange={e => setS("phase", e.target.value)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="Design / Dev / UAT" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Report Date</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Report Date</label>
                   <input type="date" value={String(secDraft.reportDate ?? "")} onChange={e => setS("reportDate", e.target.value)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">TMD (Margin delta)</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">TMD (Margin delta)</label>
                   <input value={String(secDraft.marginImprovement ?? "")} onChange={e => setS("marginImprovement", e.target.value)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="+4pp" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Margin %</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Margin %</label>
                   <input value={String(secDraft.marginMonthly ?? "")} onChange={e => setS("marginMonthly", e.target.value)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="38%" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">OTD %</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">OTD %</label>
                   <input value={String(secDraft.otdPercent ?? "")} onChange={e => setS("otdPercent", e.target.value)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="95%" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">OQD %</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">OQD %</label>
                   <input value={String(secDraft.oqdPercent ?? "")} onChange={e => setS("oqdPercent", e.target.value)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="95%" />
                 </div>
                 <div className="col-span-2">
-                  <label className="text-xs text-gray-500 block mb-1">Short Description</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Short Description</label>
                   <input value={String(secDraft.statusNote ?? "")} onChange={e => setS("statusNote", e.target.value)}
                     className="w-full text-xs border rounded-lg px-2 py-1.5 focus:outline-none" placeholder="Brief project description" />
                 </div>
@@ -248,8 +248,8 @@ function WeeklyReportPanel({
               <div className="space-y-3">
                 {INDICATORS.map(ind => (
                   <div key={ind.key} className="flex items-center gap-3">
-                    <span className="text-xs font-bold text-gray-500 w-6 flex-shrink-0">[{ind.key}]</span>
-                    <span className="text-xs text-gray-600 flex-1">{ind.label}</span>
+                    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 dark:text-gray-500 w-6 flex-shrink-0">[{ind.key}]</span>
+                    <span className="text-xs text-gray-600 dark:text-gray-300 flex-1">{ind.label}</span>
                     <select
                       value={String((secDraft[ind.field] as string) ?? (data[ind.field] as string) ?? "grey")}
                       onChange={e => setS(ind.field, e.target.value as HealthStatus)}
@@ -266,17 +266,17 @@ function WeeklyReportPanel({
               <h2 className="font-semibold text-sm text-foreground">Edit Report Content</h2>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Progress & Highlights</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Progress & Highlights</label>
                   <textarea value={String(secDraft.achievements ?? "")} onChange={e => setS("achievements", e.target.value)}
                     rows={3} className="w-full text-xs border rounded-lg px-2 py-1.5 resize-none focus:outline-none" placeholder="• Achievement 1&#10;• Achievement 2" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Focus Points</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Focus Points</label>
                   <textarea value={String(secDraft.focus ?? "")} onChange={e => setS("focus", e.target.value)}
                     rows={3} className="w-full text-xs border rounded-lg px-2 py-1.5 resize-none focus:outline-none" placeholder="• Focus 1&#10;• Focus 2" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Expected Actions / Decisions</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Expected Actions / Decisions</label>
                   <textarea value={String(secDraft.nextSteps ?? "")} onChange={e => setS("nextSteps", e.target.value)}
                     rows={3} className="w-full text-xs border rounded-lg px-2 py-1.5 resize-none focus:outline-none" placeholder="• Action 1&#10;• Action 2" />
                 </div>
@@ -285,7 +285,7 @@ function WeeklyReportPanel({
 
             <div className="flex justify-end gap-2 pt-1 border-t border-border">
               <button onClick={() => setEditSection(null)}
-                className="px-3 py-1.5 text-xs border border-border rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+                className="px-3 py-1.5 text-xs border border-border rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:bg-muted/40 transition-colors">
                 Cancel
               </button>
               <button onClick={saveSec}
@@ -298,7 +298,7 @@ function WeeklyReportPanel({
       )}
 
       {/* ── Card ─────────────────────────────────────────────────────────── */}
-      <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm bg-white">
+      <div className="border border-gray-300 dark:border-border rounded-lg overflow-hidden shadow-sm bg-white dark:bg-card">
 
         {/* Header band */}
         <div className="bg-[#0a2463] text-white flex items-stretch flex-wrap">
@@ -349,27 +349,27 @@ function WeeklyReportPanel({
         </div>
 
         {/* Project info row */}
-        <div className="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-200 bg-gray-50 text-xs">
+        <div className="grid grid-cols-3 divide-x divide-gray-200 border-b border-gray-200 dark:border-border bg-gray-50 dark:bg-muted/40 text-xs">
           <div className="px-4 py-2">
-            <p className="text-[9px] text-gray-400 uppercase font-medium mb-0.5">Project name</p>
-            <p className="font-semibold text-gray-800">{p.name}</p>
+            <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase font-medium mb-0.5">Project name</p>
+            <p className="font-semibold text-gray-800 dark:text-foreground">{p.name}</p>
           </div>
           <div className="px-4 py-2">
-            <p className="text-[9px] text-gray-400 uppercase font-medium mb-0.5">Customer</p>
-            <p className="font-medium text-gray-700">{p.client || "—"}</p>
+            <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase font-medium mb-0.5">Customer</p>
+            <p className="font-medium text-gray-700 dark:text-gray-200">{p.client || "—"}</p>
           </div>
           <div className="px-4 py-2">
-            <p className="text-[9px] text-gray-400 uppercase font-medium mb-0.5">Short description</p>
-            <p className="text-gray-600 leading-snug">{data.statusNote || p.shortComment || "—"}</p>
+            <p className="text-[9px] text-gray-400 dark:text-gray-500 uppercase font-medium mb-0.5">Short description</p>
+            <p className="text-gray-600 dark:text-gray-300 leading-snug">{data.statusNote || p.shortComment || "—"}</p>
           </div>
         </div>
 
         {/* Main area */}
-        <div className="grid grid-cols-5 divide-x divide-gray-200 border-b border-gray-200" style={{ minHeight: 160 }}>
+        <div className="grid grid-cols-5 divide-x divide-gray-200 border-b border-gray-200 dark:border-border" style={{ minHeight: 160 }}>
           {/* Indicators */}
           <div className="col-span-2 p-3">
-            <div className="flex items-center justify-between pb-1 mb-2 border-b border-gray-200">
-              <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wide">Detailed indicators</p>
+            <div className="flex items-center justify-between pb-1 mb-2 border-b border-gray-200 dark:border-border">
+              <p className="text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide">Detailed indicators</p>
               <button onClick={() => openSec("indicators")}
                 className="text-gray-300 hover:text-primary transition-colors" title="Edit indicators">
                 <Pencil className="w-3 h-3" />
@@ -378,8 +378,8 @@ function WeeklyReportPanel({
             <div className="space-y-2">
               {INDICATORS.map(ind => (
                 <div key={ind.key} className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold text-gray-400 w-5 flex-shrink-0">[{ind.key}]</span>
-                  <span className="text-[10px] text-gray-600 flex-1 leading-tight">{ind.label}</span>
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 w-5 flex-shrink-0">[{ind.key}]</span>
+                  <span className="text-[10px] text-gray-600 dark:text-gray-300 flex-1 leading-tight">{ind.label}</span>
                   <HDot value={String((data[ind.field] as string) || "grey")} />
                 </div>
               ))}
@@ -387,7 +387,7 @@ function WeeklyReportPanel({
           </div>
           {/* Progress & highlights */}
           <div className="col-span-3 p-3">
-            <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wide border-b border-gray-200 pb-1 mb-2">
+            <p className="text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide border-b border-gray-200 dark:border-border pb-1 mb-2">
               Progress & highlights
             </p>
             <WBullets text={data.achievements} placeholder="No highlights yet…" />
@@ -397,13 +397,13 @@ function WeeklyReportPanel({
         {/* Bottom area */}
         <div className="grid grid-cols-2 divide-x divide-gray-200">
           <div className="p-3">
-            <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wide border-b border-gray-200 pb-1 mb-2">
+            <p className="text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide border-b border-gray-200 dark:border-border pb-1 mb-2">
               Focus points
             </p>
             <WBullets text={data.focus} placeholder="No focus points…" />
           </div>
           <div className="p-3">
-            <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wide border-b border-gray-200 pb-1 mb-2">
+            <p className="text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wide border-b border-gray-200 dark:border-border pb-1 mb-2">
               Expected actions / decisions
             </p>
             <WBullets text={data.nextSteps} placeholder="No actions planned…" />
@@ -411,7 +411,7 @@ function WeeklyReportPanel({
         </div>
 
         {/* Edit content footer */}
-        <div className="border-t border-gray-100 px-3 py-1.5 flex justify-end bg-gray-50">
+        <div className="border-t border-gray-100 dark:border-border px-3 py-1.5 flex justify-end bg-gray-50 dark:bg-muted/40">
           <button onClick={() => openSec("content")}
             className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-primary transition-colors">
             <Pencil className="w-3 h-3" />
@@ -509,7 +509,7 @@ export default function OverviewPage() {
 
   function kpiCls(pctStr?: string) {
     const n = parseFloat(pctStr ?? "");
-    if (isNaN(n)) return "bg-gray-100 text-gray-500";
+    if (isNaN(n)) return "bg-gray-100 text-gray-500 dark:text-gray-400 dark:text-gray-500";
     if (n < 70)  return "bg-red-100 text-red-700";
     if (n < 95)  return "bg-amber-100 text-amber-700";
     return "bg-emerald-50 text-emerald-700";
@@ -540,7 +540,7 @@ export default function OverviewPage() {
     terminated: { label: t.status_terminated, cls: "bg-slate-100 text-slate-600"    },
   };
 
-  const inputCls = "w-full px-1.5 py-0.5 text-xs border border-primary rounded focus:outline-none bg-white";
+  const inputCls = "w-full px-1.5 py-0.5 text-xs border border-primary rounded focus:outline-none bg-white dark:bg-card";
 
   // ── Filtros ──────────────────────────────────────────────────────────────
   const [search,        setSearch]        = useState("");
@@ -770,13 +770,13 @@ export default function OverviewPage() {
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(o => !o)}
-              className="flex items-center gap-1.5 bg-white border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium px-3 py-1.5 rounded-lg text-xs transition-colors"
+              className="flex items-center gap-1.5 bg-white dark:bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted/40 font-medium px-3 py-1.5 rounded-lg text-xs transition-colors"
             >
               Actions
               <ChevronDown className="w-3 h-3" />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
                 <button
                   onClick={() => { setShowNewModal(true); setMenuOpen(false); }}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-foreground hover:bg-muted/40 transition-colors"
@@ -799,7 +799,7 @@ export default function OverviewPage() {
           { label: t.kpi_gross_margin,    value: totalRevenue > 0 ? `${grossMargin}%` : t.kpi_no_finance_data, sub: totalRevenue > 0 ? `Revenue ${formatClpToUsd(totalRevenue)}` : t.kpi_enter_finance, color: "text-emerald-600", bg: "bg-emerald-50" },
           { label: t.kpi_team,            value: teamMembers.length, sub: t.kpi_people_identified, color: "text-orange-600", bg: "bg-orange-50" },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-border px-4 py-2.5 flex items-center gap-3">
+          <div key={s.label} className="bg-white dark:bg-card rounded-xl border border-border px-4 py-2.5 flex items-center gap-3">
             <div className={`${s.bg} rounded-lg w-8 h-8 flex items-center justify-center flex-shrink-0`}>
               <span className={`text-xs font-bold ${s.color}`}>{typeof s.value === "number" ? s.value : "—"}</span>
             </div>
@@ -818,7 +818,7 @@ export default function OverviewPage() {
       </div>
 
       {/* Tabla con filtros */}
-      <div className="bg-white rounded-xl border border-border p-5">
+      <div className="bg-white dark:bg-card rounded-xl border border-border p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-sm text-foreground">
             {t.services_label}
@@ -1108,7 +1108,7 @@ export default function OverviewPage() {
       {showNewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowNewModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="relative bg-white dark:bg-card rounded-2xl shadow-xl w-full max-w-lg mx-4 flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Plus className="w-4 h-4 text-primary" /> New service
@@ -1121,19 +1121,19 @@ export default function OverviewPage() {
               {/* Fila 1: Nombre + Cliente */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
-                  <label className="text-xs font-medium text-gray-600 block mb-1">Service name <span className="text-red-500">*</span></label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">Service name <span className="text-red-500">*</span></label>
                   <input value={newDraft.name} onChange={e => setNewDraft(d => ({ ...d, name: e.target.value }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="Service name" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">Client</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">Client</label>
                   <input value={newDraft.client} onChange={e => setNewDraft(d => ({ ...d, client: e.target.value }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="Client" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">IFS Code</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">IFS Code</label>
                   <input value={newDraft.ifsCode} onChange={e => setNewDraft(d => ({ ...d, ifsCode: e.target.value }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="IFS Code" />
@@ -1142,12 +1142,12 @@ export default function OverviewPage() {
               {/* Fila 2: Fechas */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">Start date</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">Start date</label>
                   <input type="date" value={newDraft.startDate} onChange={e => setNewDraft(d => ({ ...d, startDate: e.target.value }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">End date</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">End date</label>
                   <input type="date" value={newDraft.endDate} onChange={e => setNewDraft(d => ({ ...d, endDate: e.target.value }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary" />
                 </div>
@@ -1155,7 +1155,7 @@ export default function OverviewPage() {
               {/* Fila 3: Status + Tipo */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">Status</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">Status</label>
                   <select value={newDraft.status} onChange={e => setNewDraft(d => ({ ...d, status: e.target.value as ProjectStatus }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary">
                     <option value="active">{t.status_active}</option>
@@ -1168,7 +1168,7 @@ export default function OverviewPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">Type</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">Type</label>
                   <input value={newDraft.serviceType} onChange={e => setNewDraft(d => ({ ...d, serviceType: e.target.value }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="CC / SC / Fixed Price" />
@@ -1177,13 +1177,13 @@ export default function OverviewPage() {
               {/* Fila 4: BM + Leader */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">BM</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">BM</label>
                   <input value={newDraft.manager} onChange={e => setNewDraft(d => ({ ...d, manager: e.target.value }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="Business Manager" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">Team Leader</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">Team Leader</label>
                   <input value={newDraft.leader} onChange={e => setNewDraft(d => ({ ...d, leader: e.target.value }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="Team Leader" />
@@ -1192,20 +1192,20 @@ export default function OverviewPage() {
               {/* Fila 5: BU + FTEs + Commitment */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">BU</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">BU</label>
                   <input value={newDraft.bu} onChange={e => setNewDraft(d => ({ ...d, bu: e.target.value }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="Business Unit" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">FTEs</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">FTEs</label>
                   <input type="number" min={0} value={newDraft.teamSize || ""}
                     onChange={e => setNewDraft(d => ({ ...d, teamSize: Number(e.target.value) }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="0" />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 block mb-1">Commitment</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">Commitment</label>
                   <input value={newDraft.serviceLevel} onChange={e => setNewDraft(d => ({ ...d, serviceLevel: e.target.value }))}
                     className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="CC / SC / FP" />
@@ -1230,7 +1230,7 @@ export default function OverviewPage() {
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setDeleteTarget(null)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
+          <div className="relative bg-white dark:bg-card rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-50 mx-auto">
               <AlertTriangle className="w-6 h-6 text-red-500" />
             </div>

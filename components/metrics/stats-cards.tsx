@@ -50,7 +50,7 @@ export function StatsCards() {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {stats.map((s) => (
-        <div key={s.label} className="bg-white rounded-xl border border-border p-5 flex items-start gap-4">
+        <div key={s.label} className="bg-white dark:bg-card rounded-xl border border-border p-5 flex items-start gap-4">
           <div className={`${s.bg} rounded-lg p-2.5 flex-shrink-0`}>
             <s.icon className={`w-5 h-5 ${s.color}`} />
           </div>

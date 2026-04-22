@@ -65,7 +65,7 @@ export function MultiFilter({ placeholder, options, value, onChange }: MultiFilt
       </button>
 
       {open && options.length > 0 && (
-        <div className="absolute top-full mt-1 left-0 z-50 bg-white border border-border rounded-lg shadow-lg min-w-full max-h-60 overflow-y-auto">
+        <div className="absolute top-full mt-1 left-0 z-50 bg-white dark:bg-card border border-border rounded-lg shadow-lg min-w-full max-h-60 overflow-y-auto">
           {options.map(opt => (
             <label
               key={opt.value}

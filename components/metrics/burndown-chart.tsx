@@ -72,7 +72,7 @@ export function BurndownChart() {
   const pluralS = total !== 1 ? t.bench_chart_plural_s : "";
 
   return (
-    <div className="bg-white rounded-xl border border-border p-5">
+    <div className="bg-white dark:bg-card rounded-xl border border-border p-5">
       <div className="mb-4">
         <h3 className="font-semibold text-sm text-foreground">{t.bench_chart_title}</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
