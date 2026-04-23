@@ -1243,9 +1243,10 @@ export default function TeamPage() {
   const [snapData,         setSnapData]         = useState<SnapFull | null>(null);
   const [snapLoading,      setSnapLoading]      = useState(false);
 
-  // Derived: live or historical data
-  const projects    = snapData ? snapData.projects                        : liveProjects;
-  const teamMembers = snapData ? (snapData.cor_manual?.teamMembers ?? liveTeamMembers) : liveTeamMembers;
+  // Derived: projects come from the selected snapshot (or live), but team assignments
+  // always reflect current state so newly assigned people appear without re-saving the snapshot.
+  const projects    = snapData ? snapData.projects : liveProjects;
+  const teamMembers = liveTeamMembers;
   const isHistorical = activeSnapId !== "live";
 
   // Load snapshot list on mount and default to the latest snapshot (most recent COR month)
@@ -1309,13 +1310,13 @@ export default function TeamPage() {
   }
 
   const groups = projects
+    .filter(p => p.status !== "completed" && p.status !== "terminated")
     .map(proj => ({
       projectId: proj.id,
       projectName: proj.name,
       client: proj.client,
       members: teamMembers.filter(m => m.projectIds?.includes(proj.id)),
-    }))
-    .filter(g => g.members.length > 0);
+    }));
 
   const unassigned = teamMembers.filter(m => !m.projectIds || m.projectIds.length === 0);
 
