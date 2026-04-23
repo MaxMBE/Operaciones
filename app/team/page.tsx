@@ -1248,9 +1248,18 @@ export default function TeamPage() {
   const teamMembers = snapData ? (snapData.cor_manual?.teamMembers ?? liveTeamMembers) : liveTeamMembers;
   const isHistorical = activeSnapId !== "live";
 
-  // Load snapshot list on mount
+  // Load snapshot list on mount and default to the latest snapshot (most recent COR month)
   useEffect(() => {
-    fetch("/api/snapshots").then(r => r.json()).then(setSnapshots).catch(() => {});
+    fetch("/api/snapshots")
+      .then(r => r.json())
+      .then((list: SnapMeta[]) => {
+        setSnapshots(list);
+        if (list.length > 0) {
+          const latest = [...list].sort((a, b) => b.snapshot_date.localeCompare(a.snapshot_date))[0];
+          setActiveSnapId(latest.id);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Load full snapshot when selection changes
