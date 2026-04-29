@@ -2022,7 +2022,7 @@ function CORView() {
       </div>
 
       {/* ── Margin Bands Evolution ──────────────────────────────────────── */}
-      <MarginBandsChart />
+      <MarginBandsChart projects={liveProjects} actMap={actMap} />
 
       {/* ── KPI Definitions ─────────────────────────────────────────────── */}
       <div className="bg-white dark:bg-card rounded-xl border border-border p-4">

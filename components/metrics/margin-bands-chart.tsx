@@ -1,161 +1,203 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, Legend, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, LabelList,
 } from "recharts";
-import type { Project, ProjectReport } from "@/types";
+import type { Project } from "@/types";
 
-interface SnapshotMeta { id: string; snapshot_date: string; week_label: string; }
-interface SnapshotFull {
-  id: string;
-  snapshot_date: string;
+interface ActividadMesLite { mes: string; produccion: number; margen: number; }
+
+interface Props {
   projects: Project[];
-  report_data: Record<string, ProjectReport>;
+  actMap: Record<string, ActividadMesLite[]>;
 }
 
-type BandKey = "critical" | "low" | "belowTarget" | "target" | "high";
-
-const BANDS: { key: BandKey; label: string; color: string; min: number; max: number }[] = [
-  { key: "critical",    label: "< 0% (loss)",     color: "#111827", min: -Infinity, max: 0    },
-  { key: "low",         label: "0–17%",            color: "#ef4444", min: 0,         max: 17   },
-  { key: "belowTarget", label: "17–34% (below)",   color: "#f97316", min: 17,        max: 34   },
-  { key: "target",      label: "34–45% (target)",  color: "#a3e635", min: 34,        max: 45   },
-  { key: "high",        label: "≥ 45% (high)",     color: "#16a34a", min: 45,        max: Infinity },
+const FY_MESES = [
+  "2025-04","2025-05","2025-06","2025-07","2025-08","2025-09",
+  "2025-10","2025-11","2025-12","2026-01","2026-02","2026-03",
 ];
 
-function pickBand(margin: number): BandKey {
-  for (const b of BANDS) if (margin >= b.min && margin < b.max) return b.key;
-  return "high";
+const MES_LABEL: Record<string, string> = {
+  "2025-04":"abr 2025","2025-05":"may 2025","2025-06":"jun 2025","2025-07":"jul 2025",
+  "2025-08":"ago 2025","2025-09":"sep 2025","2025-10":"oct 2025","2025-11":"nov 2025",
+  "2025-12":"dic 2025","2026-01":"ene 2026","2026-02":"feb 2026","2026-03":"mar 2026",
+};
+
+interface Band { key: string; label: string; color: string; min: number; max: number; }
+
+const BANDS: Band[] = [
+  { key: "b1", label: "1. < 25%",      color: "#111827", min: -Infinity, max: 25 },
+  { key: "b2", label: "2. 25% - 28%",  color: "#dc2626", min: 25,  max: 28 },
+  { key: "b3", label: "3. 28% - 30%",  color: "#f97316", min: 28,  max: 30 },
+  { key: "b4", label: "4. 30% - 34%",  color: "#bef264", min: 30,  max: 34 },
+  { key: "b5", label: "5. 34% - 36%",  color: "#84cc16", min: 34,  max: 36 },
+  { key: "b6", label: "6. 36% - 40%",  color: "#22c55e", min: 36,  max: 40 },
+  { key: "b7", label: "7. 40% - 50%",  color: "#16a34a", min: 40,  max: 50 },
+  { key: "b8", label: "8. 50% and +",  color: "#14532d", min: 50,  max: Infinity },
+];
+
+function pickBand(pct: number): string | null {
+  for (const b of BANDS) if (pct >= b.min && pct < b.max) return b.key;
+  return BANDS[BANDS.length - 1].key;
 }
 
-function parsePct(s?: string): number | null {
-  if (!s) return null;
-  const n = parseFloat(s.replace("%", "").replace(",", "."));
-  return isNaN(n) ? null : n;
+function isActiveInMonth(p: Project, mes: string): boolean {
+  if (p.status === "completed" || p.status === "terminated") return false;
+  const [y, m] = mes.split("-").map(Number);
+  const firstDay = new Date(y, m - 1, 1);
+  const lastDay  = new Date(y, m, 0);
+  const start = p.startDate ? new Date(p.startDate + "T00:00:00") : null;
+  const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
+  return (!start || start <= lastDay) && (!end || end >= firstDay);
 }
 
-function computeMargin(p: Project, rep?: ProjectReport): number | null {
-  if (p.revenueMonthly && p.revenueMonthly > 0) {
-    return Math.round((p.revenueMonthly - (p.costMonthly || 0)) / p.revenueMonthly * 100);
-  }
-  return parsePct(rep?.marginYTD);
-}
-
-function monthLabel(d: string): string {
-  const [y, m] = d.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-}
-
-export function MarginBandsChart() {
-  const [data, setData] = useState<SnapshotFull[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const list: SnapshotMeta[] = await fetch("/api/snapshots").then(r => r.json());
-        const sorted = [...list].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date)).slice(-12);
-        const full = await Promise.all(
-          sorted.map(s => fetch(`/api/snapshots/${s.id}`).then(r => r.json()))
-        );
-        if (!cancelled) setData(full);
-      } catch {
-        if (!cancelled) setData([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
+export function MarginBandsChart({ projects, actMap }: Props) {
   const chartData = useMemo(() => {
-    return data.map(snap => {
-      const counts: Record<BandKey, number> = { critical: 0, low: 0, belowTarget: 0, target: 0, high: 0 };
-      const clients: Record<BandKey, string[]> = { critical: [], low: [], belowTarget: [], target: [], high: [] };
-      for (const p of snap.projects) {
-        if (p.status === "completed" || p.status === "terminated") continue;
-        const m = computeMargin(p, snap.report_data[p.id]);
-        if (m === null) continue;
-        const band = pickBand(m);
-        counts[band] += 1;
-        clients[band].push(`${p.client || p.name} (${m}%)`);
+    const rows = FY_MESES.map(mes => {
+      const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
+      let totalMargen = 0, totalProd = 0;
+      for (const p of projects) {
+        if (!isActiveInMonth(p, mes)) continue;
+        if (!p.ifsCode) continue;
+        const data = actMap[p.ifsCode]?.find(a => a.mes === mes);
+        if (!data || data.produccion <= 0) continue;
+        const pct = (data.margen / data.produccion) * 100;
+        const band = pickBand(pct);
+        if (!band) continue;
+        counts[band]++;
+        totalMargen += data.margen;
+        totalProd   += data.produccion;
       }
       return {
-        month: monthLabel(snap.snapshot_date),
-        snapshot_date: snap.snapshot_date,
+        mes,
+        monthLabel: MES_LABEL[mes] || mes,
         ...counts,
-        _clients: clients,
+        _weightedPct: totalProd > 0 ? (totalMargen / totalProd) * 100 : 0,
+        _hasData: totalProd > 0,
       };
     });
-  }, [data]);
+    return rows.map((row, idx) => {
+      const prev = idx > 0 ? rows[idx - 1] : null;
+      const deltas: Record<string, number> = {};
+      for (const b of BANDS) {
+        deltas[`${b.key}_delta`] = prev ? (row[b.key] as number) - (prev[b.key] as number) : 0;
+      }
+      return { ...row, ...deltas };
+    });
+  }, [projects, actMap]);
 
-  if (loading) return (
-    <div className="bg-white dark:bg-card rounded-xl border border-border p-4 text-xs text-muted-foreground">
-      Loading margin bands…
-    </div>
-  );
-
-  if (chartData.length === 0) return (
-    <div className="bg-white dark:bg-card rounded-xl border border-border p-4 text-xs text-muted-foreground">
-      No saved monthly snapshots yet.
-    </div>
-  );
-
-  const totals = chartData.map(r => BANDS.reduce((s, b) => s + (r[b.key] as number), 0));
+  const hasAnyData = chartData.some(r => r._hasData);
+  const totalActivities = chartData.reduce((max, r) => {
+    const n = BANDS.reduce((s, b) => s + (r[b.key] as number), 0);
+    return Math.max(max, n);
+  }, 0);
 
   return (
     <div className="bg-white dark:bg-card rounded-xl border border-border p-4">
-      <div className="flex items-start justify-between mb-3">
+      <div className="flex items-start justify-between mb-3 flex-wrap gap-2">
         <div>
-          <h3 className="text-xs font-semibold">Margin Bands Evolution</h3>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Active services distributed by gross margin band (target 34%)</p>
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"/>
+            Actividades por Rango de Margen — Evolución Mensual
+          </h3>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Servicios activos del COR por mes, agrupados por banda de margen ponderado por producción
+          </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {BANDS.map(b => (
             <span key={b.key} className="flex items-center gap-1 text-[9px] text-muted-foreground">
-              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: b.color }} />
+              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: b.color }}/>
               {b.label}
             </span>
           ))}
+          <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+            <span className="w-3 h-[2px] inline-block" style={{ background: "#16a34a" }}/>
+            Margen Ponderado
+          </span>
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={320}>
-        <BarChart data={chartData} margin={{ top: 10, right: 10, bottom: 4, left: -10 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-          <XAxis dataKey="month" tick={{ fontSize: 10, fill: "currentColor" }} />
-          <YAxis
-            tick={{ fontSize: 10, fill: "currentColor" }}
-            allowDecimals={false}
-            label={{ value: "Services", angle: -90, position: "insideLeft", style: { fontSize: 10, fill: "currentColor" } }}
-          />
-          <Tooltip
-            contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb" }}
-            formatter={(v: number, name: string) => {
-              const b = BANDS.find(x => x.key === name);
-              return [`${v} services`, b?.label ?? name];
-            }}
-          />
-          <Legend wrapperStyle={{ fontSize: 10 }} />
-          {BANDS.map(b => (
-            <Bar key={b.key} dataKey={b.key} name={b.label} stackId="margin" fill={b.color}>
-              {chartData.map((row, i) => {
-                const count = row[b.key] as number;
-                const total = totals[i] || 1;
-                const pct = ((count / total) * 100).toFixed(1);
-                return (
-                  <Cell key={i} fill={b.color}>
-                    {count > 0 && (
-                      <title>{`${b.label}: ${count} (${pct}%)`}</title>
-                    )}
-                  </Cell>
-                );
-              })}
-            </Bar>
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
+
+      {!hasAnyData ? (
+        <div className="py-12 text-center text-xs text-muted-foreground">
+          Aún no hay datos cargados. Promové meses oficiales en el Margin Calculator para ver el gráfico.
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={420}>
+          <BarChart data={chartData} margin={{ top: 36, right: 16, bottom: 4, left: -8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false}/>
+            <XAxis dataKey="monthLabel" tick={{ fontSize: 10, fill: "currentColor" }}/>
+            <YAxis
+              tick={{ fontSize: 10, fill: "currentColor" }}
+              allowDecimals={false}
+              domain={[0, Math.max(10, Math.ceil(totalActivities * 1.15))]}
+              label={{ value: "# Actividades", angle: -90, position: "insideLeft", style: { fontSize: 10, fill: "currentColor" } }}
+            />
+            <Tooltip
+              contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb" }}
+              formatter={(v: number, name: string) => {
+                const b = BANDS.find(x => x.label === name);
+                return [`${v} servicios`, b?.label ?? name];
+              }}
+              labelFormatter={(label, payload) => {
+                const row = payload?.[0]?.payload as { _weightedPct?: number } | undefined;
+                if (!row || !row._weightedPct) return label;
+                return `${label} · Margen Ponderado: ${row._weightedPct.toFixed(1)}%`;
+              }}
+            />
+            {BANDS.map((b, i) => (
+              <Bar key={b.key} dataKey={b.key} name={b.label} stackId="margin" fill={b.color} isAnimationActive={false}>
+                <LabelList
+                  dataKey={b.key}
+                  content={(props: { x?: string|number; y?: string|number; width?: string|number; height?: string|number; value?: number; index?: number }) => {
+                    const { x, y, width, height, value, index } = props;
+                    if (!value || (typeof height === "number" && height < 14)) return null;
+                    if (index == null) return null;
+                    const row = chartData[index];
+                    const delta = row ? (row[`${b.key}_delta`] as number) : 0;
+                    const xn = Number(x) + Number(width) / 2;
+                    const yn = Number(y) + Number(height) / 2;
+                    const arrow = delta > 0 ? " ▲" : delta < 0 ? " ▼" : "";
+                    const sign  = delta > 0 ? "+" : "";
+                    const txt = delta !== 0 ? `${value} (${sign}${delta}${arrow})` : `${value}`;
+                    const useDarkText = b.key === "b4";
+                    return (
+                      <text x={xn} y={yn} textAnchor="middle" dy=".35em" fontSize={9} fontWeight={600}
+                        fill={useDarkText ? "#1f2937" : "#fff"}>
+                        {txt}
+                      </text>
+                    );
+                  }}
+                />
+                {i === BANDS.length - 1 && (
+                  <LabelList
+                    dataKey="_weightedPct"
+                    position="top"
+                    content={(props: { x?: string|number; y?: string|number; width?: string|number; index?: number }) => {
+                      const { x, y, width, index } = props;
+                      if (index == null) return null;
+                      const row = chartData[index];
+                      if (!row || !row._hasData) return null;
+                      const xn = Number(x) + Number(width) / 2;
+                      const yn = Number(y) - 6;
+                      return (
+                        <g>
+                          <rect x={xn - 22} y={yn - 12} width={44} height={16} rx={3}
+                            fill="#dcfce7" stroke="#16a34a" strokeWidth={0.5}/>
+                          <text x={xn} y={yn} textAnchor="middle" fontSize={10} fontWeight={700} fill="#15803d">
+                            {row._weightedPct.toFixed(1)}%
+                          </text>
+                        </g>
+                      );
+                    }}
+                  />
+                )}
+              </Bar>
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }
