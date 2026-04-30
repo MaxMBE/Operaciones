@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, LabelList,
 } from "recharts";
@@ -154,8 +154,13 @@ export function MarginBandsChart({ projects, actMap }: Props) {
               <Bar key={b.key} dataKey={b.key} name={b.label} stackId="margin" fill={b.color} isAnimationActive={false}>
                 <LabelList
                   dataKey={b.key}
-                  content={(props: { x?: string|number; y?: string|number; width?: string|number; height?: string|number; value?: number; index?: number }) => {
-                    const { x, y, width, height, value, index } = props;
+                  content={((props: Record<string, unknown>) => {
+                    const x = props.x as number | undefined;
+                    const y = props.y as number | undefined;
+                    const width = props.width as number | undefined;
+                    const height = props.height as number | undefined;
+                    const value = Number(props.value ?? 0);
+                    const index = props.index as number | undefined;
                     if (!value || (typeof height === "number" && height < 14)) return null;
                     if (index == null) return null;
                     const row = chartData[index];
@@ -172,14 +177,17 @@ export function MarginBandsChart({ projects, actMap }: Props) {
                         {txt}
                       </text>
                     );
-                  }}
+                  }) as unknown as React.ComponentProps<typeof LabelList>["content"]}
                 />
                 {i === BANDS.length - 1 && (
                   <LabelList
                     dataKey="_weightedPct"
                     position="top"
-                    content={(props: { x?: string|number; y?: string|number; width?: string|number; index?: number }) => {
-                      const { x, y, width, index } = props;
+                    content={((props: Record<string, unknown>) => {
+                      const x = props.x as number | undefined;
+                      const y = props.y as number | undefined;
+                      const width = props.width as number | undefined;
+                      const index = props.index as number | undefined;
                       if (index == null) return null;
                       const row = chartData[index];
                       if (!row || !row._hasData) return null;
@@ -195,7 +203,7 @@ export function MarginBandsChart({ projects, actMap }: Props) {
                           </text>
                         </g>
                       );
-                    }}
+                    }) as unknown as React.ComponentProps<typeof LabelList>["content"]}
                   />
                 )}
               </Bar>
