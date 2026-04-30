@@ -26,6 +26,8 @@ const MES_LABEL: Record<string, string> = {
 
 interface Band { key: string; label: string; color: string; min: number; max: number; }
 
+type ChartRow = { [k: string]: number | string | boolean };
+
 const BANDS: Band[] = [
   { key: "b1", label: "1. < 25%",      color: "#111827", min: -Infinity, max: 25 },
   { key: "b2", label: "2. 25% - 28%",  color: "#dc2626", min: 25,  max: 28 },
@@ -53,8 +55,8 @@ function isActiveInMonth(p: Project, mes: string): boolean {
 }
 
 export function MarginBandsChart({ projects, actMap }: Props) {
-  const chartData = useMemo(() => {
-    const rows = FY_MESES.map(mes => {
+  const chartData = useMemo<ChartRow[]>(() => {
+    const rows: ChartRow[] = FY_MESES.map(mes => {
       const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
       let totalMargen = 0, totalProd = 0;
       for (const p of projects) {
@@ -81,15 +83,17 @@ export function MarginBandsChart({ projects, actMap }: Props) {
       const prev = idx > 0 ? rows[idx - 1] : null;
       const deltas: Record<string, number> = {};
       for (const b of BANDS) {
-        deltas[`${b.key}_delta`] = prev ? (row[b.key] as number) - (prev[b.key] as number) : 0;
+        const cur  = (row[b.key]  as number) || 0;
+        const prv  = prev ? ((prev[b.key] as number) || 0) : 0;
+        deltas[`${b.key}_delta`] = prev ? cur - prv : 0;
       }
       return { ...row, ...deltas };
     });
   }, [projects, actMap]);
 
-  const hasAnyData = chartData.some(r => r._hasData);
+  const hasAnyData = chartData.some(r => r._hasData as boolean);
   const totalActivities = chartData.reduce((max, r) => {
-    const n = BANDS.reduce((s, b) => s + (r[b.key] as number), 0);
+    const n = BANDS.reduce((s, b) => s + ((r[b.key] as number) || 0), 0);
     return Math.max(max, n);
   }, 0);
 
@@ -179,6 +183,7 @@ export function MarginBandsChart({ projects, actMap }: Props) {
                       if (index == null) return null;
                       const row = chartData[index];
                       if (!row || !row._hasData) return null;
+                      const wpct = (row._weightedPct as number) || 0;
                       const xn = Number(x) + Number(width) / 2;
                       const yn = Number(y) - 6;
                       return (
@@ -186,7 +191,7 @@ export function MarginBandsChart({ projects, actMap }: Props) {
                           <rect x={xn - 22} y={yn - 12} width={44} height={16} rx={3}
                             fill="#dcfce7" stroke="#16a34a" strokeWidth={0.5}/>
                           <text x={xn} y={yn} textAnchor="middle" fontSize={10} fontWeight={700} fill="#15803d">
-                            {row._weightedPct.toFixed(1)}%
+                            {wpct.toFixed(1)}%
                           </text>
                         </g>
                       );
