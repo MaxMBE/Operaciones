@@ -220,11 +220,18 @@ async function parsePlanillaMargenes(file: File): Promise<ParsedData> {
   };
 }
 
-// Aditivo: solo agrega meses que no existen en current; preserva todo lo existente.
-function mergeAdditive(current: StoredData | null, incoming: ParsedData): {
+// Merge incoming Excel data into current storage.
+//
+// - In additive mode (default): a month is added if missing, and replaces an
+//   existing entry only when the existing one is an empty placeholder
+//   (produccion === 0). Months with real data already loaded are preserved.
+// - In overwrite mode (force = true): every month present in the Excel
+//   replaces what was in storage.
+function mergeData(current: StoredData | null, incoming: ParsedData, force: boolean): {
   merged: StoredData;
-  mesesAgregados: { code: string; meses: string[] }[];
-  mesesOmitidos: { code: string; meses: string[] }[];
+  mesesAgregados:    { code: string; meses: string[] }[];
+  mesesReemplazados: { code: string; meses: string[] }[];
+  mesesOmitidos:     { code: string; meses: string[] }[];
 } {
   const baseCat = current?.catalogo ?? [];
   const baseAct = current?.actividades ?? {};
@@ -233,29 +240,33 @@ function mergeAdditive(current: StoredData | null, incoming: ParsedData): {
   for (const c of incoming.catalogo) if (!catCodes.has(c.codigo)) newCat.push(c);
 
   const merged: Record<string, ActividadMes[]> = { ...baseAct };
-  const agregados: Record<string, string[]> = {};
-  const omitidos:  Record<string, string[]> = {};
+  const agregados:    Record<string, string[]> = {};
+  const reemplazados: Record<string, string[]> = {};
+  const omitidos:     Record<string, string[]> = {};
 
   for (const [code, mesesIn] of Object.entries(incoming.actividades)) {
-    const existentes = new Set((merged[code] || []).map(m => m.mes));
-    const nuevosMeses: ActividadMes[] = [];
+    const existing = merged[code] || [];
+    const byMes = new Map<string, ActividadMes>(existing.map(m => [m.mes, m]));
     for (const m of mesesIn) {
-      if (existentes.has(m.mes)) {
-        (omitidos[code] = omitidos[code] || []).push(m.mes);
-      } else {
-        nuevosMeses.push(m);
+      const prev = byMes.get(m.mes);
+      if (!prev) {
+        byMes.set(m.mes, m);
         (agregados[code] = agregados[code] || []).push(m.mes);
+      } else if (force || (prev.produccion || 0) === 0) {
+        byMes.set(m.mes, m);
+        (reemplazados[code] = reemplazados[code] || []).push(m.mes);
+      } else {
+        (omitidos[code] = omitidos[code] || []).push(m.mes);
       }
     }
-    if (nuevosMeses.length) {
-      merged[code] = [...(merged[code] || []), ...nuevosMeses].sort((a, b) => a.mes.localeCompare(b.mes));
-    }
+    merged[code] = [...byMes.values()].sort((a, b) => a.mes.localeCompare(b.mes));
   }
 
   return {
     merged: { catalogo: newCat, actividades: merged },
-    mesesAgregados: Object.entries(agregados).map(([code, meses]) => ({ code, meses })),
-    mesesOmitidos:  Object.entries(omitidos).map(([code, meses]) => ({ code, meses })),
+    mesesAgregados:    Object.entries(agregados).map(([code, meses]) => ({ code, meses })),
+    mesesReemplazados: Object.entries(reemplazados).map(([code, meses]) => ({ code, meses })),
+    mesesOmitidos:     Object.entries(omitidos).map(([code, meses]) => ({ code, meses })),
   };
 }
 
@@ -274,10 +285,11 @@ export function ExcelImportModal({ open, onClose, onImported }: Props) {
   const [parsed, setParsed]   = useState<ParsedData | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [saving, setSaving]   = useState(false);
+  const [force, setForce]     = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const reset = useCallback(() => {
-    setParsing(false); setError(null); setParsed(null); setSaving(false);
+    setParsing(false); setError(null); setParsed(null); setSaving(false); setForce(false);
     if (inputRef.current) inputRef.current.value = "";
   }, []);
 
@@ -312,7 +324,7 @@ export function ExcelImportModal({ open, onClose, onImported }: Props) {
     try {
       const current: StoredData | null = await fetch("/api/settings/actividades-data")
         .then(r => r.json()).catch(() => null);
-      const { merged, mesesAgregados } = mergeAdditive(current, parsed);
+      const { merged, mesesAgregados } = mergeData(current, parsed, force);
       const res = await fetch("/api/settings/actividades-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -325,7 +337,7 @@ export function ExcelImportModal({ open, onClose, onImported }: Props) {
       setError((err as Error).message || "Error al guardar");
       setSaving(false);
     }
-  }, [parsed, onImported, handleClose]);
+  }, [parsed, onImported, handleClose, force]);
 
   if (!open) return null;
 
@@ -424,9 +436,27 @@ export function ExcelImportModal({ open, onClose, onImported }: Props) {
 
               <div style={{ background:"#fefce8", border:"1px solid #fde68a", borderRadius:8, padding:"10px 14px", fontSize:12, color:"#854d0e" }}>
                 Vas a importar <b>{Object.keys(parsed.actividades).length}</b> actividades cubriendo
-                <b> {mesesNuevosCount} mes{mesesNuevosCount === 1 ? "" : "es"}</b>. Los meses que ya estén en
-                el sistema se mantienen como están — solo se agregan los nuevos.
+                <b> {mesesNuevosCount} mes{mesesNuevosCount === 1 ? "" : "es"}</b>.
+                {force ? (
+                  <> El modo <b>Sobrescribir</b> está activado: los meses que ya existían se reemplazarán por los del Excel.</>
+                ) : (
+                  <> Los meses que ya tengan datos reales se preservan; los meses sin datos (placeholders) se reemplazan automáticamente.</>
+                )}
               </div>
+
+              <label style={{ display:"flex", alignItems:"flex-start", gap:8, marginTop:10, padding:"10px 12px",
+                background: force ? "#fff7ed" : "#f8fafc", border: `1px solid ${force ? "#fb923c" : "#e2e8f0"}`,
+                borderRadius:8, cursor:"pointer", fontSize:12, color:"#334155" }}>
+                <input type="checkbox" checked={force} onChange={e => setForce(e.target.checked)}
+                  style={{ marginTop:2, accentColor:"#ea580c", cursor:"pointer" }} />
+                <span>
+                  <b>Sobrescribir todos los meses del archivo</b><br/>
+                  <span style={{ color:"#64748b" }}>
+                    Útil si una importación previa quedó con datos incorrectos. Reemplaza los meses del Excel
+                    aunque ya existan en el sistema.
+                  </span>
+                </span>
+              </label>
 
               {error && (
                 <div style={{ marginTop:12, padding:"10px 12px", background:"#fef2f2", border:"1px solid #fecaca",
