@@ -41,18 +41,14 @@ function monthDisplayLabel(ym: string, locale: string): string {
   return new Date(y, m - 1, 1).toLocaleDateString(locale, { month: "long", year: "numeric" });
 }
 
-// Normalize an ActividadMes loaded from JSON or Supabase. If headcount carries
-// real cost data, recompute costos/costoNorm/margen from it (matches the
-// in-app edit behaviour). If headcount is empty, respect the totals already
-// stored on the row — these come pre-aggregated from the Excel and overriding
-// them with a zero-headcount recalc would yield margin = produccion = 100%.
+// Normalize an ActividadMes loaded from JSON or Supabase. The app measures
+// services and their margins — the totals (produccion / costos / margen /
+// costoNorm) coming from the source data are authoritative. Headcount is
+// auxiliary detail and never overrides those totals on load. The in-app
+// Edit flow has its own recalc path that DOES use headcount; this helper
+// only runs at load time.
 function normalizeActividadMes(m: ActividadMes): ActividadMes {
-  const hc = m.headcount || [];
-  const totalCostos = hc.reduce((s, h) => s + (h.costoMes || 0), 0);
-  if (totalCostos <= 0) return m;
-  const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
-  const costoNorm = Math.round(totalCostos * 20.75 / wd);
-  return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
+  return m;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
