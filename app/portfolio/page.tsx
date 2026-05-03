@@ -15,6 +15,7 @@ import { PrintHeader } from "@/components/print-header";
 import { MultiFilter } from "@/components/multi-filter";
 import { CsvUploadMenuItems } from "@/components/csv-upload-menu-items";
 import { MarginBandsChart } from "@/components/metrics/margin-bands-chart";
+import { ExcelImportModal } from "@/components/excel-import-modal";
 import type { Project, ProjectReport, HealthStatus, TeamMember } from "@/types";
 import {
   CheckCircle2, TrendingUp, DollarSign,
@@ -1145,44 +1146,46 @@ function CORView() {
   }, []);
 
   // ── Margin Calculator actMap (for Billing auto-fill + monthly margin lookup) ──
-  // Loads JSON base, then overlays fin-kpi-proy.editedRows for any month listed in
-  // officialMonths so the COR shows promoted simulations as real data.
+  // Source order: Supabase actividades-data (set by Excel import) → static JSON fallback.
+  // Then overlays fin-kpi-proy.editedRows for any month in officialMonths.
   const [actMap, setActMapCOR] = useState<Record<string, ActividadMes[]>>({});
   useEffect(() => {
-    fetch("/actividades-data.json")
-      .then(r => r.json())
-      .then(d => {
-        const rawMap = d.ACTIVIDADES_FULL || {};
-        const fixedMap: Record<string, ActividadMes[]> = {};
-        for (const [code, months] of Object.entries(rawMap)) {
-          fixedMap[code] = (months as ActividadMes[]).map(m => {
-            const hc = m.headcount || [];
-            const totalCostos = hc.reduce((s: number, h: HeadcountEntry) => s + h.costoMes, 0);
-            const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
-            const costoNorm = Math.round(totalCostos * 20.75 / wd);
-            return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
-          });
+    let cancelled = false;
+    (async () => {
+      const stored = await fetch("/api/settings/actividades-data").then(r => r.json()).catch(() => null);
+      let rawMap: Record<string, ActividadMes[]> = {};
+      if (stored && typeof stored === "object" && stored.actividades && Object.keys(stored.actividades).length) {
+        rawMap = stored.actividades;
+      } else {
+        const json = await fetch("/actividades-data.json").then(r => r.json()).catch(() => null);
+        if (json) rawMap = json.ACTIVIDADES_FULL || {};
+      }
+      const fixedMap: Record<string, ActividadMes[]> = {};
+      for (const [code, months] of Object.entries(rawMap)) {
+        fixedMap[code] = (months as ActividadMes[]).map(m => {
+          const hc = m.headcount || [];
+          const totalCostos = hc.reduce((s: number, h: HeadcountEntry) => s + h.costoMes, 0);
+          const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
+          const costoNorm = Math.round(totalCostos * 20.75 / wd);
+          return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
+        });
+      }
+      const proj = await fetch("/api/settings/fin-kpi-proy").then(r => r.json()).catch(() => null) as Record<string, ProjData> | null;
+      if (proj && typeof proj === "object") {
+        for (const [code, data] of Object.entries(proj)) {
+          const officials = data.officialMonths || [];
+          if (!officials.length || !data.editedRows?.length) continue;
+          const existing = fixedMap[code] || [];
+          const byMes = new Map(existing.map(r => [r.mes, r]));
+          for (const row of data.editedRows) {
+            if (officials.includes(row.mes)) byMes.set(row.mes, row);
+          }
+          fixedMap[code] = [...byMes.values()].sort((a, b) => a.mes.localeCompare(b.mes));
         }
-        return fetch("/api/settings/fin-kpi-proy")
-          .then(r => r.json())
-          .then((stored: Record<string, ProjData> | null) => {
-            if (stored && typeof stored === "object") {
-              for (const [code, data] of Object.entries(stored)) {
-                const officials = data.officialMonths || [];
-                if (!officials.length || !data.editedRows?.length) continue;
-                const existing = fixedMap[code] || [];
-                const byMes = new Map(existing.map(r => [r.mes, r]));
-                for (const row of data.editedRows) {
-                  if (officials.includes(row.mes)) byMes.set(row.mes, row);
-                }
-                fixedMap[code] = [...byMes.values()].sort((a, b) => a.mes.localeCompare(b.mes));
-              }
-            }
-            setActMapCOR(fixedMap);
-          })
-          .catch(() => setActMapCOR(fixedMap));
-      })
-      .catch(() => {});
+      }
+      if (!cancelled) setActMapCOR(fixedMap);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // ── Monthly snapshots ─────────────────────────────────────────────────
@@ -2897,47 +2900,56 @@ function FinancialKPIView() {
   const [editRows, setEditRows]     = useState<ActividadMes[]>([]);
   const [allConsultants, setAllConsultants] = useState<Array<{nombre: string; costoDiario: number}>>([]);
   const [promoteModal, setPromoteModal] = useState<{ mes: string; row: ActividadMes } | null>(null);
+  const [importOpen, setImportOpen] = useState<boolean>(false);
+  const [reloadTick, setReloadTick] = useState<number>(0);
 
   useEffect(() => {
-    // Chain: load JSON first, then load Supabase edits, apply both together
-    fetch("/actividades-data.json")
-      .then(r => r.json())
-      .then(d => {
-        setCatalogo(d.CATALOGO_ACTIVIDADES || []);
-        const rawMap = d.ACTIVIDADES_FULL || {};
-        const fixedMap: Record<string, ActividadMes[]> = {};
-        const consultMap = new Map<string, number>();
-        for (const [code, months] of Object.entries(rawMap)) {
-          fixedMap[code] = (months as ActividadMes[]).map(m => {
-            const hc = m.headcount || [];
-            const totalCostos = hc.reduce((s, h) => s + h.costoMes, 0);
-            const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
-            const costoNorm = Math.round(totalCostos * 20.75 / wd);
-            hc.forEach(h => { if (!consultMap.has(h.nombre) && h.costoDiario > 0) consultMap.set(h.nombre, h.costoDiario); });
-            return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
-          });
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      // Source order: Supabase actividades-data (set by Excel import) → static JSON fallback.
+      const stored = await fetch("/api/settings/actividades-data").then(r => r.json()).catch(() => null);
+      let cat: ActividadCatalogo[] = [];
+      let rawMap: Record<string, ActividadMes[]> = {};
+      if (stored && typeof stored === "object" && stored.actividades && Object.keys(stored.actividades).length) {
+        cat = stored.catalogo || [];
+        rawMap = stored.actividades;
+      } else {
+        const json = await fetch("/actividades-data.json").then(r => r.json()).catch(() => null);
+        if (json) { cat = json.CATALOGO_ACTIVIDADES || []; rawMap = json.ACTIVIDADES_FULL || {}; }
+      }
+
+      const fixedMap: Record<string, ActividadMes[]> = {};
+      const consultMap = new Map<string, number>();
+      for (const [code, months] of Object.entries(rawMap)) {
+        fixedMap[code] = (months as ActividadMes[]).map(m => {
+          const hc = m.headcount || [];
+          const totalCostos = hc.reduce((s, h) => s + h.costoMes, 0);
+          const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
+          const costoNorm = Math.round(totalCostos * 20.75 / wd);
+          hc.forEach(h => { if (!consultMap.has(h.nombre) && h.costoDiario > 0) consultMap.set(h.nombre, h.costoDiario); });
+          return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
+        });
+      }
+      const consultants = [...consultMap.entries()]
+        .map(([nombre, costoDiario]) => ({ nombre, costoDiario }))
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+      const proj = await fetch("/api/settings/fin-kpi-proy").then(r => r.json()).catch(() => null) as Record<string, ProjData> | null;
+      if (proj && typeof proj === "object") {
+        for (const [code, data] of Object.entries(proj)) {
+          if (data.editedRows?.length) fixedMap[code] = data.editedRows;
         }
-        setAllConsultants([...consultMap.entries()]
-          .map(([nombre, costoDiario]) => ({ nombre, costoDiario }))
-          .sort((a, b) => a.nombre.localeCompare(b.nombre)));
-        // Load Supabase edits and overlay them on top of the JSON map
-        return fetch("/api/settings/fin-kpi-proy")
-          .then(r => r.json())
-          .then((stored: Record<string, ProjData> | null) => {
-            if (stored && typeof stored === "object") {
-              setSavedProj(stored);
-              // Apply any saved editedRows over the base JSON data
-              for (const [code, data] of Object.entries(stored)) {
-                if (data.editedRows?.length) fixedMap[code] = data.editedRows;
-              }
-            }
-            setActMap(fixedMap);
-            setLoading(false);
-          })
-          .catch(() => { setActMap(fixedMap); setLoading(false); });
-      })
-      .catch(() => setLoading(false));
-  }, []);
+      }
+      if (cancelled) return;
+      setCatalogo(cat);
+      setAllConsultants(consultants);
+      if (proj) setSavedProj(proj);
+      setActMap(fixedMap);
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [reloadTick]);
 
   // Reset edit mode when activity changes; restore saved projection data + edited rows
   useEffect(() => {
@@ -3131,12 +3143,18 @@ function FinancialKPIView() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white dark:bg-card rounded-xl border border-border p-5">
-        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">SII Group Chile</div>
-        <h2 className="text-xl font-medium text-foreground mb-1">Activity Detail & Calculator</h2>
-        <p className="text-sm text-muted-foreground">
-          {loading ? "Loading..." : `${catalogo.length} activities · FY 2025-2026 · Margin spreadsheet replica`}
-        </p>
+      <div className="bg-white dark:bg-card rounded-xl border border-border p-5 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">SII Group Chile</div>
+          <h2 className="text-xl font-medium text-foreground mb-1">Activity Detail & Calculator</h2>
+          <p className="text-sm text-muted-foreground">
+            {loading ? "Loading..." : `${catalogo.length} activities · FY 2025-2026 · Margin spreadsheet replica`}
+          </p>
+        </div>
+        <button onClick={() => setImportOpen(true)}
+          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors whitespace-nowrap">
+          Importar Excel del mes
+        </button>
       </div>
 
       {/* Search */}
@@ -3324,6 +3342,12 @@ function FinancialKPIView() {
           </div>
         </div>
       )}
+
+      <ExcelImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => setReloadTick(n => n + 1)}
+      />
     </div>
   );
 }
