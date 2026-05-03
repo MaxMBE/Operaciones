@@ -41,6 +41,20 @@ function monthDisplayLabel(ym: string, locale: string): string {
   return new Date(y, m - 1, 1).toLocaleDateString(locale, { month: "long", year: "numeric" });
 }
 
+// Normalize an ActividadMes loaded from JSON or Supabase. If headcount carries
+// real cost data, recompute costos/costoNorm/margen from it (matches the
+// in-app edit behaviour). If headcount is empty, respect the totals already
+// stored on the row — these come pre-aggregated from the Excel and overriding
+// them with a zero-headcount recalc would yield margin = produccion = 100%.
+function normalizeActividadMes(m: ActividadMes): ActividadMes {
+  const hc = m.headcount || [];
+  const totalCostos = hc.reduce((s, h) => s + (h.costoMes || 0), 0);
+  if (totalCostos <= 0) return m;
+  const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
+  const costoNorm = Math.round(totalCostos * 20.75 / wd);
+  return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 
@@ -1162,13 +1176,7 @@ function CORView() {
       }
       const fixedMap: Record<string, ActividadMes[]> = {};
       for (const [code, months] of Object.entries(rawMap)) {
-        fixedMap[code] = (months as ActividadMes[]).map(m => {
-          const hc = m.headcount || [];
-          const totalCostos = hc.reduce((s: number, h: HeadcountEntry) => s + h.costoMes, 0);
-          const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
-          const costoNorm = Math.round(totalCostos * 20.75 / wd);
-          return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
-        });
+        fixedMap[code] = (months as ActividadMes[]).map(normalizeActividadMes);
       }
       const proj = await fetch("/api/settings/fin-kpi-proy").then(r => r.json()).catch(() => null) as Record<string, ProjData> | null;
       if (proj && typeof proj === "object") {
@@ -2448,8 +2456,15 @@ interface ActividadMes { mes: string; produccion: number; costos: number; margen
 
 // ── Financial KPI View ────────────────────────────────────────────────────────
 
-const FY_MESES = ["2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02"];
-const PROY_MESES = ["2026-03","2026-04","2026-05","2026-06"];
+// Full FY universe: Apr-25 → Jun-26. The split between Real and Projection
+// is computed dynamically by FinancialKPIView based on the months that actually
+// carry production data, so importing a new month auto-promotes it to Real.
+const ALL_MESES_FY = [
+  "2025-04","2025-05","2025-06","2025-07","2025-08","2025-09",
+  "2025-10","2025-11","2025-12","2026-01","2026-02","2026-03",
+  "2026-04","2026-05","2026-06",
+];
+const PROY_HORIZON = 4; // how many forward-looking months we want as projection columns at minimum
 const MES_LABEL: Record<string,string> = {
   "2025-04":"Apr-25","2025-05":"May-25","2025-06":"Jun-25","2025-07":"Jul-25",
   "2025-08":"Aug-25","2025-09":"Sep-25","2025-10":"Oct-25","2025-11":"Nov-25",
@@ -2567,6 +2582,7 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
 // proyWD:   { "2026-03": 21, "2026-04": 20, ... }
 // proyUFVal:{ "2026-03": 39900, ... }
 function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProyDiasChange, proyWD, onProyWDChange, proyUFVal, onProyUFChange, actividadesMap,
+  fyMeses, proyMeses,
   officialMonths = [],
   editMode = false, editRows = [], allConsultants = [],
   onChangeProduccion, onChangeDias, onAddConsultant, onRemoveConsultant,
@@ -2576,6 +2592,8 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   proyWD: Record<string,number>; onProyWDChange: (mes: string, wd: number) => void;
   proyUFVal: Record<string,number>; onProyUFChange: (mes: string, uf: number) => void;
   actividadesMap: Record<string, ActividadMes[]>;
+  fyMeses: string[];
+  proyMeses: string[];
   officialMonths?: string[];
   editMode?: boolean;
   editRows?: ActividadMes[];
@@ -2585,6 +2603,8 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   onAddConsultant?: (nombre: string, costoDiario: number) => void;
   onRemoveConsultant?: (nombre: string) => void;
 }) {
+  const FY_MESES = fyMeses;
+  const PROY_MESES = proyMeses;
   const isOfficialMes = (m: string) => officialMonths.includes(m);
   const historico: ActividadMes[] = editMode ? editRows : (actividadesMap[actividad.codigo] || []);
   const byMes: Record<string, ActividadMes> = {};
@@ -2923,12 +2943,10 @@ function FinancialKPIView() {
       const consultMap = new Map<string, number>();
       for (const [code, months] of Object.entries(rawMap)) {
         fixedMap[code] = (months as ActividadMes[]).map(m => {
-          const hc = m.headcount || [];
-          const totalCostos = hc.reduce((s, h) => s + h.costoMes, 0);
-          const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
-          const costoNorm = Math.round(totalCostos * 20.75 / wd);
-          hc.forEach(h => { if (!consultMap.has(h.nombre) && h.costoDiario > 0) consultMap.set(h.nombre, h.costoDiario); });
-          return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
+          (m.headcount || []).forEach(h => {
+            if (!consultMap.has(h.nombre) && h.costoDiario > 0) consultMap.set(h.nombre, h.costoDiario);
+          });
+          return normalizeActividadMes(m);
         });
       }
       const consultants = [...consultMap.entries()]
@@ -2973,6 +2991,30 @@ function FinancialKPIView() {
   const displayRows = editMode ? editRows : historico;
   const ultimo = displayRows[displayRows.length - 1];
   const officialMonths: string[] = actSel ? (savedProj[actSel.codigo]?.officialMonths || []) : [];
+
+  // Dynamic Real/Projection split: the last month carrying production data in
+  // any activity is the cutoff. Everything ≤ cutoff is Real; the next months
+  // (up to PROY_HORIZON) become Projection columns. This way an Excel import
+  // with a new month auto-promotes it from Projection to Real.
+  const { fyMeses, proyMeses } = useMemo(() => {
+    let lastIdx = -1;
+    for (let i = ALL_MESES_FY.length - 1; i >= 0; i--) {
+      const mes = ALL_MESES_FY[i];
+      const hasData = Object.values(actMap).some(months =>
+        months.some(m => m.mes === mes && m.produccion > 0)
+      );
+      if (hasData) { lastIdx = i; break; }
+    }
+    if (lastIdx < 0) {
+      return { fyMeses: ALL_MESES_FY.slice(0, 11), proyMeses: ALL_MESES_FY.slice(11, 11 + PROY_HORIZON) };
+    }
+    return {
+      fyMeses: ALL_MESES_FY.slice(0, lastIdx + 1),
+      proyMeses: ALL_MESES_FY.slice(lastIdx + 1, lastIdx + 1 + PROY_HORIZON),
+    };
+  }, [actMap]);
+  const FY_MESES = fyMeses;
+  const PROY_MESES = proyMeses;
 
   function startEdit() {
     setEditRows(JSON.parse(JSON.stringify(historico)));
@@ -3267,6 +3309,7 @@ function FinancialKPIView() {
                 proyWD={proyWD} onProyWDChange={(mes, wd) => setProyWD(prev => ({...prev, [mes]: wd}))}
                 proyUFVal={proyUFVal} onProyUFChange={(mes, uf) => setProyUFVal(prev => ({...prev, [mes]: uf}))}
                 actividadesMap={actMap}
+                fyMeses={fyMeses} proyMeses={proyMeses}
                 officialMonths={officialMonths}
                 editMode={editMode} editRows={editRows} allConsultants={allConsultants}
                 onChangeProduccion={handleChangeProduccion}
