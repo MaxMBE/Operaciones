@@ -2952,7 +2952,14 @@ function FinancialKPIView() {
       const proj = await fetch("/api/settings/fin-kpi-proy").then(r => r.json()).catch(() => null) as Record<string, ProjData> | null;
       if (proj && typeof proj === "object") {
         for (const [code, data] of Object.entries(proj)) {
-          if (data.editedRows?.length) fixedMap[code] = data.editedRows;
+          if (!data.editedRows?.length) continue;
+          // Overlay edits by month so we don't drop other months that were
+          // not touched by the user (e.g. fresh months coming from a new
+          // Excel import in actividades-data).
+          const existing = fixedMap[code] || [];
+          const byMes = new Map<string, ActividadMes>(existing.map(r => [r.mes, r]));
+          for (const row of data.editedRows) byMes.set(row.mes, row);
+          fixedMap[code] = [...byMes.values()].sort((a, b) => a.mes.localeCompare(b.mes));
         }
       }
       if (cancelled) return;
