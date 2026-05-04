@@ -2958,7 +2958,15 @@ function FinancialKPIView() {
           // Excel import in actividades-data).
           const existing = fixedMap[code] || [];
           const byMes = new Map<string, ActividadMes>(existing.map(r => [r.mes, r]));
-          for (const row of data.editedRows) byMes.set(row.mes, row);
+          for (const row of data.editedRows) {
+            const hasRealData = (row.produccion || 0) > 0 || (row.headcount?.length || 0) > 0;
+            const baseRow = byMes.get(row.mes);
+            const baseHasData = baseRow && ((baseRow.produccion || 0) > 0 || (baseRow.headcount?.length || 0) > 0);
+            // Only overlay when the edit actually carries data, OR when there
+            // is no real base row to preserve. This stops legacy empty
+            // placeholder edits (produccion=0) from masking fresh Excel data.
+            if (hasRealData || !baseHasData) byMes.set(row.mes, row);
+          }
           fixedMap[code] = [...byMes.values()].sort((a, b) => a.mes.localeCompare(b.mes));
         }
       }
