@@ -192,13 +192,18 @@ export function MarginBandsChart({ projects, actMap }: Props) {
                       const row = chartData[index];
                       if (!row || !row._hasData) return null;
                       const wpct = (row._weightedPct as number) || 0;
+                      const bandKey = pickBand(wpct);
+                      const band = BANDS.find(bb => bb.key === bandKey)!;
+                      // Use white text on dark bands and lime band, dark text on light bands
+                      const lightBands = ["b3", "b4"]; // naranja claro, lima
+                      const txtColor = lightBands.includes(band.key) ? "#1f2937" : "#fff";
                       const xn = Number(x) + Number(width) / 2;
                       const yn = Number(y) - 6;
                       return (
                         <g>
                           <rect x={xn - 22} y={yn - 12} width={44} height={16} rx={3}
-                            fill="#dcfce7" stroke="#16a34a" strokeWidth={0.5}/>
-                          <text x={xn} y={yn} textAnchor="middle" fontSize={10} fontWeight={700} fill="#15803d">
+                            fill={band.color} stroke={band.color} strokeWidth={0.5}/>
+                          <text x={xn} y={yn} textAnchor="middle" fontSize={10} fontWeight={700} fill={txtColor}>
                             {wpct.toFixed(1)}%
                           </text>
                         </g>
