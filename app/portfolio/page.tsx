@@ -1144,7 +1144,9 @@ function CORView() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ── Margin Calculator actMap (for Billing auto-fill) ──────────────────
+  // ── Margin Calculator actMap (for Billing auto-fill + monthly margin lookup) ──
+  // Loads JSON base, then overlays fin-kpi-proy.editedRows for any month listed in
+  // officialMonths so the COR shows promoted simulations as real data.
   const [actMap, setActMapCOR] = useState<Record<string, ActividadMes[]>>({});
   useEffect(() => {
     fetch("/actividades-data.json")
@@ -1161,7 +1163,24 @@ function CORView() {
             return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
           });
         }
-        setActMapCOR(fixedMap);
+        return fetch("/api/settings/fin-kpi-proy")
+          .then(r => r.json())
+          .then((stored: Record<string, ProjData> | null) => {
+            if (stored && typeof stored === "object") {
+              for (const [code, data] of Object.entries(stored)) {
+                const officials = data.officialMonths || [];
+                if (!officials.length || !data.editedRows?.length) continue;
+                const existing = fixedMap[code] || [];
+                const byMes = new Map(existing.map(r => [r.mes, r]));
+                for (const row of data.editedRows) {
+                  if (officials.includes(row.mes)) byMes.set(row.mes, row);
+                }
+                fixedMap[code] = [...byMes.values()].sort((a, b) => a.mes.localeCompare(b.mes));
+              }
+            }
+            setActMapCOR(fixedMap);
+          })
+          .catch(() => setActMapCOR(fixedMap));
       })
       .catch(() => {});
   }, []);
@@ -2545,6 +2564,7 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
 // proyWD:   { "2026-03": 21, "2026-04": 20, ... }
 // proyUFVal:{ "2026-03": 39900, ... }
 function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProyDiasChange, proyWD, onProyWDChange, proyUFVal, onProyUFChange, actividadesMap,
+  officialMonths = [],
   editMode = false, editRows = [], allConsultants = [],
   onChangeProduccion, onChangeDias, onAddConsultant, onRemoveConsultant,
 }: {
@@ -2553,6 +2573,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   proyWD: Record<string,number>; onProyWDChange: (mes: string, wd: number) => void;
   proyUFVal: Record<string,number>; onProyUFChange: (mes: string, uf: number) => void;
   actividadesMap: Record<string, ActividadMes[]>;
+  officialMonths?: string[];
   editMode?: boolean;
   editRows?: ActividadMes[];
   allConsultants?: Array<{nombre: string; costoDiario: number}>;
@@ -2561,6 +2582,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   onAddConsultant?: (nombre: string, costoDiario: number) => void;
   onRemoveConsultant?: (nombre: string) => void;
 }) {
+  const isOfficialMes = (m: string) => officialMonths.includes(m);
   const historico: ActividadMes[] = editMode ? editRows : (actividadesMap[actividad.codigo] || []);
   const byMes: Record<string, ActividadMes> = {};
   historico.forEach(m => { byMes[m.mes] = m; });
@@ -2689,7 +2711,11 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
           </tr>
           <tr>
             {FY_MESES.map(m => <th key={m} style={{...thS(BG_HDR),fontSize:10}}>{MES_LABEL[m]}</th>)}
-            {PROY_MESES.map(m => <th key={m} style={{...thS(BG_PROY),fontSize:10,minWidth:100}}>{MES_LABEL[m]}</th>)}
+            {PROY_MESES.map(m => (
+              <th key={m} style={{...thS(isOfficialMes(m)?"#16a34a":BG_PROY),fontSize:10,minWidth:100}}>
+                {MES_LABEL[m]}{isOfficialMes(m) && " ✓"}
+              </th>
+            ))}
             <th style={{...thS(BG_ACUM),fontSize:10}}>Real to {MES_LABEL[lastRealMes]}</th>
             <th style={{...thS(BG_ACUM),fontSize:10,background:"#ffc000",color:"#333"}}>Real + Proj.</th>
           </tr>
@@ -2700,7 +2726,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
               <td style={labelS}>{row.label}{editMode && row.editable && <span style={{marginLeft:4,fontSize:9,color:"#2e75b6",fontWeight:700}}>✎</span>}</td>
               {FY_MESES.map(mes => renderCell(mes, row.key))}
               {proyCalc.map(p => (
-                <td key={p.mes} style={{...tdS("#bdd7ee",false,row.key==="margenPct"?"center":"right")}}>
+                <td key={p.mes} style={{...tdS(isOfficialMes(p.mes)?"#dcfce7":"#bdd7ee",false,row.key==="margenPct"?"center":"right")}}>
                   {row.key === "tarifaUF" ? (
                     <input type="number" step="0.5" value={proyTarifas[p.mes] || ""}
                       onChange={e => onProyChange(p.mes, e.target.value)}
@@ -2756,7 +2782,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
                 const d = diasPm[nombre] ?? (refMes?.headcount?.find(h => h.nombre === nombre)?.dias ?? 0);
                 return d > 0;
               }).length;
-              return <td key={pm} style={{...tdS(BG_PROY,true),color:"#fff",textAlign:"center"}}>{n}</td>;
+              return <td key={pm} style={{...tdS(isOfficialMes(pm)?"#16a34a":BG_PROY,true),color:"#fff",textAlign:"center"}}>{n}</td>;
             })}
             <td colSpan={2} style={{background:BG_HC,borderBottom:"0.5px solid #ddd"}}/>
           </tr>
@@ -2776,7 +2802,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
                 const d = diasPm[nombre] ?? (refMes?.headcount?.find(h => h.nombre === nombre)?.dias ?? 0);
                 return sum + (d > 0 ? d / wd : 0);
               }, 0);
-              return <td key={pm} style={{...tdS(BG_PROY,false),color:"#fff",textAlign:"center"}}>{fte.toFixed(1)}</td>;
+              return <td key={pm} style={{...tdS(isOfficialMes(pm)?"#16a34a":BG_PROY,false),color:"#fff",textAlign:"center"}}>{fte.toFixed(1)}</td>;
             })}
             <td colSpan={2} style={{background:BG_HC,borderBottom:"0.5px solid #ddd"}}/>
           </tr>
@@ -2825,7 +2851,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
                 const simDias = proyDias[pm]?.[nombre] ?? refHc?.dias ?? 0;
                 return (
                   <td key={pm} style={{padding:"2px 4px",borderRight:"0.5px solid #ddd",
-                    borderBottom:"0.5px solid #eee",background:"#e8f0fb",textAlign:"center"}}>
+                    borderBottom:"0.5px solid #eee",background:isOfficialMes(pm)?"#dcfce7":"#e8f0fb",textAlign:"center"}}>
                     <input type="number" min={0} max={31} value={simDias}
                       onChange={e => onProyDiasChange(pm, nombre, Number(e.target.value))}
                       style={{border:"1px solid #5b9bd5",borderRadius:3,padding:"1px 4px",
@@ -2855,7 +2881,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   );
 }
 
-type ProjData = { tarifas: Record<string,string>; dias: Record<string,Record<string,number>>; wd: Record<string,number>; ufVal: Record<string,number>; editedRows?: ActividadMes[] };
+type ProjData = { tarifas: Record<string,string>; dias: Record<string,Record<string,number>>; wd: Record<string,number>; ufVal: Record<string,number>; editedRows?: ActividadMes[]; officialMonths?: string[] };
 
 function FinancialKPIView() {
   const [actSel, setActSel]         = useState<ActividadCatalogo | null>(null);
@@ -2870,6 +2896,7 @@ function FinancialKPIView() {
   const [editMode, setEditMode]     = useState(false);
   const [editRows, setEditRows]     = useState<ActividadMes[]>([]);
   const [allConsultants, setAllConsultants] = useState<Array<{nombre: string; costoDiario: number}>>([]);
+  const [promoteModal, setPromoteModal] = useState<{ mes: string; row: ActividadMes } | null>(null);
 
   useEffect(() => {
     // Chain: load JSON first, then load Supabase edits, apply both together
@@ -2933,17 +2960,98 @@ function FinancialKPIView() {
   const historico: ActividadMes[] = actSel ? (actMap[actSel.codigo] || []) : [];
   const displayRows = editMode ? editRows : historico;
   const ultimo = displayRows[displayRows.length - 1];
+  const officialMonths: string[] = actSel ? (savedProj[actSel.codigo]?.officialMonths || []) : [];
 
   function startEdit() {
     setEditRows(JSON.parse(JSON.stringify(historico)));
     setEditMode(true);
   }
   function cancelEdit() { setEditMode(false); setEditRows([]); }
+
+  // Builds an ActividadMes from the projection inputs of `mes` so we can
+  // promote a simulated month to official without rewriting the projection
+  // formulas. Mirrors TablaActividad's proyCalc.
+  function materializeProjectionMonth(mes: string): ActividadMes | null {
+    if (!actSel) return null;
+    const baseRows = editRows.length ? editRows : historico;
+    const lastRealMes = [...FY_MESES].reverse().find(m => baseRows.find(r => r.mes === m && r.produccion)) || FY_MESES[FY_MESES.length - 1];
+    const refMes = baseRows.find(r => r.mes === lastRealMes) || baseRows[baseRows.length - 1];
+
+    const consultoresOrden: string[] = [];
+    const seenNames = new Set<string>();
+    [...baseRows].reverse().forEach(m =>
+      m.headcount?.forEach(h => { if (!seenNames.has(h.nombre)) { seenNames.add(h.nombre); consultoresOrden.push(h.nombre); } })
+    );
+    const consultCostMap = new Map<string, number>();
+    baseRows.forEach(m => m.headcount?.forEach(h => {
+      if (h.costoDiario > 0 && !consultCostMap.has(h.nombre)) consultCostMap.set(h.nombre, h.costoDiario);
+    }));
+
+    const uf     = parseFloat(proyTarifas[mes] || "") || 0;
+    const ufVal  = proyUFVal[mes] ?? (refMes?.uf || 39875);
+    const prod   = uf > 0 ? uf * ufVal : 0;
+    const wd     = proyWD[mes] ?? (refMes?.workingDays > 0 ? refMes.workingDays : 20.75);
+    const diasPm = proyDias[mes] || {};
+
+    const headcount: HeadcountEntry[] = consultoresOrden.flatMap(nombre => {
+      const costoDiario = consultCostMap.get(nombre) || 0;
+      const defaultDias = refMes?.headcount?.find(h => h.nombre === nombre)?.dias ?? 0;
+      const dias = diasPm[nombre] ?? defaultDias;
+      if (dias <= 0 || costoDiario <= 0) return [];
+      const costoMes = Math.round(dias * costoDiario);
+      const fte = wd > 0 ? parseFloat((dias / wd).toFixed(2)) : 0;
+      return [{ nombre, dias, fte, costoDiario, costoMes }];
+    });
+
+    const totalCostos = headcount.reduce((s, h) => s + h.costoMes, 0);
+    const costoNorm   = Math.round(totalCostos * 20.75 / (wd || 20.75));
+    const margen      = prod - costoNorm;
+    const diasActividad = headcount.reduce((s, h) => s + h.dias, 0);
+
+    return {
+      mes, produccion: prod, costos: -totalCostos, margen, diasActividad,
+      uf: ufVal, workingDays: wd, tarifaUF: uf, costoNorm,
+      irm: refMes?.irm || "", cliente: refMes?.cliente || actSel.cliente,
+      headcount,
+    };
+  }
+
+  // First projection month with usable data that is not already official.
+  function findPromotableMonth(currentOfficials: string[]): { mes: string; row: ActividadMes } | null {
+    for (const pm of PROY_MESES) {
+      if (currentOfficials.includes(pm)) continue;
+      const row = materializeProjectionMonth(pm);
+      if (row && row.produccion > 0 && row.headcount.length > 0) return { mes: pm, row };
+    }
+    return null;
+  }
+
   function saveEdit() {
     if (!actSel) return;
-    setActMap(prev => ({ ...prev, [actSel.codigo]: editRows }));
-    // Persist projection + edited historical rows to Supabase
-    const projEntry: ProjData = { tarifas: proyTarifas, dias: proyDias, wd: proyWD, ufVal: proyUFVal, editedRows: editRows };
+    const currentOfficials = savedProj[actSel.codigo]?.officialMonths || [];
+    const candidate = findPromotableMonth(currentOfficials);
+    if (candidate) { setPromoteModal(candidate); return; }
+    commitSave({ promoteMonth: null });
+  }
+
+  // Persists edits + projection. If promoteMonth is set, that month is merged
+  // into editedRows (replacing any existing entry) and added to officialMonths
+  // so the COR picks it up as a real month.
+  function commitSave({ promoteMonth }: { promoteMonth: { mes: string; row: ActividadMes } | null }) {
+    if (!actSel) return;
+    const prevOfficials = savedProj[actSel.codigo]?.officialMonths || [];
+    let rowsToSave = editRows;
+    let nextOfficials = prevOfficials;
+    if (promoteMonth) {
+      const without = editRows.filter(r => r.mes !== promoteMonth.mes);
+      rowsToSave = [...without, promoteMonth.row].sort((a, b) => a.mes.localeCompare(b.mes));
+      nextOfficials = [...prevOfficials.filter(m => m !== promoteMonth.mes), promoteMonth.mes];
+    }
+    setActMap(prev => ({ ...prev, [actSel.codigo]: rowsToSave }));
+    const projEntry: ProjData = {
+      tarifas: proyTarifas, dias: proyDias, wd: proyWD, ufVal: proyUFVal,
+      editedRows: rowsToSave, officialMonths: nextOfficials,
+    };
     const updated = { ...savedProj, [actSel.codigo]: projEntry };
     setSavedProj(updated);
     fetch("/api/settings/fin-kpi-proy", {
@@ -2953,6 +3061,26 @@ function FinancialKPIView() {
     }).catch(() => {});
     setEditMode(false);
     setEditRows([]);
+    setPromoteModal(null);
+  }
+
+  // Undo: removes a month from officialMonths AND drops it from editedRows
+  // so the COR no longer sees it as a real month.
+  function undoOfficial(mes: string) {
+    if (!actSel) return;
+    const entry = savedProj[actSel.codigo];
+    if (!entry) return;
+    const nextOfficials = (entry.officialMonths || []).filter(m => m !== mes);
+    const nextRows = (entry.editedRows || []).filter(r => r.mes !== mes);
+    const projEntry: ProjData = { ...entry, editedRows: nextRows, officialMonths: nextOfficials };
+    const updated = { ...savedProj, [actSel.codigo]: projEntry };
+    setSavedProj(updated);
+    setActMap(prev => ({ ...prev, [actSel.codigo]: nextRows }));
+    fetch("/api/settings/fin-kpi-proy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updated),
+    }).catch(() => {});
   }
   // costoNorm = round(totalCostos / workingDays * 20.75)  — normalized to a 20.75-day month
   // Uses workingDays of the month (e.g. 21 for April), NOT sum of consultant days
@@ -3057,6 +3185,21 @@ function FinancialKPIView() {
                 <div>Last: {MES_LABEL[ultimo.mes] || ultimo.mes}</div>
               </div>
             )}
+            {officialMonths.length > 0 && !editMode && (
+              <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                {officialMonths.slice().sort().map(m => (
+                  <span key={m} style={{display:"inline-flex",alignItems:"center",gap:6,
+                    background:"rgba(34,197,94,0.18)",border:"1px solid rgba(34,197,94,0.6)",
+                    padding:"3px 8px",borderRadius:999,fontSize:11,fontWeight:600}}>
+                    ✓ {MES_LABEL[m] || m} official
+                    <button onClick={() => undoOfficial(m)}
+                      title={`Revert ${MES_LABEL[m] || m} to simulation`}
+                      style={{background:"transparent",border:"none",color:"#fff",
+                        cursor:"pointer",fontSize:13,lineHeight:1,padding:0}}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
             {/* Edit controls */}
             <div style={{display:"flex",gap:8}}>
               {!editMode ? (
@@ -3107,6 +3250,7 @@ function FinancialKPIView() {
                 proyWD={proyWD} onProyWDChange={(mes, wd) => setProyWD(prev => ({...prev, [mes]: wd}))}
                 proyUFVal={proyUFVal} onProyUFChange={(mes, uf) => setProyUFVal(prev => ({...prev, [mes]: uf}))}
                 actividadesMap={actMap}
+                officialMonths={officialMonths}
                 editMode={editMode} editRows={editRows} allConsultants={allConsultants}
                 onChangeProduccion={handleChangeProduccion}
                 onChangeDias={handleChangeDias}
@@ -3115,6 +3259,70 @@ function FinancialKPIView() {
               />
             </div>
           )}
+        </div>
+      )}
+
+      {/* Promote-to-official modal */}
+      {promoteModal && (
+        <div onClick={() => setPromoteModal(null)}
+          style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",
+            display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
+          <div onClick={e => e.stopPropagation()}
+            style={{background:"#fff",borderRadius:12,maxWidth:520,width:"100%",
+              boxShadow:"0 20px 60px rgba(0,0,0,0.3)",overflow:"hidden"}}>
+            <div style={{background:"#17375e",color:"#fff",padding:"14px 20px"}}>
+              <div style={{fontSize:11,opacity:0.7,textTransform:"uppercase",letterSpacing:"0.06em"}}>Confirm save</div>
+              <div style={{fontSize:16,fontWeight:600,marginTop:2}}>
+                Mark {MES_LABEL[promoteModal.mes] || promoteModal.mes} as official data?
+              </div>
+            </div>
+            <div style={{padding:"18px 20px",fontSize:13,color:"#333",lineHeight:1.5}}>
+              <p style={{margin:0,marginBottom:12}}>
+                If you mark this month as official, the simulated values become the real data for the month
+                and will appear in the COR when you select <b>{MES_LABEL[promoteModal.mes] || promoteModal.mes}</b>,
+                just like January and February.
+              </p>
+              <div style={{background:"#f5f7fa",border:"1px solid #e2e8f0",borderRadius:8,
+                padding:"10px 14px",fontSize:12,marginBottom:6}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <span style={{color:"#666"}}>Production</span>
+                  <span style={{fontWeight:600}}>{fmtNum(promoteModal.row.produccion)}</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <span style={{color:"#666"}}>Normalized cost</span>
+                  <span style={{fontWeight:600}}>{fmtNeg(promoteModal.row.costoNorm)}</span>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <span style={{color:"#666"}}>Margin</span>
+                  <span style={{fontWeight:700,color:promoteModal.row.margen>=0?"#1b5e20":"#b71c1c"}}>
+                    {fmtNum(promoteModal.row.margen)}
+                    {promoteModal.row.produccion>0 && ` (${fmtPctSgn(promoteModal.row.margen/promoteModal.row.produccion)})`}
+                  </span>
+                </div>
+              </div>
+              <p style={{margin:0,fontSize:11,color:"#888"}}>
+                You can undo this later with the × button on the green badge in the header.
+              </p>
+            </div>
+            <div style={{display:"flex",gap:8,padding:"12px 20px",background:"#f9fafb",
+              borderTop:"1px solid #e2e8f0",justifyContent:"flex-end",flexWrap:"wrap"}}>
+              <button onClick={() => setPromoteModal(null)}
+                style={{padding:"7px 14px",background:"transparent",border:"1px solid #cbd5e1",
+                  borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",color:"#475569"}}>
+                Cancel
+              </button>
+              <button onClick={() => commitSave({ promoteMonth: null })}
+                style={{padding:"7px 14px",background:"#fff",border:"1px solid #2e75b6",
+                  borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",color:"#2e75b6"}}>
+                Save simulation only
+              </button>
+              <button onClick={() => commitSave({ promoteMonth: promoteModal })}
+                style={{padding:"7px 14px",background:"#16a34a",border:"none",
+                  borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer",color:"#fff"}}>
+                ✓ Yes, mark as official
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
