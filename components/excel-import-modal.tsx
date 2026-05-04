@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 
 interface ActividadCatalogo { cliente: string; codigo: string; descripcion: string; }
@@ -23,6 +23,9 @@ interface ParsedData {
     totalMargen: number;
     margenPct: number;
   };
+  // Diagnostic: how many activities have produccion > 0 in each parsed month.
+  // If a month is missing or has 0 activities, the parser did not pick it up.
+  distribucionPorMes: Record<string, number>;
 }
 interface StoredData {
   catalogo: ActividadCatalogo[];
@@ -211,12 +214,23 @@ async function parsePlanillaMargenes(file: File): Promise<ParsedData> {
   Object.entries(hcMap).filter(([k]) => k.endsWith(`_${mesArchivo}`))
     .forEach(([, hc]) => hc.forEach(h => consultMes.add(h.nombre)));
 
+  // Diagnostic: count activities with production > 0 per month parsed
+  const distribucionPorMes: Record<string, number> = {};
+  Object.values(actMap).forEach(meses => {
+    meses.forEach(m => {
+      if ((m.produccion || 0) > 0) {
+        distribucionPorMes[m.mes] = (distribucionPorMes[m.mes] || 0) + 1;
+      }
+    });
+  });
+
   return {
     catalogo, actividades: actMap, mesArchivo,
     resumen: {
       actividadesConData, totalConsultores: consultMes.size, catalogo: catalogo.length,
       totalProd, totalCosto, totalMargen, margenPct,
     },
+    distribucionPorMes,
   };
 }
 
@@ -458,6 +472,9 @@ export function ExcelImportModal({ open, onClose, onImported }: Props) {
                 </span>
               </label>
 
+              <ParsedDiagnostic parsed={parsed} />
+              <ActivityInspector parsed={parsed} />
+
               {error && (
                 <div style={{ marginTop:12, padding:"10px 12px", background:"#fef2f2", border:"1px solid #fecaca",
                   borderRadius:8, fontSize:12, color:"#b91c1c" }}>
@@ -502,6 +519,126 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
         {label}
       </div>
       <div style={{ fontSize:16, fontWeight:600, color: color ?? "#0f172a" }}>{value}</div>
+    </div>
+  );
+}
+
+const ALL_MESES_DIAG = [
+  "2025-04","2025-05","2025-06","2025-07","2025-08","2025-09",
+  "2025-10","2025-11","2025-12","2026-01","2026-02","2026-03",
+  "2026-04","2026-05","2026-06",
+];
+
+function ParsedDiagnostic({ parsed }: { parsed: ParsedData }) {
+  const max = Math.max(1, ...Object.values(parsed.distribucionPorMes));
+  return (
+    <div style={{ marginTop:14, border:"1px solid #e2e8f0", borderRadius:8, padding:"10px 14px", background:"#fff" }}>
+      <div style={{ fontSize:10, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>
+        Distribución por mes (actividades con producción &gt; 0 detectadas en el archivo)
+      </div>
+      <div style={{ display:"flex", gap:4, alignItems:"flex-end", height:60, marginBottom:4 }}>
+        {ALL_MESES_DIAG.map(mes => {
+          const n = parsed.distribucionPorMes[mes] || 0;
+          const h = Math.max(2, (n / max) * 56);
+          return (
+            <div key={mes} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
+              <div style={{ fontSize:9, fontWeight:600, color: n > 0 ? "#15803d" : "#94a3b8" }}>{n || ""}</div>
+              <div style={{ width:"100%", height: h, background: n > 0 ? "#86efac" : "#e2e8f0", borderRadius:2 }}/>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display:"flex", gap:4 }}>
+        {ALL_MESES_DIAG.map(mes => (
+          <div key={mes} style={{ flex:1, fontSize:8, color:"#64748b", textAlign:"center" }}>
+            {(MES_LABEL[mes] || mes).replace(" ", "\n")}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ActivityInspector({ parsed }: { parsed: ParsedData }) {
+  const [q, setQ] = useState("");
+  const matches = useMemo(() => {
+    if (q.length < 2) return [];
+    const lq = q.toLowerCase();
+    return parsed.catalogo.filter(c =>
+      c.codigo.toLowerCase().includes(lq) ||
+      c.cliente.toLowerCase().includes(lq) ||
+      c.descripcion.toLowerCase().includes(lq)
+    ).slice(0, 8);
+  }, [q, parsed.catalogo]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const meses = selected ? (parsed.actividades[selected] || []) : [];
+
+  return (
+    <div style={{ marginTop:10, border:"1px solid #e2e8f0", borderRadius:8, padding:"10px 14px", background:"#fff" }}>
+      <div style={{ fontSize:10, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>
+        Inspeccionar una actividad parseada
+      </div>
+      <input
+        value={q}
+        onChange={e => { setQ(e.target.value); setSelected(null); }}
+        placeholder="Buscar por código, cliente o descripción…"
+        style={{ width:"100%", boxSizing:"border-box", border:"1px solid #cbd5e1", borderRadius:6,
+          padding:"6px 10px", fontSize:12, background:"#fff" }} />
+      {matches.length > 0 && !selected && (
+        <div style={{ marginTop:6, maxHeight:140, overflowY:"auto", border:"1px solid #e2e8f0", borderRadius:6 }}>
+          {matches.map(c => (
+            <div key={c.codigo} onClick={() => setSelected(c.codigo)}
+              style={{ padding:"6px 10px", cursor:"pointer", borderBottom:"0.5px solid #f1f5f9", fontSize:11 }}>
+              <div style={{ fontFamily:"monospace", fontWeight:700, color:"#1d4ed8" }}>{c.codigo}</div>
+              <div style={{ color:"#475569" }}>{c.cliente} · {c.descripcion}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {selected && (
+        <div style={{ marginTop:8 }}>
+          <div style={{ fontSize:11, color:"#0f172a", fontWeight:600, marginBottom:4 }}>
+            {selected} · {meses.length} mes{meses.length === 1 ? "" : "es"} parseado{meses.length === 1 ? "" : "s"}
+            <button onClick={() => { setSelected(null); setQ(""); }}
+              style={{ marginLeft:8, fontSize:10, color:"#64748b", background:"none", border:"none", cursor:"pointer" }}>
+              cambiar
+            </button>
+          </div>
+          {meses.length === 0 ? (
+            <div style={{ fontSize:11, color:"#b91c1c" }}>
+              Esta actividad no tiene meses parseados desde el Excel.
+            </div>
+          ) : (
+            <div style={{ overflowX:"auto", border:"1px solid #e2e8f0", borderRadius:6 }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", fontSize:10 }}>
+                <thead>
+                  <tr style={{ background:"#f8fafc" }}>
+                    {["Mes","Producción","Costos","Margen","Margen %","HC"].map(h => (
+                      <th key={h} style={{ padding:"5px 8px", textAlign:"left", fontWeight:600, color:"#475569",
+                        borderBottom:"1px solid #e2e8f0" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {meses.map(m => {
+                    const pct = m.produccion > 0 ? (m.margen / m.produccion) * 100 : 0;
+                    return (
+                      <tr key={m.mes} style={{ borderBottom:"0.5px solid #f1f5f9" }}>
+                        <td style={{ padding:"4px 8px", fontFamily:"monospace" }}>{MES_LABEL[m.mes] || m.mes}</td>
+                        <td style={{ padding:"4px 8px", textAlign:"right" }}>{fmtNum(m.produccion)}</td>
+                        <td style={{ padding:"4px 8px", textAlign:"right", color:"#64748b" }}>{m.costos === 0 ? "" : `(${fmtNum(m.costos)})`}</td>
+                        <td style={{ padding:"4px 8px", textAlign:"right", color: m.margen >= 0 ? "#15803d" : "#b91c1c" }}>{fmtNum(m.margen)}</td>
+                        <td style={{ padding:"4px 8px", textAlign:"right" }}>{m.produccion > 0 ? `${pct.toFixed(1)}%` : ""}</td>
+                        <td style={{ padding:"4px 8px", textAlign:"center" }}>{m.headcount?.length ?? 0}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
