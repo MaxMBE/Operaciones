@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, LabelList,
 } from "recharts";
@@ -12,6 +12,9 @@ interface Props {
   projects: Project[];
   actMap: Record<string, ActividadMesLite[]>;
 }
+
+interface SnapshotMeta { id: string; snapshot_date: string; }
+interface SnapshotFull { id: string; snapshot_date: string; projects: Project[]; }
 
 const FY_MESES = [
   "2025-04","2025-05","2025-06","2025-07","2025-08","2025-09",
@@ -55,22 +58,68 @@ function isActiveInMonth(p: Project, mes: string): boolean {
 }
 
 export function MarginBandsChart({ projects, actMap }: Props) {
+  // Load all monthly snapshots so we can use the same revenue/cost figures
+  // the COR uses for each historical month, instead of the raw Excel totals.
+  const [snapByMonth, setSnapByMonth] = useState<Record<string, Project[]>>({});
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list: SnapshotMeta[] = await fetch("/api/snapshots").then(r => r.json());
+        if (!Array.isArray(list)) return;
+        const fulls = await Promise.all(list.map(s =>
+          fetch(`/api/snapshots/${s.id}`).then(r => r.json() as Promise<SnapshotFull>).catch(() => null)
+        ));
+        if (cancelled) return;
+        const map: Record<string, Project[]> = {};
+        for (const s of fulls) {
+          if (!s) continue;
+          map[s.snapshot_date.slice(0, 7)] = s.projects;
+        }
+        setSnapByMonth(map);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const chartData = useMemo<ChartRow[]>(() => {
     const rows: ChartRow[] = FY_MESES.map(mes => {
       const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
       let totalMargen = 0, totalProd = 0;
-      for (const p of projects) {
-        if (!isActiveInMonth(p, mes)) continue;
-        if (!p.ifsCode) continue;
-        const data = actMap[p.ifsCode]?.find(a => a.mes === mes);
-        if (!data || data.produccion <= 0) continue;
-        const pct = (data.margen / data.produccion) * 100;
-        const band = pickBand(pct);
-        if (!band) continue;
-        counts[band]++;
-        totalMargen += data.margen;
-        totalProd   += data.produccion;
+
+      const snapProjects = snapByMonth[mes];
+      if (snapProjects) {
+        // Snapshot-backed month: use revenueMonthly/costMonthly per project,
+        // matching the COR's "Monthly Margin" calculation exactly.
+        for (const p of snapProjects) {
+          if (!isActiveInMonth(p, mes)) continue;
+          const rev  = p.revenueMonthly || 0;
+          const cost = p.costMonthly    || 0;
+          if (rev <= 0) continue;
+          const pct = ((rev - cost) / rev) * 100;
+          const band = pickBand(pct);
+          if (!band) continue;
+          counts[band]++;
+          totalMargen += rev - cost;
+          totalProd   += rev;
+        }
+      } else {
+        // No snapshot for this month: fall back to actMap (Excel data)
+        // matched against live projects via ifsCode.
+        for (const p of projects) {
+          if (!isActiveInMonth(p, mes)) continue;
+          if (!p.ifsCode) continue;
+          const data = actMap[p.ifsCode]?.find(a => a.mes === mes);
+          if (!data || data.produccion <= 0) continue;
+          const pct = (data.margen / data.produccion) * 100;
+          const band = pickBand(pct);
+          if (!band) continue;
+          counts[band]++;
+          totalMargen += data.margen;
+          totalProd   += data.produccion;
+        }
       }
+
       return {
         mes,
         monthLabel: MES_LABEL[mes] || mes,
@@ -89,7 +138,7 @@ export function MarginBandsChart({ projects, actMap }: Props) {
       }
       return { ...row, ...deltas };
     });
-  }, [projects, actMap]);
+  }, [projects, actMap, snapByMonth]);
 
   const hasAnyData = chartData.some(r => r._hasData as boolean);
   const totalActivities = chartData.reduce((max, r) => {
