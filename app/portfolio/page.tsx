@@ -2896,7 +2896,7 @@ function FinancialKPIView() {
   const [editMode, setEditMode]     = useState(false);
   const [editRows, setEditRows]     = useState<ActividadMes[]>([]);
   const [allConsultants, setAllConsultants] = useState<Array<{nombre: string; costoDiario: number}>>([]);
-  const [promoteModal, setPromoteModal] = useState<{ mes: string; row: ActividadMes } | null>(null);
+  const [promoteModal, setPromoteModal] = useState<{ mes: string; row: ActividadMes; alreadyOfficial?: boolean } | null>(null);
 
   useEffect(() => {
     // Chain: load JSON first, then load Supabase edits, apply both together
@@ -3016,12 +3016,15 @@ function FinancialKPIView() {
     };
   }
 
-  // First projection month with usable data that is not already official.
-  function findPromotableMonth(currentOfficials: string[]): { mes: string; row: ActividadMes } | null {
+  // First projection month with usable data. Includes already-official months
+  // so re-saving lets the user update the officially-stored figures with the
+  // new simulation values.
+  function findPromotableMonth(_currentOfficials: string[]): { mes: string; row: ActividadMes; alreadyOfficial: boolean } | null {
     for (const pm of PROY_MESES) {
-      if (currentOfficials.includes(pm)) continue;
       const row = materializeProjectionMonth(pm);
-      if (row && row.produccion > 0 && row.headcount.length > 0) return { mes: pm, row };
+      if (row && row.produccion > 0 && row.headcount.length > 0) {
+        return { mes: pm, row, alreadyOfficial: _currentOfficials.includes(pm) };
+      }
     }
     return null;
   }
@@ -3185,7 +3188,7 @@ function FinancialKPIView() {
                 <div>Last: {MES_LABEL[ultimo.mes] || ultimo.mes}</div>
               </div>
             )}
-            {officialMonths.length > 0 && !editMode && (
+            {officialMonths.length > 0 && (
               <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
                 {officialMonths.slice().sort().map(m => (
                   <span key={m} style={{display:"inline-flex",alignItems:"center",gap:6,
@@ -3271,17 +3274,29 @@ function FinancialKPIView() {
             style={{background:"#fff",borderRadius:12,maxWidth:520,width:"100%",
               boxShadow:"0 20px 60px rgba(0,0,0,0.3)",overflow:"hidden"}}>
             <div style={{background:"#17375e",color:"#fff",padding:"14px 20px"}}>
-              <div style={{fontSize:11,opacity:0.7,textTransform:"uppercase",letterSpacing:"0.06em"}}>Confirm save</div>
+              <div style={{fontSize:11,opacity:0.7,textTransform:"uppercase",letterSpacing:"0.06em"}}>
+                {promoteModal.alreadyOfficial ? "Update official data" : "Confirm save"}
+              </div>
               <div style={{fontSize:16,fontWeight:600,marginTop:2}}>
-                Mark {MES_LABEL[promoteModal.mes] || promoteModal.mes} as official data?
+                {promoteModal.alreadyOfficial
+                  ? `Update ${MES_LABEL[promoteModal.mes] || promoteModal.mes} official values?`
+                  : `Mark ${MES_LABEL[promoteModal.mes] || promoteModal.mes} as official data?`}
               </div>
             </div>
             <div style={{padding:"18px 20px",fontSize:13,color:"#333",lineHeight:1.5}}>
-              <p style={{margin:0,marginBottom:12}}>
-                If you mark this month as official, the simulated values become the real data for the month
-                and will appear in the COR when you select <b>{MES_LABEL[promoteModal.mes] || promoteModal.mes}</b>,
-                just like January and February.
-              </p>
+              {promoteModal.alreadyOfficial ? (
+                <p style={{margin:0,marginBottom:12}}>
+                  <b>{MES_LABEL[promoteModal.mes] || promoteModal.mes}</b> is already marked as official.
+                  Confirm to overwrite the stored official values with the new simulation; the COR will pick up the
+                  new figures next time you select this month.
+                </p>
+              ) : (
+                <p style={{margin:0,marginBottom:12}}>
+                  If you mark this month as official, the simulated values become the real data for the month
+                  and will appear in the COR when you select <b>{MES_LABEL[promoteModal.mes] || promoteModal.mes}</b>,
+                  just like January and February.
+                </p>
+              )}
               <div style={{background:"#f5f7fa",border:"1px solid #e2e8f0",borderRadius:8,
                 padding:"10px 14px",fontSize:12,marginBottom:6}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
