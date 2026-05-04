@@ -85,27 +85,39 @@ export function MarginBandsChart({ projects, actMap }: Props) {
   const chartData = useMemo<ChartRow[]>(() => {
     const rows: ChartRow[] = FY_MESES.map(mes => {
       const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
-      let totalMargen = 0, totalProd = 0;
+      let totalRevenue = 0, totalCost = 0;
+      let countedActivities = 0;
 
+      // Replicate the COR's kpiMonthProjects flow exactly:
+      // 1) start from liveProjects active in this month
+      // 2) overlay revenueMonthly/costMonthly from the snapshot when present
+      // 3) "billed" = rev > 0 OR cost > 0 (matches the COR's billed filter)
+      const snapMap = new Map<string, Project>();
       const snapProjects = snapByMonth[mes];
-      if (snapProjects) {
-        // Snapshot-backed month: use revenueMonthly/costMonthly per project,
-        // matching the COR's "Monthly Margin" calculation exactly.
-        for (const p of snapProjects) {
-          if (!isActiveInMonth(p, mes)) continue;
-          const rev  = p.revenueMonthly || 0;
-          const cost = p.costMonthly    || 0;
-          if (rev <= 0) continue;
-          const pct = ((rev - cost) / rev) * 100;
-          const band = pickBand(pct);
-          if (!band) continue;
-          counts[band]++;
-          totalMargen += rev - cost;
-          totalProd   += rev;
-        }
-      } else {
-        // No snapshot for this month: fall back to actMap (Excel data)
-        // matched against live projects via ifsCode.
+      if (snapProjects) for (const sp of snapProjects) snapMap.set(sp.id, sp);
+
+      for (const p of projects) {
+        if (!isActiveInMonth(p, mes)) continue;
+        const snap = snapMap.get(p.id);
+        const rev  = (snap?.revenueMonthly ?? p.revenueMonthly) || 0;
+        const cost = (snap?.costMonthly    ?? p.costMonthly)    || 0;
+        const billed = rev > 0 || cost > 0;
+        if (!billed) continue;
+        totalRevenue += rev;
+        totalCost    += cost;
+        countedActivities++;
+        // For band classification we still need a per-project margin %,
+        // which only makes sense when revenue > 0.
+        if (rev <= 0) continue;
+        const pct = ((rev - cost) / rev) * 100;
+        const band = pickBand(pct);
+        if (!band) continue;
+        counts[band]++;
+      }
+
+      // Fallback: when no snapshot AND no live financials carry data,
+      // use the Excel actMap so older months still light up.
+      if (countedActivities === 0 && !snapProjects) {
         for (const p of projects) {
           if (!isActiveInMonth(p, mes)) continue;
           if (!p.ifsCode) continue;
@@ -115,17 +127,21 @@ export function MarginBandsChart({ projects, actMap }: Props) {
           const band = pickBand(pct);
           if (!band) continue;
           counts[band]++;
-          totalMargen += data.margen;
-          totalProd   += data.produccion;
+          totalRevenue += data.produccion;
+          totalCost    += data.produccion - data.margen;
         }
       }
+
+      const weightedPct = totalRevenue > 0
+        ? Math.round(((totalRevenue - totalCost) / totalRevenue) * 100)
+        : 0;
 
       return {
         mes,
         monthLabel: MES_LABEL[mes] || mes,
         ...counts,
-        _weightedPct: totalProd > 0 ? (totalMargen / totalProd) * 100 : 0,
-        _hasData: totalProd > 0,
+        _weightedPct: weightedPct,
+        _hasData: totalRevenue > 0,
       };
     });
     return rows.map((row, idx) => {
@@ -196,7 +212,7 @@ export function MarginBandsChart({ projects, actMap }: Props) {
               labelFormatter={(label, payload) => {
                 const row = payload?.[0]?.payload as { _weightedPct?: number } | undefined;
                 if (!row || !row._weightedPct) return label;
-                return `${label} · Margen Ponderado: ${row._weightedPct.toFixed(1)}%`;
+                return `${label} · Margen Ponderado: ${Math.round(row._weightedPct)}%`;
               }}
             />
             {BANDS.map((b, i) => (
@@ -253,7 +269,7 @@ export function MarginBandsChart({ projects, actMap }: Props) {
                           <rect x={xn - 22} y={yn - 12} width={44} height={16} rx={3}
                             fill={band.color} stroke={band.color} strokeWidth={0.5}/>
                           <text x={xn} y={yn} textAnchor="middle" fontSize={10} fontWeight={700} fill={txtColor}>
-                            {wpct.toFixed(1)}%
+                            {Math.round(wpct)}%
                           </text>
                         </g>
                       );
