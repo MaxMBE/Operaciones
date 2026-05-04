@@ -446,12 +446,10 @@ export default function ProjectReportPage() {
 
       {/* Metadata row — editable via modal */}
       <div className="relative group border-b border-gray-200">
-        <div className="grid grid-cols-7 text-xs divide-x divide-gray-200">
+        <div className="grid grid-cols-5 text-xs divide-x divide-gray-200">
           {[
             { label: "BM",            value: project.manager || "—" },
             { label: "Team Lead",     value: project.leader  || "—" },
-            { label: "YTD Margin",      value: data.marginYTD    || "—" },
-            { label: "Current Margin", value: data.marginActual || "—" },
             { label: "FTEs",           value: data.ftes || String(project.teamSize || "—") },
             { label: "Phase",          value: data.phase        || "—" },
             { label: "Report Date",    value: data.reportDate   || "—" },
@@ -462,13 +460,12 @@ export default function ProjectReportPage() {
             </div>
           ))}
         </div>
-        <EditBtn onClick={() => openSec("meta", ["marginYTD", "marginActual", "ftes", "phase", "reportDate", "commitmentLevel", "hitoPago"])} label="Edit metadata" />
+        <EditBtn onClick={() => openSec("meta", ["ftes", "phase", "reportDate", "commitmentLevel"])} label="Edit metadata" />
       </div>
 
-      <div className="grid grid-cols-3 border-b border-gray-200 text-xs divide-x divide-gray-200">
+      <div className="grid grid-cols-2 border-b border-gray-200 text-xs divide-x divide-gray-200">
         {[
           { label: "Commitment Level", value: data.commitmentLevel || project.serviceLevel || "—" },
-          { label: "Payment Milestone", value: data.hitoPago  || "—" },
           { label: "Start → End",       value: `${project.startDate || "—"} → ${project.endDate || "—"}` },
         ].map((col) => (
           <div key={col.label} className="px-3 py-2">
@@ -489,13 +486,10 @@ export default function ProjectReportPage() {
       return (
         <SectionModal title="Edit Metadata" onSave={saveSec} onClose={() => setEditSection(null)}>
           <div className="grid grid-cols-2 gap-4">
-            <MRow label="YTD Margin"><Field value={String(secDraft.marginYTD ?? "")} onChange={v => setSec("marginYTD", v)} placeholder="TBC" /></MRow>
-            <MRow label="Current Margin"><Field value={String(secDraft.marginActual ?? "")} onChange={v => setSec("marginActual", v)} placeholder="TBC" /></MRow>
             <MRow label="FTEs"><Field value={String(secDraft.ftes ?? "")} onChange={v => setSec("ftes", v)} placeholder="e.g. 5" /></MRow>
             <MRow label="Phase"><Field value={String(secDraft.phase ?? "")} onChange={v => setSec("phase", v)} placeholder="e.g. Design" /></MRow>
             <MRow label="Report Date"><Field value={String(secDraft.reportDate ?? "")} onChange={v => setSec("reportDate", v)} placeholder="YYYY-MM-DD" /></MRow>
             <MRow label="Commitment Level"><Field value={String(secDraft.commitmentLevel ?? "")} onChange={v => setSec("commitmentLevel", v)} placeholder="Fixed Price / CC / SC" /></MRow>
-            <MRow label="Payment Milestone" className="col-span-2"><Field value={String(secDraft.hitoPago ?? "")} onChange={v => setSec("hitoPago", v)} placeholder="Payment milestone description" /></MRow>
           </div>
         </SectionModal>
       );
