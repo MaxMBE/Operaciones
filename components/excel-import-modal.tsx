@@ -26,6 +26,9 @@ interface ParsedData {
   // Diagnostic: how many activities have produccion > 0 in each parsed month.
   // If a month is missing or has 0 activities, the parser did not pick it up.
   distribucionPorMes: Record<string, number>;
+  // Diagnostic: how many BDD2 (headcount) entries the parser found per month.
+  // If a month is empty here, the file has no consultant-day rows for it.
+  distribucionHeadcountPorMes: Record<string, number>;
 }
 interface StoredData {
   catalogo: ActividadCatalogo[];
@@ -224,6 +227,15 @@ async function parsePlanillaMargenes(file: File): Promise<ParsedData> {
     });
   });
 
+  // Diagnostic: count BDD2 headcount entries per month so we can tell
+  // whether the file actually carries consultant-day data for each month.
+  const distribucionHeadcountPorMes: Record<string, number> = {};
+  Object.entries(hcMap).forEach(([key, hc]) => {
+    const mes = key.split("_").pop() || "";
+    if (!mes) return;
+    distribucionHeadcountPorMes[mes] = (distribucionHeadcountPorMes[mes] || 0) + hc.length;
+  });
+
   return {
     catalogo, actividades: actMap, mesArchivo,
     resumen: {
@@ -231,6 +243,7 @@ async function parsePlanillaMargenes(file: File): Promise<ParsedData> {
       totalProd, totalCosto, totalMargen, margenPct,
     },
     distribucionPorMes,
+    distribucionHeadcountPorMes,
   };
 }
 
@@ -530,20 +543,44 @@ const ALL_MESES_DIAG = [
 ];
 
 function ParsedDiagnostic({ parsed }: { parsed: ParsedData }) {
-  const max = Math.max(1, ...Object.values(parsed.distribucionPorMes));
+  return (
+    <>
+      <DiagnosticBars
+        title="BDD1 — actividades con producción > 0"
+        data={parsed.distribucionPorMes}
+        positiveColor="#86efac"
+        labelColor="#15803d"
+      />
+      <DiagnosticBars
+        title="BDD2 — entradas de headcount (días por consultor) detectadas"
+        data={parsed.distribucionHeadcountPorMes}
+        positiveColor="#bfdbfe"
+        labelColor="#1d4ed8"
+      />
+    </>
+  );
+}
+
+function DiagnosticBars({ title, data, positiveColor, labelColor }: {
+  title: string;
+  data: Record<string, number>;
+  positiveColor: string;
+  labelColor: string;
+}) {
+  const max = Math.max(1, ...Object.values(data));
   return (
     <div style={{ marginTop:14, border:"1px solid #e2e8f0", borderRadius:8, padding:"10px 14px", background:"#fff" }}>
       <div style={{ fontSize:10, color:"#64748b", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:6 }}>
-        Distribución por mes (actividades con producción &gt; 0 detectadas en el archivo)
+        {title}
       </div>
       <div style={{ display:"flex", gap:4, alignItems:"flex-end", height:60, marginBottom:4 }}>
         {ALL_MESES_DIAG.map(mes => {
-          const n = parsed.distribucionPorMes[mes] || 0;
+          const n = data[mes] || 0;
           const h = Math.max(2, (n / max) * 56);
           return (
             <div key={mes} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
-              <div style={{ fontSize:9, fontWeight:600, color: n > 0 ? "#15803d" : "#94a3b8" }}>{n || ""}</div>
-              <div style={{ width:"100%", height: h, background: n > 0 ? "#86efac" : "#e2e8f0", borderRadius:2 }}/>
+              <div style={{ fontSize:9, fontWeight:600, color: n > 0 ? labelColor : "#94a3b8" }}>{n || ""}</div>
+              <div style={{ width:"100%", height: h, background: n > 0 ? positiveColor : "#e2e8f0", borderRadius:2 }}/>
             </div>
           );
         })}
