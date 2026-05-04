@@ -15,7 +15,6 @@ import { PrintHeader } from "@/components/print-header";
 import { MultiFilter } from "@/components/multi-filter";
 import { CsvUploadMenuItems } from "@/components/csv-upload-menu-items";
 import { MarginBandsChart } from "@/components/metrics/margin-bands-chart";
-import { ExcelImportModal } from "@/components/excel-import-modal";
 import type { Project, ProjectReport, HealthStatus, TeamMember } from "@/types";
 import {
   CheckCircle2, TrendingUp, DollarSign,
@@ -39,16 +38,6 @@ function snapshotDateToMonth(d: string): string { return d.slice(0, 7); }
 function monthDisplayLabel(ym: string, locale: string): string {
   const [y, m] = ym.split("-").map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString(locale, { month: "long", year: "numeric" });
-}
-
-// Normalize an ActividadMes loaded from JSON or Supabase. The app measures
-// services and their margins — the totals (produccion / costos / margen /
-// costoNorm) coming from the source data are authoritative. Headcount is
-// auxiliary detail and never overrides those totals on load. The in-app
-// Edit flow has its own recalc path that DOES use headcount; this helper
-// only runs at load time.
-function normalizeActividadMes(m: ActividadMes): ActividadMes {
-  return m;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -1155,41 +1144,26 @@ function CORView() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ── Margin Calculator actMap (for Billing auto-fill + monthly margin lookup) ──
-  // Source order: Supabase actividades-data (set by Excel import) → static JSON fallback.
-  // Then overlays fin-kpi-proy.editedRows for any month in officialMonths.
+  // ── Margin Calculator actMap (for Billing auto-fill) ──────────────────
   const [actMap, setActMapCOR] = useState<Record<string, ActividadMes[]>>({});
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const stored = await fetch("/api/settings/actividades-data").then(r => r.json()).catch(() => null);
-      let rawMap: Record<string, ActividadMes[]> = {};
-      if (stored && typeof stored === "object" && stored.actividades && Object.keys(stored.actividades).length) {
-        rawMap = stored.actividades;
-      } else {
-        const json = await fetch("/actividades-data.json").then(r => r.json()).catch(() => null);
-        if (json) rawMap = json.ACTIVIDADES_FULL || {};
-      }
-      const fixedMap: Record<string, ActividadMes[]> = {};
-      for (const [code, months] of Object.entries(rawMap)) {
-        fixedMap[code] = (months as ActividadMes[]).map(normalizeActividadMes);
-      }
-      const proj = await fetch("/api/settings/fin-kpi-proy").then(r => r.json()).catch(() => null) as Record<string, ProjData> | null;
-      if (proj && typeof proj === "object") {
-        for (const [code, data] of Object.entries(proj)) {
-          const officials = data.officialMonths || [];
-          if (!officials.length || !data.editedRows?.length) continue;
-          const existing = fixedMap[code] || [];
-          const byMes = new Map(existing.map(r => [r.mes, r]));
-          for (const row of data.editedRows) {
-            if (officials.includes(row.mes)) byMes.set(row.mes, row);
-          }
-          fixedMap[code] = [...byMes.values()].sort((a, b) => a.mes.localeCompare(b.mes));
+    fetch("/actividades-data.json")
+      .then(r => r.json())
+      .then(d => {
+        const rawMap = d.ACTIVIDADES_FULL || {};
+        const fixedMap: Record<string, ActividadMes[]> = {};
+        for (const [code, months] of Object.entries(rawMap)) {
+          fixedMap[code] = (months as ActividadMes[]).map(m => {
+            const hc = m.headcount || [];
+            const totalCostos = hc.reduce((s: number, h: HeadcountEntry) => s + h.costoMes, 0);
+            const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
+            const costoNorm = Math.round(totalCostos * 20.75 / wd);
+            return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
+          });
         }
-      }
-      if (!cancelled) setActMapCOR(fixedMap);
-    })();
-    return () => { cancelled = true; };
+        setActMapCOR(fixedMap);
+      })
+      .catch(() => {});
   }, []);
 
   // ── Monthly snapshots ─────────────────────────────────────────────────
@@ -2452,15 +2426,8 @@ interface ActividadMes { mes: string; produccion: number; costos: number; margen
 
 // ── Financial KPI View ────────────────────────────────────────────────────────
 
-// Full FY universe: Apr-25 → Jun-26. The split between Real and Projection
-// is computed dynamically by FinancialKPIView based on the months that actually
-// carry production data, so importing a new month auto-promotes it to Real.
-const ALL_MESES_FY = [
-  "2025-04","2025-05","2025-06","2025-07","2025-08","2025-09",
-  "2025-10","2025-11","2025-12","2026-01","2026-02","2026-03",
-  "2026-04","2026-05","2026-06",
-];
-const PROY_HORIZON = 4; // how many forward-looking months we want as projection columns at minimum
+const FY_MESES = ["2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02"];
+const PROY_MESES = ["2026-03","2026-04","2026-05","2026-06"];
 const MES_LABEL: Record<string,string> = {
   "2025-04":"Apr-25","2025-05":"May-25","2025-06":"Jun-25","2025-07":"Jul-25",
   "2025-08":"Aug-25","2025-09":"Sep-25","2025-10":"Oct-25","2025-11":"Nov-25",
@@ -2578,8 +2545,6 @@ function ConsultantPicker({ allConsultants, existingNames, onAdd }: {
 // proyWD:   { "2026-03": 21, "2026-04": 20, ... }
 // proyUFVal:{ "2026-03": 39900, ... }
 function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProyDiasChange, proyWD, onProyWDChange, proyUFVal, onProyUFChange, actividadesMap,
-  fyMeses, proyMeses,
-  officialMonths = [],
   editMode = false, editRows = [], allConsultants = [],
   onChangeProduccion, onChangeDias, onAddConsultant, onRemoveConsultant,
 }: {
@@ -2588,9 +2553,6 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   proyWD: Record<string,number>; onProyWDChange: (mes: string, wd: number) => void;
   proyUFVal: Record<string,number>; onProyUFChange: (mes: string, uf: number) => void;
   actividadesMap: Record<string, ActividadMes[]>;
-  fyMeses: string[];
-  proyMeses: string[];
-  officialMonths?: string[];
   editMode?: boolean;
   editRows?: ActividadMes[];
   allConsultants?: Array<{nombre: string; costoDiario: number}>;
@@ -2599,9 +2561,6 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   onAddConsultant?: (nombre: string, costoDiario: number) => void;
   onRemoveConsultant?: (nombre: string) => void;
 }) {
-  const FY_MESES = fyMeses;
-  const PROY_MESES = proyMeses;
-  const isOfficialMes = (m: string) => officialMonths.includes(m);
   const historico: ActividadMes[] = editMode ? editRows : (actividadesMap[actividad.codigo] || []);
   const byMes: Record<string, ActividadMes> = {};
   historico.forEach(m => { byMes[m.mes] = m; });
@@ -2730,11 +2689,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
           </tr>
           <tr>
             {FY_MESES.map(m => <th key={m} style={{...thS(BG_HDR),fontSize:10}}>{MES_LABEL[m]}</th>)}
-            {PROY_MESES.map(m => (
-              <th key={m} style={{...thS(isOfficialMes(m)?"#16a34a":BG_PROY),fontSize:10,minWidth:100}}>
-                {MES_LABEL[m]}{isOfficialMes(m) && " ✓"}
-              </th>
-            ))}
+            {PROY_MESES.map(m => <th key={m} style={{...thS(BG_PROY),fontSize:10,minWidth:100}}>{MES_LABEL[m]}</th>)}
             <th style={{...thS(BG_ACUM),fontSize:10}}>Real to {MES_LABEL[lastRealMes]}</th>
             <th style={{...thS(BG_ACUM),fontSize:10,background:"#ffc000",color:"#333"}}>Real + Proj.</th>
           </tr>
@@ -2745,7 +2700,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
               <td style={labelS}>{row.label}{editMode && row.editable && <span style={{marginLeft:4,fontSize:9,color:"#2e75b6",fontWeight:700}}>✎</span>}</td>
               {FY_MESES.map(mes => renderCell(mes, row.key))}
               {proyCalc.map(p => (
-                <td key={p.mes} style={{...tdS(isOfficialMes(p.mes)?"#dcfce7":"#bdd7ee",false,row.key==="margenPct"?"center":"right")}}>
+                <td key={p.mes} style={{...tdS("#bdd7ee",false,row.key==="margenPct"?"center":"right")}}>
                   {row.key === "tarifaUF" ? (
                     <input type="number" step="0.5" value={proyTarifas[p.mes] || ""}
                       onChange={e => onProyChange(p.mes, e.target.value)}
@@ -2801,7 +2756,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
                 const d = diasPm[nombre] ?? (refMes?.headcount?.find(h => h.nombre === nombre)?.dias ?? 0);
                 return d > 0;
               }).length;
-              return <td key={pm} style={{...tdS(isOfficialMes(pm)?"#16a34a":BG_PROY,true),color:"#fff",textAlign:"center"}}>{n}</td>;
+              return <td key={pm} style={{...tdS(BG_PROY,true),color:"#fff",textAlign:"center"}}>{n}</td>;
             })}
             <td colSpan={2} style={{background:BG_HC,borderBottom:"0.5px solid #ddd"}}/>
           </tr>
@@ -2821,7 +2776,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
                 const d = diasPm[nombre] ?? (refMes?.headcount?.find(h => h.nombre === nombre)?.dias ?? 0);
                 return sum + (d > 0 ? d / wd : 0);
               }, 0);
-              return <td key={pm} style={{...tdS(isOfficialMes(pm)?"#16a34a":BG_PROY,false),color:"#fff",textAlign:"center"}}>{fte.toFixed(1)}</td>;
+              return <td key={pm} style={{...tdS(BG_PROY,false),color:"#fff",textAlign:"center"}}>{fte.toFixed(1)}</td>;
             })}
             <td colSpan={2} style={{background:BG_HC,borderBottom:"0.5px solid #ddd"}}/>
           </tr>
@@ -2870,7 +2825,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
                 const simDias = proyDias[pm]?.[nombre] ?? refHc?.dias ?? 0;
                 return (
                   <td key={pm} style={{padding:"2px 4px",borderRight:"0.5px solid #ddd",
-                    borderBottom:"0.5px solid #eee",background:isOfficialMes(pm)?"#dcfce7":"#e8f0fb",textAlign:"center"}}>
+                    borderBottom:"0.5px solid #eee",background:"#e8f0fb",textAlign:"center"}}>
                     <input type="number" min={0} max={31} value={simDias}
                       onChange={e => onProyDiasChange(pm, nombre, Number(e.target.value))}
                       style={{border:"1px solid #5b9bd5",borderRadius:3,padding:"1px 4px",
@@ -2900,7 +2855,7 @@ function TablaActividad({ actividad, proyTarifas, onProyChange, proyDias, onProy
   );
 }
 
-type ProjData = { tarifas: Record<string,string>; dias: Record<string,Record<string,number>>; wd: Record<string,number>; ufVal: Record<string,number>; editedRows?: ActividadMes[]; officialMonths?: string[] };
+type ProjData = { tarifas: Record<string,string>; dias: Record<string,Record<string,number>>; wd: Record<string,number>; ufVal: Record<string,number>; editedRows?: ActividadMes[] };
 
 function FinancialKPIView() {
   const [actSel, setActSel]         = useState<ActividadCatalogo | null>(null);
@@ -2915,70 +2870,47 @@ function FinancialKPIView() {
   const [editMode, setEditMode]     = useState(false);
   const [editRows, setEditRows]     = useState<ActividadMes[]>([]);
   const [allConsultants, setAllConsultants] = useState<Array<{nombre: string; costoDiario: number}>>([]);
-  const [promoteModal, setPromoteModal] = useState<{ mes: string; row: ActividadMes } | null>(null);
-  const [importOpen, setImportOpen] = useState<boolean>(false);
-  const [reloadTick, setReloadTick] = useState<number>(0);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      // Source order: Supabase actividades-data (set by Excel import) → static JSON fallback.
-      const stored = await fetch("/api/settings/actividades-data").then(r => r.json()).catch(() => null);
-      let cat: ActividadCatalogo[] = [];
-      let rawMap: Record<string, ActividadMes[]> = {};
-      if (stored && typeof stored === "object" && stored.actividades && Object.keys(stored.actividades).length) {
-        cat = stored.catalogo || [];
-        rawMap = stored.actividades;
-      } else {
-        const json = await fetch("/actividades-data.json").then(r => r.json()).catch(() => null);
-        if (json) { cat = json.CATALOGO_ACTIVIDADES || []; rawMap = json.ACTIVIDADES_FULL || {}; }
-      }
-
-      const fixedMap: Record<string, ActividadMes[]> = {};
-      const consultMap = new Map<string, number>();
-      for (const [code, months] of Object.entries(rawMap)) {
-        fixedMap[code] = (months as ActividadMes[]).map(m => {
-          (m.headcount || []).forEach(h => {
-            if (!consultMap.has(h.nombre) && h.costoDiario > 0) consultMap.set(h.nombre, h.costoDiario);
+    // Chain: load JSON first, then load Supabase edits, apply both together
+    fetch("/actividades-data.json")
+      .then(r => r.json())
+      .then(d => {
+        setCatalogo(d.CATALOGO_ACTIVIDADES || []);
+        const rawMap = d.ACTIVIDADES_FULL || {};
+        const fixedMap: Record<string, ActividadMes[]> = {};
+        const consultMap = new Map<string, number>();
+        for (const [code, months] of Object.entries(rawMap)) {
+          fixedMap[code] = (months as ActividadMes[]).map(m => {
+            const hc = m.headcount || [];
+            const totalCostos = hc.reduce((s, h) => s + h.costoMes, 0);
+            const wd = (m.workingDays || 0) > 0 ? m.workingDays : 20.75;
+            const costoNorm = Math.round(totalCostos * 20.75 / wd);
+            hc.forEach(h => { if (!consultMap.has(h.nombre) && h.costoDiario > 0) consultMap.set(h.nombre, h.costoDiario); });
+            return { ...m, costos: -totalCostos, costoNorm, margen: m.produccion - costoNorm };
           });
-          return normalizeActividadMes(m);
-        });
-      }
-      const consultants = [...consultMap.entries()]
-        .map(([nombre, costoDiario]) => ({ nombre, costoDiario }))
-        .sort((a, b) => a.nombre.localeCompare(b.nombre));
-
-      const proj = await fetch("/api/settings/fin-kpi-proy").then(r => r.json()).catch(() => null) as Record<string, ProjData> | null;
-      if (proj && typeof proj === "object") {
-        for (const [code, data] of Object.entries(proj)) {
-          if (!data.editedRows?.length) continue;
-          // Overlay edits by month so we don't drop other months that were
-          // not touched by the user (e.g. fresh months coming from a new
-          // Excel import in actividades-data).
-          const existing = fixedMap[code] || [];
-          const byMes = new Map<string, ActividadMes>(existing.map(r => [r.mes, r]));
-          for (const row of data.editedRows) {
-            const hasRealData = (row.produccion || 0) > 0 || (row.headcount?.length || 0) > 0;
-            const baseRow = byMes.get(row.mes);
-            const baseHasData = baseRow && ((baseRow.produccion || 0) > 0 || (baseRow.headcount?.length || 0) > 0);
-            // Only overlay when the edit actually carries data, OR when there
-            // is no real base row to preserve. This stops legacy empty
-            // placeholder edits (produccion=0) from masking fresh Excel data.
-            if (hasRealData || !baseHasData) byMes.set(row.mes, row);
-          }
-          fixedMap[code] = [...byMes.values()].sort((a, b) => a.mes.localeCompare(b.mes));
         }
-      }
-      if (cancelled) return;
-      setCatalogo(cat);
-      setAllConsultants(consultants);
-      if (proj) setSavedProj(proj);
-      setActMap(fixedMap);
-      setLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [reloadTick]);
+        setAllConsultants([...consultMap.entries()]
+          .map(([nombre, costoDiario]) => ({ nombre, costoDiario }))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre)));
+        // Load Supabase edits and overlay them on top of the JSON map
+        return fetch("/api/settings/fin-kpi-proy")
+          .then(r => r.json())
+          .then((stored: Record<string, ProjData> | null) => {
+            if (stored && typeof stored === "object") {
+              setSavedProj(stored);
+              // Apply any saved editedRows over the base JSON data
+              for (const [code, data] of Object.entries(stored)) {
+                if (data.editedRows?.length) fixedMap[code] = data.editedRows;
+              }
+            }
+            setActMap(fixedMap);
+            setLoading(false);
+          })
+          .catch(() => { setActMap(fixedMap); setLoading(false); });
+      })
+      .catch(() => setLoading(false));
+  }, []);
 
   // Reset edit mode when activity changes; restore saved projection data + edited rows
   useEffect(() => {
@@ -3001,121 +2933,17 @@ function FinancialKPIView() {
   const historico: ActividadMes[] = actSel ? (actMap[actSel.codigo] || []) : [];
   const displayRows = editMode ? editRows : historico;
   const ultimo = displayRows[displayRows.length - 1];
-  const officialMonths: string[] = actSel ? (savedProj[actSel.codigo]?.officialMonths || []) : [];
-
-  // Dynamic Real/Projection split: the last month carrying production data in
-  // any activity is the cutoff. Everything ≤ cutoff is Real; the next months
-  // (up to PROY_HORIZON) become Projection columns. This way an Excel import
-  // with a new month auto-promotes it from Projection to Real.
-  const { fyMeses, proyMeses } = useMemo(() => {
-    let lastIdx = -1;
-    for (let i = ALL_MESES_FY.length - 1; i >= 0; i--) {
-      const mes = ALL_MESES_FY[i];
-      const hasData = Object.values(actMap).some(months =>
-        months.some(m => m.mes === mes && m.produccion > 0)
-      );
-      if (hasData) { lastIdx = i; break; }
-    }
-    if (lastIdx < 0) {
-      return { fyMeses: ALL_MESES_FY.slice(0, 11), proyMeses: ALL_MESES_FY.slice(11, 11 + PROY_HORIZON) };
-    }
-    return {
-      fyMeses: ALL_MESES_FY.slice(0, lastIdx + 1),
-      proyMeses: ALL_MESES_FY.slice(lastIdx + 1, lastIdx + 1 + PROY_HORIZON),
-    };
-  }, [actMap]);
-  const FY_MESES = fyMeses;
-  const PROY_MESES = proyMeses;
 
   function startEdit() {
     setEditRows(JSON.parse(JSON.stringify(historico)));
     setEditMode(true);
   }
   function cancelEdit() { setEditMode(false); setEditRows([]); }
-
-  // Builds an ActividadMes from current projection inputs for `mes`,
-  // using the same formulas as TablaActividad.proyCalc so what you see is what gets promoted.
-  function materializeProjectionMonth(mes: string): ActividadMes | null {
-    if (!actSel) return null;
-    const baseRows = editRows.length ? editRows : historico;
-    const lastRealMes = [...FY_MESES].reverse().find(m => baseRows.find(r => r.mes === m && r.produccion)) || FY_MESES[FY_MESES.length - 1];
-    const refMes = baseRows.find(r => r.mes === lastRealMes) || baseRows[baseRows.length - 1];
-
-    const consultoresOrden: string[] = [];
-    const seenNames = new Set<string>();
-    [...baseRows].reverse().forEach(m =>
-      m.headcount?.forEach(h => { if (!seenNames.has(h.nombre)) { seenNames.add(h.nombre); consultoresOrden.push(h.nombre); } })
-    );
-    const consultCostMap = new Map<string, number>();
-    baseRows.forEach(m => m.headcount?.forEach(h => {
-      if (h.costoDiario > 0 && !consultCostMap.has(h.nombre)) consultCostMap.set(h.nombre, h.costoDiario);
-    }));
-
-    const uf     = parseFloat(proyTarifas[mes] || "") || 0;
-    const ufVal  = proyUFVal[mes] ?? (refMes?.uf || 39875);
-    const prod   = uf > 0 ? uf * ufVal : 0;
-    const wd     = proyWD[mes] ?? (refMes?.workingDays > 0 ? refMes.workingDays : 20.75);
-    const diasPm = proyDias[mes] || {};
-
-    const headcount: HeadcountEntry[] = consultoresOrden.flatMap(nombre => {
-      const costoDiario = consultCostMap.get(nombre) || 0;
-      const defaultDias = refMes?.headcount?.find(h => h.nombre === nombre)?.dias ?? 0;
-      const dias = diasPm[nombre] ?? defaultDias;
-      if (dias <= 0 || costoDiario <= 0) return [];
-      const costoMes = Math.round(dias * costoDiario);
-      const fte = wd > 0 ? parseFloat((dias / wd).toFixed(2)) : 0;
-      return [{ nombre, dias, fte, costoDiario, costoMes }];
-    });
-
-    const totalCostos = headcount.reduce((s, h) => s + h.costoMes, 0);
-    const costoNorm   = Math.round(totalCostos * 20.75 / (wd || 20.75));
-    const margen      = prod - costoNorm;
-    const diasActividad = headcount.reduce((s, h) => s + h.dias, 0);
-
-    return {
-      mes, produccion: prod, costos: -totalCostos, margen, diasActividad,
-      uf: ufVal, workingDays: wd, tarifaUF: uf, costoNorm,
-      irm: refMes?.irm || "", cliente: refMes?.cliente || actSel.cliente,
-      headcount,
-    };
-  }
-
-  // Returns the first PROY_MESES month that has usable projection data and is NOT already official.
-  function findPromotableMonth(currentOfficials: string[]): { mes: string; row: ActividadMes } | null {
-    for (const pm of PROY_MESES) {
-      if (currentOfficials.includes(pm)) continue;
-      const row = materializeProjectionMonth(pm);
-      if (row && row.produccion > 0 && row.headcount.length > 0) return { mes: pm, row };
-    }
-    return null;
-  }
-
   function saveEdit() {
     if (!actSel) return;
-    const currentOfficials = savedProj[actSel.codigo]?.officialMonths || [];
-    const candidate = findPromotableMonth(currentOfficials);
-    if (candidate) { setPromoteModal(candidate); return; }
-    commitSave({ promoteMonth: null });
-  }
-
-  // Persists edits + projection. If promoteMonth is set, that month gets merged
-  // into editedRows (replacing any existing entry) and added to officialMonths
-  // so the COR picks it up as a real month.
-  function commitSave({ promoteMonth }: { promoteMonth: { mes: string; row: ActividadMes } | null }) {
-    if (!actSel) return;
-    const prevOfficials = savedProj[actSel.codigo]?.officialMonths || [];
-    let rowsToSave = editRows;
-    let nextOfficials = prevOfficials;
-    if (promoteMonth) {
-      const without = editRows.filter(r => r.mes !== promoteMonth.mes);
-      rowsToSave = [...without, promoteMonth.row].sort((a, b) => a.mes.localeCompare(b.mes));
-      nextOfficials = [...prevOfficials.filter(m => m !== promoteMonth.mes), promoteMonth.mes];
-    }
-    setActMap(prev => ({ ...prev, [actSel.codigo]: rowsToSave }));
-    const projEntry: ProjData = {
-      tarifas: proyTarifas, dias: proyDias, wd: proyWD, ufVal: proyUFVal,
-      editedRows: rowsToSave, officialMonths: nextOfficials,
-    };
+    setActMap(prev => ({ ...prev, [actSel.codigo]: editRows }));
+    // Persist projection + edited historical rows to Supabase
+    const projEntry: ProjData = { tarifas: proyTarifas, dias: proyDias, wd: proyWD, ufVal: proyUFVal, editedRows: editRows };
     const updated = { ...savedProj, [actSel.codigo]: projEntry };
     setSavedProj(updated);
     fetch("/api/settings/fin-kpi-proy", {
@@ -3125,26 +2953,6 @@ function FinancialKPIView() {
     }).catch(() => {});
     setEditMode(false);
     setEditRows([]);
-    setPromoteModal(null);
-  }
-
-  // Undo: removes a month from officialMonths AND drops it from editedRows
-  // so the COR no longer sees it as a real month.
-  function undoOfficial(mes: string) {
-    if (!actSel) return;
-    const entry = savedProj[actSel.codigo];
-    if (!entry) return;
-    const nextOfficials = (entry.officialMonths || []).filter(m => m !== mes);
-    const nextRows = (entry.editedRows || []).filter(r => r.mes !== mes);
-    const projEntry: ProjData = { ...entry, editedRows: nextRows, officialMonths: nextOfficials };
-    const updated = { ...savedProj, [actSel.codigo]: projEntry };
-    setSavedProj(updated);
-    setActMap(prev => ({ ...prev, [actSel.codigo]: nextRows }));
-    fetch("/api/settings/fin-kpi-proy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updated),
-    }).catch(() => {});
   }
   // costoNorm = round(totalCostos / workingDays * 20.75)  — normalized to a 20.75-day month
   // Uses workingDays of the month (e.g. 21 for April), NOT sum of consultant days
@@ -3196,18 +3004,12 @@ function FinancialKPIView() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white dark:bg-card rounded-xl border border-border p-5 flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">SII Group Chile</div>
-          <h2 className="text-xl font-medium text-foreground mb-1">Activity Detail & Calculator</h2>
-          <p className="text-sm text-muted-foreground">
-            {loading ? "Loading..." : `${catalogo.length} activities · FY 2025-2026 · Margin spreadsheet replica`}
-          </p>
-        </div>
-        <button onClick={() => setImportOpen(true)}
-          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors whitespace-nowrap">
-          Importar Excel del mes
-        </button>
+      <div className="bg-white dark:bg-card rounded-xl border border-border p-5">
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">SII Group Chile</div>
+        <h2 className="text-xl font-medium text-foreground mb-1">Activity Detail & Calculator</h2>
+        <p className="text-sm text-muted-foreground">
+          {loading ? "Loading..." : `${catalogo.length} activities · FY 2025-2026 · Margin spreadsheet replica`}
+        </p>
       </div>
 
       {/* Search */}
@@ -3253,21 +3055,6 @@ function FinancialKPIView() {
               <div style={{fontSize:11,opacity:0.75,textAlign:"right"}}>
                 <div>IRM: {ultimo.irm}</div>
                 <div>Last: {MES_LABEL[ultimo.mes] || ultimo.mes}</div>
-              </div>
-            )}
-            {officialMonths.length > 0 && !editMode && (
-              <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-                {officialMonths.slice().sort().map(m => (
-                  <span key={m} style={{display:"inline-flex",alignItems:"center",gap:6,
-                    background:"rgba(34,197,94,0.18)",border:"1px solid rgba(34,197,94,0.6)",
-                    padding:"3px 8px",borderRadius:999,fontSize:11,fontWeight:600}}>
-                    ✓ {MES_LABEL[m] || m} oficial
-                    <button onClick={() => undoOfficial(m)}
-                      title={`Revertir ${MES_LABEL[m] || m} a simulación`}
-                      style={{background:"transparent",border:"none",color:"#fff",
-                        cursor:"pointer",fontSize:13,lineHeight:1,padding:0}}>×</button>
-                  </span>
-                ))}
               </div>
             )}
             {/* Edit controls */}
@@ -3320,8 +3107,6 @@ function FinancialKPIView() {
                 proyWD={proyWD} onProyWDChange={(mes, wd) => setProyWD(prev => ({...prev, [mes]: wd}))}
                 proyUFVal={proyUFVal} onProyUFChange={(mes, uf) => setProyUFVal(prev => ({...prev, [mes]: uf}))}
                 actividadesMap={actMap}
-                fyMeses={fyMeses} proyMeses={proyMeses}
-                officialMonths={officialMonths}
                 editMode={editMode} editRows={editRows} allConsultants={allConsultants}
                 onChangeProduccion={handleChangeProduccion}
                 onChangeDias={handleChangeDias}
@@ -3332,76 +3117,6 @@ function FinancialKPIView() {
           )}
         </div>
       )}
-
-      {/* Promote-to-official modal */}
-      {promoteModal && (
-        <div onClick={() => setPromoteModal(null)}
-          style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",
-            display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:20}}>
-          <div onClick={e => e.stopPropagation()}
-            style={{background:"#fff",borderRadius:12,maxWidth:520,width:"100%",
-              boxShadow:"0 20px 60px rgba(0,0,0,0.3)",overflow:"hidden"}}>
-            <div style={{background:"#17375e",color:"#fff",padding:"14px 20px"}}>
-              <div style={{fontSize:11,opacity:0.7,textTransform:"uppercase",letterSpacing:"0.06em"}}>Confirmar guardado</div>
-              <div style={{fontSize:16,fontWeight:600,marginTop:2}}>
-                ¿Marcar {MES_LABEL[promoteModal.mes] || promoteModal.mes} como datos oficiales?
-              </div>
-            </div>
-            <div style={{padding:"18px 20px",fontSize:13,color:"#333",lineHeight:1.5}}>
-              <p style={{margin:0,marginBottom:12}}>
-                Si marcás este mes como oficial, los valores simulados pasan a ser los datos reales del mes
-                y aparecerán en el COR cuando selecciones <b>{MES_LABEL[promoteModal.mes] || promoteModal.mes}</b>,
-                igual que enero y febrero.
-              </p>
-              <div style={{background:"#f5f7fa",border:"1px solid #e2e8f0",borderRadius:8,
-                padding:"10px 14px",fontSize:12,marginBottom:6}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                  <span style={{color:"#666"}}>Producción</span>
-                  <span style={{fontWeight:600}}>{fmtNum(promoteModal.row.produccion)}</span>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                  <span style={{color:"#666"}}>Costo normalizado</span>
-                  <span style={{fontWeight:600}}>{fmtNeg(promoteModal.row.costoNorm)}</span>
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between"}}>
-                  <span style={{color:"#666"}}>Margen</span>
-                  <span style={{fontWeight:700,color:promoteModal.row.margen>=0?"#1b5e20":"#b71c1c"}}>
-                    {fmtNum(promoteModal.row.margen)}
-                    {promoteModal.row.produccion>0 && ` (${fmtPctSgn(promoteModal.row.margen/promoteModal.row.produccion)})`}
-                  </span>
-                </div>
-              </div>
-              <p style={{margin:0,fontSize:11,color:"#888"}}>
-                Podés revertirlo después con el botón × del badge verde en el header.
-              </p>
-            </div>
-            <div style={{display:"flex",gap:8,padding:"12px 20px",background:"#f9fafb",
-              borderTop:"1px solid #e2e8f0",justifyContent:"flex-end",flexWrap:"wrap"}}>
-              <button onClick={() => setPromoteModal(null)}
-                style={{padding:"7px 14px",background:"transparent",border:"1px solid #cbd5e1",
-                  borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",color:"#475569"}}>
-                Cancelar
-              </button>
-              <button onClick={() => commitSave({ promoteMonth: null })}
-                style={{padding:"7px 14px",background:"#fff",border:"1px solid #2e75b6",
-                  borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",color:"#2e75b6"}}>
-                Solo guardar simulación
-              </button>
-              <button onClick={() => commitSave({ promoteMonth: promoteModal })}
-                style={{padding:"7px 14px",background:"#16a34a",border:"none",
-                  borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer",color:"#fff"}}>
-                ✓ Sí, hacer oficial
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ExcelImportModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        onImported={() => setReloadTick(n => n + 1)}
-      />
     </div>
   );
 }
