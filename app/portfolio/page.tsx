@@ -2160,9 +2160,17 @@ function CORView() {
                 const weather  = WEATHER[rep?.overallStatus ?? "grey"] ?? WEATHER.grey;
                 const otdVal   = parsePercent(p.csvOtdPercent);
                 const oqdVal   = parsePercent(p.csvOqdPercent);
+                // Margin source priority:
+                //   1. Project.revenueMonthly/costMonthly (manually loaded in COR)
+                //   2. Margin Calculator actMap for the active month (includes
+                //      months promoted to "official" via the simulation flow)
+                //   3. marginYTD from the report
+                const mcEntry = p.ifsCode ? actMonthLookup(p.ifsCode) : null;
                 const marginPct = p.revenueMonthly && p.revenueMonthly > 0
                   ? Math.round((p.revenueMonthly - (p.costMonthly||0)) / p.revenueMonthly * 100)
-                  : rep?.marginYTD ? parsePercent(rep.marginYTD) : null;
+                  : (mcEntry && mcEntry.produccion > 0
+                      ? Math.round(mcEntry.margen / mcEntry.produccion * 100)
+                      : rep?.marginYTD ? parsePercent(rep.marginYTD) : null);
                 const ftes  = rep?.ftes || String(p.teamSize||"—");
                 const csat  = csatFromHealth(rep?.healthGovernance);
                 const tmd   = marginPct !== null ? Math.round(marginPct - 34) : null;
