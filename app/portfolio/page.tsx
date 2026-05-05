@@ -419,8 +419,11 @@ function ProjectDetailPanel({
   const mcMes = (p.ifsCode && actMonthLookup) ? actMonthLookup(p.ifsCode) : null;
   const manualRevMes  = parseFloat(draftP.revenueMonthly) || 0;
   const manualCostMes = parseFloat(draftP.costMonthly)    || 0;
+  // Use Normalized Cost (costoNorm) so Cost / Profit / Gross Margin match
+  // the Margin Calculator's "Normalized Cost 20.75" and "Margin" rows.
+  // mcMes.costos is the raw headcount sum and would understate the margin.
   const revMes   = manualRevMes  > 0 ? manualRevMes  : (mcMes?.produccion || 0);
-  const costMes  = manualCostMes > 0 ? manualCostMes : (mcMes ? Math.abs(mcMes.costos) : 0);
+  const costMes  = manualCostMes > 0 ? manualCostMes : (mcMes?.costoNorm  || 0);
   const rev      = parseFloat(draftP.revenue)           || 0;
   const cost     = parseFloat(draftP.spent)             || 0;
   const revProj  = parseFloat(draftP.revenueProjection) || 0;
