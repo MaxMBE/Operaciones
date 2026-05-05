@@ -413,8 +413,14 @@ function ProjectDetailPanel({
   const oqdVal  = parsePercent(draftP.csvOqdPercent || undefined);
 
   // Financial values
-  const revMes   = parseFloat(draftP.revenueMonthly)    || 0;
-  const costMes  = parseFloat(draftP.costMonthly)       || 0;
+  // Monthly figures come from manually loaded fields first; if those are
+  // empty we fall back to the Margin Calculator snapshot for the active
+  // month (this surfaces months promoted to "official" in the simulator).
+  const mcMes = (p.ifsCode && actMonthLookup) ? actMonthLookup(p.ifsCode) : null;
+  const manualRevMes  = parseFloat(draftP.revenueMonthly) || 0;
+  const manualCostMes = parseFloat(draftP.costMonthly)    || 0;
+  const revMes   = manualRevMes  > 0 ? manualRevMes  : (mcMes?.produccion || 0);
+  const costMes  = manualCostMes > 0 ? manualCostMes : (mcMes ? Math.abs(mcMes.costos) : 0);
   const rev      = parseFloat(draftP.revenue)           || 0;
   const cost     = parseFloat(draftP.spent)             || 0;
   const revProj  = parseFloat(draftP.revenueProjection) || 0;
