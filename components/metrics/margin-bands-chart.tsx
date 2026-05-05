@@ -4,13 +4,20 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, LabelList,
 } from "recharts";
-import type { Project } from "@/types";
+import type { Project, ProjectReport } from "@/types";
 
 interface ActividadMesLite { mes: string; produccion: number; margen: number; }
 
 interface Props {
   projects: Project[];
   actMap: Record<string, ActividadMesLite[]>;
+  reportData?: Record<string, ProjectReport>;
+}
+
+function parsePercent(s?: string): number | null {
+  if (!s) return null;
+  const n = parseFloat(s.replace("%", "").replace(",", "."));
+  return isNaN(n) ? null : n;
 }
 
 interface SnapshotMeta { id: string; snapshot_date: string; }
@@ -57,7 +64,7 @@ function isActiveInMonth(p: Project, mes: string): boolean {
   return (!start || start <= lastDay) && (!end || end >= firstDay);
 }
 
-export function MarginBandsChart({ projects, actMap }: Props) {
+export function MarginBandsChart({ projects, actMap, reportData }: Props) {
   // Load all monthly snapshots so we can use the same revenue/cost figures
   // the COR uses for each historical month, instead of the raw Excel totals.
   const [snapByMonth, setSnapByMonth] = useState<Record<string, Project[]>>({});
@@ -88,10 +95,15 @@ export function MarginBandsChart({ projects, actMap }: Props) {
       let totalRevenue = 0, totalCost = 0;
       let countedActivities = 0;
 
-      // Replicate the COR's kpiMonthProjects flow exactly:
-      // 1) start from liveProjects active in this month
-      // 2) overlay revenueMonthly/costMonthly from the snapshot when present
-      // 3) "billed" = rev > 0 OR cost > 0 (matches the COR's billed filter)
+      // Match the COR table's per-project Monthly Margin formula exactly so
+      // the chart counts the same activities the table shows. Per project,
+      // try in order:
+      //   1) revenueMonthly / costMonthly from snapshot or live project
+      //   2) Margin Calculator data (actMap) for that month
+      //   3) marginYTD from the report (only contributes a band, not the
+      //      weighted total — there is no amount associated with it)
+      // A project that yields N/A in all three is skipped, just like the
+      // N/A rows in the table.
       const snapMap = new Map<string, Project>();
       const snapProjects = snapByMonth[mes];
       if (snapProjects) for (const sp of snapProjects) snapMap.set(sp.id, sp);
@@ -101,35 +113,35 @@ export function MarginBandsChart({ projects, actMap }: Props) {
         const snap = snapMap.get(p.id);
         const rev  = (snap?.revenueMonthly ?? p.revenueMonthly) || 0;
         const cost = (snap?.costMonthly    ?? p.costMonthly)    || 0;
-        const billed = rev > 0 || cost > 0;
-        if (!billed) continue;
-        totalRevenue += rev;
-        totalCost    += cost;
-        countedActivities++;
-        // For band classification we still need a per-project margin %,
-        // which only makes sense when revenue > 0.
-        if (rev <= 0) continue;
-        const pct = ((rev - cost) / rev) * 100;
+
+        let pct: number | null = null;
+
+        if (rev > 0) {
+          pct = ((rev - cost) / rev) * 100;
+          totalRevenue += rev;
+          totalCost    += cost;
+          countedActivities++;
+        } else if (p.ifsCode) {
+          const data = actMap[p.ifsCode]?.find(a => a.mes === mes);
+          if (data && data.produccion > 0) {
+            pct = (data.margen / data.produccion) * 100;
+            totalRevenue += data.produccion;
+            totalCost    += data.produccion - data.margen;
+            countedActivities++;
+          }
+        }
+
+        // Last fallback: report's marginYTD. Counts the activity in its band
+        // but cannot contribute to the weighted total.
+        if (pct === null && reportData) {
+          const reportPct = parsePercent(reportData[p.id]?.marginYTD);
+          if (reportPct !== null) pct = reportPct;
+        }
+
+        if (pct === null) continue;
         const band = pickBand(pct);
         if (!band) continue;
         counts[band]++;
-      }
-
-      // Fallback: when no snapshot AND no live financials carry data,
-      // use the Excel actMap so older months still light up.
-      if (countedActivities === 0 && !snapProjects) {
-        for (const p of projects) {
-          if (!isActiveInMonth(p, mes)) continue;
-          if (!p.ifsCode) continue;
-          const data = actMap[p.ifsCode]?.find(a => a.mes === mes);
-          if (!data || data.produccion <= 0) continue;
-          const pct = (data.margen / data.produccion) * 100;
-          const band = pickBand(pct);
-          if (!band) continue;
-          counts[band]++;
-          totalRevenue += data.produccion;
-          totalCost    += data.produccion - data.margen;
-        }
       }
 
       const weightedPct = totalRevenue > 0
