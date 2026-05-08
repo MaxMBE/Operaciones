@@ -1469,12 +1469,25 @@ function CORView() {
     setFltStatus([]); setFltClient([]); setFltLeader([]); setFltManager([]); setFltType([]);
   }
 
+  // Per-project monthly fin: explicit revenueMonthly/costMonthly take priority,
+  // otherwise fall back to Margin Calculator data via actMonthLookup(ifsCode).
+  const effectiveMonthlyFin = useCallback((p: Project): { rev: number; cost: number } => {
+    const rev  = p.revenueMonthly || 0;
+    const cost = p.costMonthly    || 0;
+    if (rev > 0 || cost > 0) return { rev, cost };
+    if (p.ifsCode) {
+      const mc = actMonthLookup(p.ifsCode);
+      if (mc) return { rev: mc.produccion || 0, cost: Math.abs(mc.costoNorm || 0) };
+    }
+    return { rev: 0, cost: 0 };
+  }, [actMonthLookup]);
+
   // ── Calculated KPIs (from month-filtered project data) ─────────────────
   const corKPIsCalc = useMemo(() => {
     // Financial KPIs: use monthly figures (only services that billed in the selected month)
-    const billed = kpiMonthProjects.filter(p => (p.revenueMonthly || 0) > 0 || (p.costMonthly || 0) > 0);
-    const totalRevenue = billed.reduce((s, p) => s + (p.revenueMonthly || 0), 0);
-    const totalCost    = billed.reduce((s, p) => s + (p.costMonthly    || 0), 0);
+    const fin = kpiMonthProjects.map(p => effectiveMonthlyFin(p));
+    const totalRevenue = fin.reduce((s, x) => s + x.rev,  0);
+    const totalCost    = fin.reduce((s, x) => s + x.cost, 0);
     const grossMargin  = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0;
     // OTD/OQD: only non-completed, non-terminated, non-on-hold within the month
     const live = kpiMonthProjects.filter(p => !["completed","terminated","on-hold","guarantee"].includes(p.status));
@@ -1486,7 +1499,7 @@ function CORView() {
     const wc = { G: 0, A: 0, R: 0, grey: 0, done: 0 };
     kpiMonthProjects.forEach(p => { const k = reportData[p.id]?.overallStatus ?? "grey"; if (k in wc) wc[k as keyof typeof wc]++; });
     return { totalRevenue, totalCost, grossMargin, avgOTD, avgOQD, activeCount: kpiMonthProjects.length, wc };
-  }, [kpiMonthProjects, reportData]);
+  }, [kpiMonthProjects, reportData, effectiveMonthlyFin]);
 
   // ── KPIs applying manual overrides ────────────────────────────────────
   const corKPIs = useMemo(() => {
@@ -1523,19 +1536,22 @@ function CORView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects, lang]);
 
-  const marginBarDataCalc = useMemo(() =>
-    [...kpiMonthProjects].filter(p=>p.revenueMonthly && p.revenueMonthly > 0)
-      .sort((a,b) => {
-        const ma = Math.round((a.revenueMonthly! - (a.costMonthly||0)) / a.revenueMonthly! * 100);
-        const mb = Math.round((b.revenueMonthly! - (b.costMonthly||0)) / b.revenueMonthly! * 100);
+  const marginBarDataCalc = useMemo(() => {
+    const withFin = kpiMonthProjects
+      .map(p => ({ p, fin: effectiveMonthlyFin(p) }))
+      .filter(({ fin }) => fin.rev > 0);
+    return withFin
+      .sort((a, b) => {
+        const ma = Math.round((a.fin.rev - a.fin.cost) / a.fin.rev * 100);
+        const mb = Math.round((b.fin.rev - b.fin.cost) / b.fin.rev * 100);
         return mb - ma;
       })
-      .map(p => ({
-        name:   p.name.length>16?p.name.slice(0,14)+"…":p.name,
+      .map(({ p, fin }) => ({
+        name:     p.name.length > 16 ? p.name.slice(0, 14) + "…" : p.name,
         fullName: p.name,
-        margin: Math.round((p.revenueMonthly! - (p.costMonthly||0)) / p.revenueMonthly! * 100),
-      })),
-  [kpiMonthProjects]);
+        margin:   Math.round((fin.rev - fin.cost) / fin.rev * 100),
+      }));
+  }, [kpiMonthProjects, effectiveMonthlyFin]);
 
   // ── Display data (manual override takes priority) ──────────────────────
   const customerData = useMemo(() => {
