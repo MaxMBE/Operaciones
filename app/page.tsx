@@ -530,6 +530,9 @@ export default function OverviewPage() {
     const [y, m, d] = s.split("-");
     return `${m}/${d}/${(y ?? "").slice(2)}`;
   }
+  // Commitment models (matchea titulo de Transformation View "M3 · M4 · M5")
+  const SERVICE_TYPE_OPTIONS = ["M3", "M4", "M5"] as const;
+
   const statusBadge: Record<ProjectStatus, { label: string; cls: string }> = {
     active:     { label: t.status_active,     cls: "bg-blue-100 text-blue-700"      },
     completed:  { label: t.status_completed,  cls: "bg-emerald-100 text-emerald-700" },
@@ -980,7 +983,20 @@ export default function OverviewPage() {
 
                     {/* Modelo */}
                     <td className="py-2 pr-2 text-muted-foreground">
-                      {isEditing ? field("serviceType") : <span className="truncate block">{p.serviceType ?? "—"}</span>}
+                      {isEditing ? (
+                        <select
+                          value={String(editDraft.serviceType ?? "")}
+                          onChange={(e) => setEditDraft((d) => ({ ...d, serviceType: e.target.value }))}
+                          className={inputCls}
+                        >
+                          <option value="">—</option>
+                          {SERVICE_TYPE_OPTIONS.map((v) => (
+                            <option key={v} value={v}>{v}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="truncate block">{p.serviceType ?? "—"}</span>
+                      )}
                     </td>
 
                     {/* Start */}
@@ -1168,10 +1184,17 @@ export default function OverviewPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">Type</label>
-                  <input value={newDraft.serviceType} onChange={e => setNewDraft(d => ({ ...d, serviceType: e.target.value }))}
-                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="CC / SC / Fixed Price" />
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-300 block mb-1">Model</label>
+                  <select
+                    value={newDraft.serviceType}
+                    onChange={e => setNewDraft(d => ({ ...d, serviceType: e.target.value }))}
+                    className="w-full text-xs border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary bg-white dark:bg-card"
+                  >
+                    <option value="">—</option>
+                    {SERVICE_TYPE_OPTIONS.map((v) => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               {/* Fila 4: BM + Leader */}
