@@ -1204,7 +1204,27 @@ function CORView() {
   const isCurrentMonth = activeMonth === currentMonth();
   // Financial KPIs (Revenue, Margin, OTD, OQD) only show for months with a confirmed saved snapshot
   const hasConfirmedData = !isCurrentMonth && monthData !== null;
-  const projects   = monthData ? monthData.projects    : liveProjects;
+  // Overview is the source of truth for project metadata (name, client, dates, model,
+  // status, TL, BM). Historical snapshots only freeze per-month financial fields.
+  // When viewing a past month, we overlay live metadata over the snapshot, falling back
+  // to the snapshot for any project deleted from the live list since.
+  const projects = useMemo(() => {
+    if (!monthData) return liveProjects;
+    const liveMap = new Map(liveProjects.map(p => [p.id, p]));
+    return monthData.projects.map(snap => {
+      const live = liveMap.get(snap.id);
+      if (!live) return snap;
+      return {
+        ...live,
+        revenueMonthly:    snap.revenueMonthly,
+        costMonthly:       snap.costMonthly,
+        billingMonthly:    snap.billingMonthly,
+        billingProjection: snap.billingProjection,
+        revenueProjection: snap.revenueProjection,
+        costProjection:    snap.costProjection,
+      };
+    });
+  }, [liveProjects, monthData]);
   const reportData = monthData ? monthData.report_data : liveReportData;
 
   const locale = lang === "en" ? "en-US" : "es-CL";
