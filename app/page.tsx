@@ -507,19 +507,6 @@ export default function OverviewPage() {
     return statusBar[status];
   }
 
-  // True when the project's end date has already passed and status was not
-  // explicitly switched to completed/terminated. Used to render an "Ended"
-  // badge in red instead of "Active".
-  function isEnded(p: { endDate?: string; status: ProjectStatus }): boolean {
-    if (p.status === "completed" || p.status === "terminated") return false;
-    if (!p.endDate) return false;
-    const end = new Date(p.endDate + "T00:00:00");
-    if (isNaN(end.getTime())) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return end.getTime() < today.getTime();
-  }
-
   function kpiCls(pctStr?: string) {
     const n = parseFloat(pctStr ?? "");
     if (isNaN(n)) return "bg-gray-100 text-gray-500 dark:text-gray-400 dark:text-gray-500";
@@ -985,8 +972,8 @@ export default function OverviewPage() {
                           ))}
                         </select>
                       ) : (
-                        <span className={`inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${isEnded(p) ? "bg-red-100 text-red-700" : statusBadge[p.status].cls}`}>
-                          {isEnded(p) ? "Ended" : statusBadge[p.status].label}
+                        <span className={`inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${statusBadge[p.status].cls}`}>
+                          {statusBadge[p.status].label}
                         </span>
                       )}
                     </td>
