@@ -14,25 +14,31 @@ interface Props {
   reportData?: Record<string, ProjectReport>;
 }
 
-function parsePercent(s?: string): number | null {
-  if (!s) return null;
-  const n = parseFloat(s.replace("%", "").replace(",", "."));
-  return isNaN(n) ? null : n;
-}
-
 interface SnapshotMeta { id: string; snapshot_date: string; }
 interface SnapshotFull { id: string; snapshot_date: string; projects: Project[]; }
 
-const FY_MESES = [
-  "2025-04","2025-05","2025-06","2025-07","2025-08","2025-09",
-  "2025-10","2025-11","2025-12","2026-01","2026-02","2026-03",
-];
+const START_YEAR = 2025;
+const START_MONTH = 1;
 
-const MES_LABEL: Record<string, string> = {
-  "2025-04":"abr 2025","2025-05":"may 2025","2025-06":"jun 2025","2025-07":"jul 2025",
-  "2025-08":"ago 2025","2025-09":"sep 2025","2025-10":"oct 2025","2025-11":"nov 2025",
-  "2025-12":"dic 2025","2026-01":"ene 2026","2026-02":"feb 2026","2026-03":"mar 2026",
-};
+function buildMonthRange(): string[] {
+  const now = new Date();
+  const endYear = now.getFullYear();
+  const endMonth = now.getMonth() + 1;
+  const out: string[] = [];
+  let y = START_YEAR, m = START_MONTH;
+  while (y < endYear || (y === endYear && m <= endMonth)) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return out;
+}
+
+const EN_MONTH_LABEL = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function monthLabel(ym: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  return `${EN_MONTH_LABEL[m - 1]} ${y}`;
+}
 
 interface Band { key: string; label: string; color: string; min: number; max: number; }
 
@@ -64,9 +70,15 @@ function isActiveInMonth(p: Project, mes: string): boolean {
   return (!start || start <= lastDay) && (!end || end >= firstDay);
 }
 
-export function MarginBandsChart({ projects, actMap, reportData }: Props) {
-  // Load all monthly snapshots so we can use the same revenue/cost figures
-  // the COR uses for each historical month, instead of the raw Excel totals.
+function currentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function MarginBandsChart({ projects }: Props) {
+  // Single source of truth: monthly snapshots for historical months and the
+  // live `projects` array for the current month — exactly the same data the
+  // Projects Overview table renders in its Monthly Margin column.
   const [snapByMonth, setSnapByMonth] = useState<Record<string, Project[]>>({});
   useEffect(() => {
     let cancelled = false;
@@ -89,59 +101,29 @@ export function MarginBandsChart({ projects, actMap, reportData }: Props) {
     return () => { cancelled = true; };
   }, []);
 
+  const monthRange = useMemo(() => buildMonthRange(), []);
+  const currentMonth = currentMonthKey();
+
   const chartData = useMemo<ChartRow[]>(() => {
-    const rows: ChartRow[] = FY_MESES.map(mes => {
+    const rows: ChartRow[] = monthRange.map(mes => {
       const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
       let totalRevenue = 0, totalCost = 0;
-      let countedActivities = 0;
 
-      // Match the COR table's per-project Monthly Margin formula exactly so
-      // the chart counts the same activities the table shows. Per project,
-      // try in order:
-      //   1) revenueMonthly / costMonthly from snapshot or live project
-      //   2) Margin Calculator data (actMap) for that month
-      //   3) marginYTD from the report (only contributes a band, not the
-      //      weighted total — there is no amount associated with it)
-      // A project that yields N/A in all three is skipped, just like the
-      // N/A rows in the table.
-      const snapMap = new Map<string, Project>();
-      const snapProjects = snapByMonth[mes];
-      if (snapProjects) for (const sp of snapProjects) snapMap.set(sp.id, sp);
+      const isCurrent = mes === currentMonth;
+      const sourceProjects = isCurrent ? projects : (snapByMonth[mes] || []);
 
-      for (const p of projects) {
+      for (const p of sourceProjects) {
         if (!isActiveInMonth(p, mes)) continue;
-        const snap = snapMap.get(p.id);
-        const rev  = (snap?.revenueMonthly ?? p.revenueMonthly) || 0;
-        const cost = (snap?.costMonthly    ?? p.costMonthly)    || 0;
+        const rev  = p.revenueMonthly || 0;
+        const cost = p.costMonthly    || 0;
+        if (rev <= 0) continue;
 
-        let pct: number | null = null;
+        const pct = ((rev - cost) / rev) * 100;
+        totalRevenue += rev;
+        totalCost    += cost;
 
-        if (rev > 0) {
-          pct = ((rev - cost) / rev) * 100;
-          totalRevenue += rev;
-          totalCost    += cost;
-          countedActivities++;
-        } else if (p.ifsCode) {
-          const data = actMap[p.ifsCode]?.find(a => a.mes === mes);
-          if (data && data.produccion > 0) {
-            pct = (data.margen / data.produccion) * 100;
-            totalRevenue += data.produccion;
-            totalCost    += data.produccion - data.margen;
-            countedActivities++;
-          }
-        }
-
-        // Last fallback: report's marginYTD. Counts the activity in its band
-        // but cannot contribute to the weighted total.
-        if (pct === null && reportData) {
-          const reportPct = parsePercent(reportData[p.id]?.marginYTD);
-          if (reportPct !== null) pct = reportPct;
-        }
-
-        if (pct === null) continue;
         const band = pickBand(pct);
-        if (!band) continue;
-        counts[band]++;
+        if (band) counts[band]++;
       }
 
       const weightedPct = totalRevenue > 0
@@ -150,7 +132,7 @@ export function MarginBandsChart({ projects, actMap, reportData }: Props) {
 
       return {
         mes,
-        monthLabel: MES_LABEL[mes] || mes,
+        monthLabel: monthLabel(mes),
         ...counts,
         _weightedPct: weightedPct,
         _hasData: totalRevenue > 0,
@@ -166,7 +148,7 @@ export function MarginBandsChart({ projects, actMap, reportData }: Props) {
       }
       return { ...row, ...deltas };
     });
-  }, [projects, actMap, snapByMonth]);
+  }, [projects, snapByMonth, monthRange, currentMonth]);
 
   const hasAnyData = chartData.some(r => r._hasData as boolean);
   const totalActivities = chartData.reduce((max, r) => {
@@ -180,10 +162,10 @@ export function MarginBandsChart({ projects, actMap, reportData }: Props) {
         <div>
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block"/>
-            Actividades por Rango de Margen — Evolución Mensual
+            Activities by Margin Range — Monthly Evolution
           </h3>
           <p className="text-[10px] text-muted-foreground mt-0.5">
-            Servicios activos del COR por mes, agrupados por banda de margen ponderado por producción
+            Active COR services per month, grouped by margin band weighted by production
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
@@ -195,14 +177,14 @@ export function MarginBandsChart({ projects, actMap, reportData }: Props) {
           ))}
           <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
             <span className="w-3 h-[2px] inline-block" style={{ background: "#16a34a" }}/>
-            Margen Ponderado
+            Weighted Margin
           </span>
         </div>
       </div>
 
       {!hasAnyData ? (
         <div className="py-12 text-center text-xs text-muted-foreground">
-          Aún no hay datos cargados. Promové meses oficiales en el Margin Calculator para ver el gráfico.
+          No data loaded yet. Save monthly snapshots in Portfolio to populate this chart.
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={420}>
@@ -213,18 +195,18 @@ export function MarginBandsChart({ projects, actMap, reportData }: Props) {
               tick={{ fontSize: 10, fill: "currentColor" }}
               allowDecimals={false}
               domain={[0, Math.max(10, Math.ceil(totalActivities * 1.15))]}
-              label={{ value: "# Actividades", angle: -90, position: "insideLeft", style: { fontSize: 10, fill: "currentColor" } }}
+              label={{ value: "# Activities", angle: -90, position: "insideLeft", style: { fontSize: 10, fill: "currentColor" } }}
             />
             <Tooltip
               contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid #e5e7eb" }}
               formatter={(v: number, name: string) => {
                 const b = BANDS.find(x => x.label === name);
-                return [`${v} servicios`, b?.label ?? name];
+                return [`${v} services`, b?.label ?? name];
               }}
               labelFormatter={(label, payload) => {
                 const row = payload?.[0]?.payload as { _weightedPct?: number } | undefined;
                 if (!row || !row._weightedPct) return label;
-                return `${label} · Margen Ponderado: ${Math.round(row._weightedPct)}%`;
+                return `${label} · Weighted Margin: ${Math.round(row._weightedPct)}%`;
               }}
             />
             {BANDS.map((b, i) => (
@@ -271,8 +253,7 @@ export function MarginBandsChart({ projects, actMap, reportData }: Props) {
                       const wpct = (row._weightedPct as number) || 0;
                       const bandKey = pickBand(wpct);
                       const band = BANDS.find(bb => bb.key === bandKey)!;
-                      // Use white text on dark bands and lime band, dark text on light bands
-                      const lightBands = ["b3", "b4"]; // naranja claro, lima
+                      const lightBands = ["b3", "b4"];
                       const txtColor = lightBands.includes(band.key) ? "#1f2937" : "#fff";
                       const xn = Number(x) + Number(width) / 2;
                       const yn = Number(y) - 6;
