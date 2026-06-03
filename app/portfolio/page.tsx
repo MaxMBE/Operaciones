@@ -1924,15 +1924,22 @@ function CORView() {
           </div>
         </div>
 
-        {/* Gross Margin */}
-        <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white dark:bg-card border-border":corKPIs.grossMargin>=34?"bg-emerald-50 border-emerald-200":corKPIs.grossMargin>=25?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
+        {/* Gross Margin — when a snapshot exists, ALWAYS read the value
+            literally from the same computeMonthlyWeighted helper the chart
+            uses. No intermediate state, no override wrapper, no useMemo. */}
+        {(() => {
+        const gm = monthData
+          ? computeMonthlyWeighted(monthData.projects, actMap, activeMonth).weightedPct
+          : corKPIs.grossMargin;
+        return (
+        <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white dark:bg-card border-border":gm>=34?"bg-emerald-50 border-emerald-200":gm>=25?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
           <div className="flex items-center gap-1.5 mb-2">
-            <TrendingUp className={`w-3.5 h-3.5 ${!hasConfirmedData?"text-gray-300":corKPIs.grossMargin>=34?"text-emerald-600":corKPIs.grossMargin>=25?"text-amber-600":"text-red-600"}`} />
+            <TrendingUp className={`w-3.5 h-3.5 ${!hasConfirmedData?"text-gray-300":gm>=34?"text-emerald-600":gm>=25?"text-amber-600":"text-red-600"}`} />
             <span className="text-[10px] font-medium text-muted-foreground">Gross Margin</span>
           </div>
           {hasConfirmedData ? <>
-            <p className={`text-lg font-bold leading-none ${corKPIs.grossMargin>=34?"text-emerald-700":corKPIs.grossMargin>=25?"text-amber-700":"text-red-700"}`}>
-              {Math.round(corKPIs.grossMargin)}%
+            <p className={`text-lg font-bold leading-none ${gm>=34?"text-emerald-700":gm>=25?"text-amber-700":"text-red-700"}`}>
+              {Math.round(gm)}%
             </p>
             <p className="text-[10px] text-muted-foreground mt-1">{t.cor_target_40}</p>
           </> : <>
@@ -1943,6 +1950,8 @@ function CORView() {
             <span className="text-[10px] text-muted-foreground capitalize">{activeMonthLabel}</span>
           </div>
         </div>
+        );
+        })()}
 
         {/* OTD */}
         <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white dark:bg-card border-border":corKPIs.avgOTD===null?"bg-gray-50 dark:bg-muted/40 border-gray-200 dark:border-border":corKPIs.avgOTD>=95?"bg-emerald-50 border-emerald-200":corKPIs.avgOTD>=80?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
