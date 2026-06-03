@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, LabelList,
 } from "recharts";
@@ -13,6 +13,9 @@ interface Props {
   actMap: Record<string, ActividadMesLite[]>;
   reportData?: Record<string, ProjectReport>;
 }
+
+interface SnapshotMeta { id: string; snapshot_date: string; }
+interface SnapshotFull { id: string; snapshot_date: string; projects: Project[]; }
 
 function buildMonthRange(): string[] {
   // Year-to-date: January of the current year through the current month.
@@ -53,12 +56,43 @@ function pickBand(pct: number): string | null {
 }
 
 export function MarginBandsChart({ projects, actMap }: Props) {
-  // Per-month Monthly Margin source = Margin Calculator (actMap), the same
-  // cascade the Overview/Portfolio table uses to populate its Monthly Margin
-  // column for any month. For each (project, month):
-  //   margin% = margen / produccion   (from actMap[ifsCode][month])
-  // Months without an actMap entry simply have no bar (e.g. the current
-  // month before production is loaded).
+  // Per-month Monthly Margin uses the same cascade as the Overview/Portfolio
+  // table. For each (project, month):
+  //   1. revenueMonthly/costMonthly from the month's snapshot (if any)
+  //   2. actMap[ifsCode][month] (Margin Calculator, includes officialized
+  //      months from the simulator)
+  //   3. otherwise the project is not counted in that month
+  const [snapByMonth, setSnapByMonth] = useState<Record<string, Project[]>>({});
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const list: SnapshotMeta[] = await fetch("/api/snapshots").then(r => r.json());
+        if (!Array.isArray(list)) return;
+        const fulls = await Promise.all(list.map(s =>
+          fetch(`/api/snapshots/${s.id}`).then(r => r.json() as Promise<SnapshotFull>).catch(() => null)
+        ));
+        if (cancelled) return;
+        // When several snapshots share a month (e.g. weekly + canonical
+        // monthly), prefer the day-01 one — that's Portfolio's official record.
+        const map: Record<string, Project[]> = {};
+        const chosen: Record<string, string> = {};
+        for (const s of fulls) {
+          if (!s) continue;
+          const ym = s.snapshot_date.slice(0, 7);
+          const day = s.snapshot_date.slice(8, 10);
+          const existing = chosen[ym];
+          if (!existing || day === "01") {
+            map[ym] = s.projects;
+            chosen[ym] = day;
+          }
+        }
+        setSnapByMonth(map);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   const monthRange = useMemo(() => buildMonthRange(), []);
 
   const chartData = useMemo<ChartRow[]>(() => {
@@ -66,16 +100,31 @@ export function MarginBandsChart({ projects, actMap }: Props) {
       const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
       let totalRevenue = 0, totalCost = 0;
 
-      for (const p of projects) {
-        if (!p.ifsCode) continue;
-        const months = actMap[p.ifsCode];
-        if (!months) continue;
-        const entry = months.find(m => m.mes === mes);
-        if (!entry || entry.produccion <= 0) continue;
+      const snap = snapByMonth[mes];
+      const snapById = snap ? new Map(snap.map(sp => [sp.id, sp])) : null;
 
-        const pct  = (entry.margen / entry.produccion) * 100;
-        const rev  = entry.produccion;
-        const cost = entry.produccion - entry.margen;
+      for (const p of projects) {
+        let rev = 0, cost = 0;
+
+        // 1. Snapshot's monthly figures for this project
+        const snapP = snapById?.get(p.id);
+        if (snapP && (snapP.revenueMonthly || 0) > 0) {
+          rev  = snapP.revenueMonthly || 0;
+          cost = snapP.costMonthly    || 0;
+        }
+
+        // 2. Margin Calculator entry for this month
+        if (rev <= 0 && p.ifsCode) {
+          const entry = actMap[p.ifsCode]?.find(m => m.mes === mes);
+          if (entry && entry.produccion > 0) {
+            rev  = entry.produccion;
+            cost = entry.produccion - entry.margen;
+          }
+        }
+
+        if (rev <= 0) continue;
+
+        const pct = ((rev - cost) / rev) * 100;
         totalRevenue += rev;
         totalCost    += cost;
 
@@ -105,7 +154,7 @@ export function MarginBandsChart({ projects, actMap }: Props) {
       }
       return { ...row, ...deltas };
     });
-  }, [projects, actMap, monthRange]);
+  }, [projects, actMap, monthRange, snapByMonth]);
 
   const hasAnyData = chartData.some(r => r._hasData as boolean);
   const totalActivities = chartData.reduce((max, r) => {
