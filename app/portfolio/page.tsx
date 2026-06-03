@@ -1253,11 +1253,19 @@ function CORView() {
 
   // Projects active in the selected month.
   // For historical months (monthData exists): use snapshot.projects as the
-  // authoritative source, overlaying live metadata (name, client, dates) so
-  // KPIs and the table reflect the saved snapshot exactly — the same source
-  // the Activities by Margin Range chart uses, so card and chart always agree.
+  // authoritative source, overlaying live metadata, THEN filter out services
+  // that ended before the month started — a snapshot frozen in February shouldn't
+  // surface projects whose endDate was in January.
   // For the current month: filter liveProjects by isActiveInMonth.
   const kpiMonthProjects = useMemo(() => {
+    const [yy, mm] = activeMonth.split("-").map(Number);
+    const monthStart = new Date(yy, mm - 1, 1);
+    const monthEnd   = new Date(yy, mm, 0);
+    const isActive = (p: Project) => {
+      const start = p.startDate ? new Date(p.startDate + "T00:00:00") : null;
+      const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
+      return (!start || start <= monthEnd) && (!end || end >= monthStart);
+    };
     if (monthData) {
       const liveMap = new Map(liveProjects.map(p => [p.id, p]));
       return monthData.projects.map(snap => {
@@ -1272,7 +1280,7 @@ function CORView() {
           revenueProjection: snap.revenueProjection,
           costProjection:    snap.costProjection,
         };
-      });
+      }).filter(isActive);
     }
     const [y, m] = activeMonth.split("-").map(Number);
     const firstDay = new Date(y, m - 1, 1);
