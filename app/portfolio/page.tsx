@@ -1158,6 +1158,11 @@ function CORView() {
   // Loads JSON base, then overlays fin-kpi-proy.editedRows for any month listed in
   // officialMonths so the COR shows promoted simulations as real data.
   const [actMap, setActMapCOR] = useState<Record<string, ActividadMes[]>>({});
+
+  // The Activities by Margin Range chart publishes its per-month weighted %
+  // values here so the Gross Margin card displays the EXACT same number —
+  // literally a copy from the chart, no separate calculation.
+  const [chartWeightedByMonth, setChartWeightedByMonth] = useState<Record<string, number>>({});
   useEffect(() => {
     fetch("/actividades-data.json")
       .then(r => r.json())
@@ -1924,13 +1929,11 @@ function CORView() {
           </div>
         </div>
 
-        {/* Gross Margin — when a snapshot exists, ALWAYS read the value
-            literally from the same computeMonthlyWeighted helper the chart
-            uses. No intermediate state, no override wrapper, no useMemo. */}
+        {/* Gross Margin — reads literally from the Activities by Margin Range
+            chart's published value for the active month. No parallel calc. */}
         {(() => {
-        const gm = monthData
-          ? computeMonthlyWeighted(monthData.projects, actMap, activeMonth).weightedPct
-          : corKPIs.grossMargin;
+        const chartGm = chartWeightedByMonth[activeMonth];
+        const gm = chartGm !== undefined ? chartGm : corKPIs.grossMargin;
         return (
         <div className={`rounded-xl border p-3 ${!hasConfirmedData?"bg-white dark:bg-card border-border":gm>=34?"bg-emerald-50 border-emerald-200":gm>=25?"bg-amber-50 border-amber-200":"bg-red-50 border-red-200"}`}>
           <div className="flex items-center gap-1.5 mb-2">
@@ -2088,7 +2091,12 @@ function CORView() {
       </div>
 
       {/* ── Margin Bands Evolution ──────────────────────────────────────── */}
-      <MarginBandsChart projects={liveProjects} actMap={actMap} reportData={reportData} />
+      <MarginBandsChart
+        projects={liveProjects}
+        actMap={actMap}
+        reportData={reportData}
+        onWeightedComputed={setChartWeightedByMonth}
+      />
 
       {/* ── KPI Definitions ─────────────────────────────────────────────── */}
       <div className="bg-white dark:bg-card rounded-xl border border-border p-4">

@@ -13,6 +13,10 @@ interface Props {
   projects: Project[];
   actMap: Record<string, ActividadMesLite[]>;
   reportData?: Record<string, ProjectReport>;
+  // Fired whenever the chart's per-month weighted % values are recomputed.
+  // The Portfolio Gross Margin card reads from this so it shows the EXACT
+  // same number the chart displays — no parallel calculation.
+  onWeightedComputed?: (byMonth: Record<string, number>) => void;
 }
 
 interface SnapshotMeta { id: string; snapshot_date: string; created_at: string; }
@@ -78,7 +82,7 @@ function pickBand(pct: number): string | null {
 
 interface MonthSnap { projects: Project[]; forecast: boolean; }
 
-export function MarginBandsChart({ projects, actMap }: Props) {
+export function MarginBandsChart({ projects, actMap, onWeightedComputed }: Props) {
   const [snapByMonth, setSnapByMonth] = useState<Record<string, MonthSnap>>({});
   useEffect(() => {
     let cancelled = false;
@@ -199,6 +203,17 @@ export function MarginBandsChart({ projects, actMap }: Props) {
     const n = BANDS.reduce((s, b) => s + ((r[b.key] as number) || 0), 0);
     return Math.max(max, n);
   }, 0);
+
+  // Publish per-month weighted values so the Portfolio Gross Margin card
+  // reads the EXACT same number this chart displays.
+  useEffect(() => {
+    if (!onWeightedComputed) return;
+    const byMonth: Record<string, number> = {};
+    for (const row of chartData) {
+      byMonth[row.mes as string] = (row._weightedPct as number) || 0;
+    }
+    onWeightedComputed(byMonth);
+  }, [chartData, onWeightedComputed]);
 
   return (
     <div className="bg-white dark:bg-card rounded-xl border border-border p-4">
