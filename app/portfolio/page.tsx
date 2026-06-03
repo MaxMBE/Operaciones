@@ -1504,21 +1504,27 @@ function CORView() {
 
   // ── Calculated KPIs (from month-filtered project data) ─────────────────
   const corKPIsCalc = useMemo(() => {
-    // Two modes, same as the margin chart, so card and chart always agree:
-    //   A) Historical month whose snapshot has any project with revenue →
-    //      use ONLY snapshot.revenueMonthly / costMonthly. No actMap fallback
-    //      (that would inflate or deflate the total with projects whose
-    //      monthly values were never actually saved for the month).
-    //   B) Current month, or snapshot with zero recorded revenue → fall back
-    //      to actMap via effectiveMonthlyFin per project.
+    // Mode A — Historical month whose snapshot has any project with revenue:
+    //   Read revenueMonthly/costMonthly DIRECTLY from monthData.projects
+    //   (skip kpiMonthProjects entirely so live overlay can't leak in).
+    //   This is the same source the Activities by Margin Range chart uses.
+    // Mode B — Current month or empty snapshot:
+    //   Run effectiveMonthlyFin on kpiMonthProjects so actMap can fill in.
     const snapHasRevenue = !!monthData && monthData.projects.some(p => (p.revenueMonthly || 0) > 0);
-    const fin = kpiMonthProjects.map(p =>
-      snapHasRevenue
-        ? { rev: p.revenueMonthly || 0, cost: p.costMonthly || 0 }
-        : effectiveMonthlyFin(p)
-    );
-    const totalRevenue = fin.reduce((s, x) => s + x.rev,  0);
-    const totalCost    = fin.reduce((s, x) => s + x.cost, 0);
+    let totalRevenue = 0;
+    let totalCost = 0;
+    if (snapHasRevenue && monthData) {
+      for (const sp of monthData.projects) {
+        const rev = sp.revenueMonthly || 0;
+        if (rev <= 0) continue;
+        totalRevenue += rev;
+        totalCost    += sp.costMonthly || 0;
+      }
+    } else {
+      const fin = kpiMonthProjects.map(p => effectiveMonthlyFin(p));
+      totalRevenue = fin.reduce((s, x) => s + x.rev,  0);
+      totalCost    = fin.reduce((s, x) => s + x.cost, 0);
+    }
     const grossMargin  = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0;
     // OTD/OQD: only non-completed, non-terminated, non-on-hold within the month
     const live = kpiMonthProjects.filter(p => !["completed","terminated","on-hold","guarantee"].includes(p.status));
