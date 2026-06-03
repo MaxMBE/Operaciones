@@ -55,15 +55,6 @@ function pickBand(pct: number): string | null {
   return BANDS[BANDS.length - 1].key;
 }
 
-function isActiveInMonth(p: Project, mes: string): boolean {
-  const [y, m] = mes.split("-").map(Number);
-  const firstDay = new Date(y, m - 1, 1);
-  const lastDay  = new Date(y, m, 0);
-  const start = p.startDate ? new Date(p.startDate + "T00:00:00") : null;
-  const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
-  return (!start || start <= lastDay) && (!end || end >= firstDay);
-}
-
 export function MarginBandsChart({ projects, actMap }: Props) {
   // Per-month Monthly Margin uses the same cascade as the Overview/Portfolio
   // table. For each (project, month):
@@ -105,26 +96,34 @@ export function MarginBandsChart({ projects, actMap }: Props) {
   const monthRange = useMemo(() => buildMonthRange(), []);
 
   const chartData = useMemo<ChartRow[]>(() => {
+    const liveById = new Map(projects.map(p => [p.id, p]));
+
     const rows: ChartRow[] = monthRange.map(mes => {
       const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
       let totalRevenue = 0, totalCost = 0;
 
-      // Replicate Portfolio's kpiMonthProjects: start from live projects
-      // active in this month, then overlay per-month financials from the
-      // snapshot (if any) — same source of truth as the Gross Margin card.
+      // Exactly what Portfolio does when navigating to a historical month
+      // (page.tsx line 1211-1227): source = snapshot.projects with live
+      // metadata overlaid. No snapshot → no bar (matches hasConfirmedData=false).
       const snap = snapByMonth[mes];
-      const snapById = snap ? new Map(snap.map(sp => [sp.id, sp])) : null;
-      const monthProjects = projects
-        .filter(p => isActiveInMonth(p, mes))
-        .map(p => {
-          const sp = snapById?.get(p.id);
-          if (!sp) return p;
-          return {
-            ...p,
-            revenueMonthly: sp.revenueMonthly,
-            costMonthly:    sp.costMonthly,
-          };
-        });
+      if (!snap) {
+        return {
+          mes,
+          monthLabel: monthLabel(mes),
+          ...counts,
+          _weightedPct: 0,
+          _hasData: false,
+        };
+      }
+      const monthProjects = snap.map(sp => {
+        const live = liveById.get(sp.id);
+        if (!live) return sp;
+        return {
+          ...live,
+          revenueMonthly: sp.revenueMonthly,
+          costMonthly:    sp.costMonthly,
+        };
+      });
 
       for (const p of monthProjects) {
         // Mirror effectiveMonthlyFin: explicit revenueMonthly/costMonthly
