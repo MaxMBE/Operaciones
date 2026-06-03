@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, LabelList,
 } from "recharts";
@@ -13,9 +13,6 @@ interface Props {
   actMap: Record<string, ActividadMesLite[]>;
   reportData?: Record<string, ProjectReport>;
 }
-
-interface SnapshotMeta { id: string; snapshot_date: string; }
-interface SnapshotFull { id: string; snapshot_date: string; projects: Project[]; }
 
 function buildMonthRange(): string[] {
   // Year-to-date: January of the current year through the current month.
@@ -55,84 +52,30 @@ function pickBand(pct: number): string | null {
   return BANDS[BANDS.length - 1].key;
 }
 
-function isActiveInMonth(p: Project, mes: string): boolean {
-  if (p.status === "completed" || p.status === "terminated") return false;
-  const [y, m] = mes.split("-").map(Number);
-  const firstDay = new Date(y, m - 1, 1);
-  const lastDay  = new Date(y, m, 0);
-  const start = p.startDate ? new Date(p.startDate + "T00:00:00") : null;
-  const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
-  return (!start || start <= lastDay) && (!end || end >= firstDay);
-}
-
-function currentMonthKey(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-export function MarginBandsChart({ projects }: Props) {
-  // Single source of truth: monthly snapshots for historical months and the
-  // live `projects` array for the current month — exactly the same data the
-  // Projects Overview table renders in its Monthly Margin column.
-  const [snapByMonth, setSnapByMonth] = useState<Record<string, Project[]>>({});
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const list: SnapshotMeta[] = await fetch("/api/snapshots").then(r => r.json());
-        if (!Array.isArray(list)) return;
-        const fulls = await Promise.all(list.map(s =>
-          fetch(`/api/snapshots/${s.id}`).then(r => r.json() as Promise<SnapshotFull>).catch(() => null)
-        ));
-        if (cancelled) return;
-        // When more than one snapshot exists in the same month (e.g. a weekly
-        // snapshot and the canonical monthly one), prefer the snapshot saved
-        // on the 1st of the month — that's the one Portfolio promotes as the
-        // month's official record.
-        const map: Record<string, Project[]> = {};
-        const chosen: Record<string, string> = {};
-        for (const s of fulls) {
-          if (!s) continue;
-          const ym = s.snapshot_date.slice(0, 7);
-          const day = s.snapshot_date.slice(8, 10);
-          const existing = chosen[ym];
-          if (!existing || day === "01") {
-            map[ym] = s.projects;
-            chosen[ym] = day;
-          }
-        }
-        setSnapByMonth(map);
-      } catch {}
-    })();
-    return () => { cancelled = true; };
-  }, []);
-
+export function MarginBandsChart({ projects, actMap }: Props) {
+  // Per-month Monthly Margin source = Margin Calculator (actMap), the same
+  // cascade the Overview/Portfolio table uses to populate its Monthly Margin
+  // column for any month. For each (project, month):
+  //   margin% = margen / produccion   (from actMap[ifsCode][month])
+  // Months without an actMap entry simply have no bar (e.g. the current
+  // month before production is loaded).
   const monthRange = useMemo(() => buildMonthRange(), []);
-  const currentMonth = currentMonthKey();
 
   const chartData = useMemo<ChartRow[]>(() => {
     const rows: ChartRow[] = monthRange.map(mes => {
       const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
       let totalRevenue = 0, totalCost = 0;
 
-      // Pick the source for this month:
-      //   1. Current month  → live projects (matches Overview today).
-      //   2. Snapshot exists AND has at least one project with revenue → use it.
-      //   3. Otherwise (no snapshot, or snapshot exists but is empty) → use
-      //      live projects filtered by activity dates, so the bar reflects
-      //      the projects that were active that month with today's figures.
-      const isCurrent = mes === currentMonth;
-      const snap = snapByMonth[mes];
-      const snapHasRevenue = !!snap && snap.some(p => (p.revenueMonthly || 0) > 0);
-      const sourceProjects = isCurrent || !snapHasRevenue ? projects : snap;
+      for (const p of projects) {
+        if (!p.ifsCode) continue;
+        const months = actMap[p.ifsCode];
+        if (!months) continue;
+        const entry = months.find(m => m.mes === mes);
+        if (!entry || entry.produccion <= 0) continue;
 
-      for (const p of sourceProjects) {
-        if (!isActiveInMonth(p, mes)) continue;
-        const rev  = p.revenueMonthly || 0;
-        const cost = p.costMonthly    || 0;
-        if (rev <= 0) continue;
-
-        const pct = ((rev - cost) / rev) * 100;
+        const pct  = (entry.margen / entry.produccion) * 100;
+        const rev  = entry.produccion;
+        const cost = entry.produccion - entry.margen;
         totalRevenue += rev;
         totalCost    += cost;
 
@@ -162,7 +105,7 @@ export function MarginBandsChart({ projects }: Props) {
       }
       return { ...row, ...deltas };
     });
-  }, [projects, snapByMonth, monthRange, currentMonth]);
+  }, [projects, actMap, monthRange]);
 
   const hasAnyData = chartData.some(r => r._hasData as boolean);
   const totalActivities = chartData.reduce((max, r) => {
