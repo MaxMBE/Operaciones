@@ -1504,8 +1504,19 @@ function CORView() {
 
   // ── Calculated KPIs (from month-filtered project data) ─────────────────
   const corKPIsCalc = useMemo(() => {
-    // Financial KPIs: use monthly figures (only services that billed in the selected month)
-    const fin = kpiMonthProjects.map(p => effectiveMonthlyFin(p));
+    // Two modes, same as the margin chart, so card and chart always agree:
+    //   A) Historical month whose snapshot has any project with revenue →
+    //      use ONLY snapshot.revenueMonthly / costMonthly. No actMap fallback
+    //      (that would inflate or deflate the total with projects whose
+    //      monthly values were never actually saved for the month).
+    //   B) Current month, or snapshot with zero recorded revenue → fall back
+    //      to actMap via effectiveMonthlyFin per project.
+    const snapHasRevenue = !!monthData && monthData.projects.some(p => (p.revenueMonthly || 0) > 0);
+    const fin = kpiMonthProjects.map(p =>
+      snapHasRevenue
+        ? { rev: p.revenueMonthly || 0, cost: p.costMonthly || 0 }
+        : effectiveMonthlyFin(p)
+    );
     const totalRevenue = fin.reduce((s, x) => s + x.rev,  0);
     const totalCost    = fin.reduce((s, x) => s + x.cost, 0);
     const grossMargin  = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0;
@@ -1519,7 +1530,7 @@ function CORView() {
     const wc = { G: 0, A: 0, R: 0, grey: 0, done: 0 };
     kpiMonthProjects.forEach(p => { const k = reportData[p.id]?.overallStatus ?? "grey"; if (k in wc) wc[k as keyof typeof wc]++; });
     return { totalRevenue, totalCost, grossMargin, avgOTD, avgOQD, activeCount: kpiMonthProjects.length, wc };
-  }, [kpiMonthProjects, reportData, effectiveMonthlyFin]);
+  }, [kpiMonthProjects, reportData, effectiveMonthlyFin, monthData]);
 
   // ── KPIs applying manual overrides ────────────────────────────────────
   const corKPIs = useMemo(() => {
