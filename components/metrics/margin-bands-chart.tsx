@@ -96,8 +96,6 @@ export function MarginBandsChart({ projects, actMap }: Props) {
   const monthRange = useMemo(() => buildMonthRange(), []);
 
   const chartData = useMemo<ChartRow[]>(() => {
-    const liveById = new Map(projects.map(p => [p.id, p]));
-
     const rows: ChartRow[] = monthRange.map(mes => {
       const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
       let totalRevenue = 0, totalCost = 0;
@@ -115,28 +113,13 @@ export function MarginBandsChart({ projects, actMap }: Props) {
           _hasData: false,
         };
       }
-      const monthProjects = snap.map(sp => {
-        const live = liveById.get(sp.id);
-        if (!live) return sp;
-        return {
-          ...live,
-          revenueMonthly: sp.revenueMonthly,
-          costMonthly:    sp.costMonthly,
-        };
-      });
-
-      for (const p of monthProjects) {
-        // Mirror effectiveMonthlyFin: explicit revenueMonthly/costMonthly
-        // take priority when either is non-zero; else fall back to actMap.
-        let rev = p.revenueMonthly || 0;
-        let cost = p.costMonthly    || 0;
-        if (rev <= 0 && cost <= 0 && p.ifsCode) {
-          const entry = actMap[p.ifsCode]?.find(mm => mm.mes === mes);
-          if (entry && entry.produccion > 0) {
-            rev  = entry.produccion;
-            cost = entry.produccion - entry.margen;
-          }
-        }
+      // Use ONLY the snapshot's stored revenueMonthly/costMonthly — exactly
+      // what Portfolio's Gross Margin card sums for that month. No actMap
+      // fallback (avoids inflating the total with services whose values
+      // were never recorded for the month).
+      for (const sp of snap) {
+        const rev  = sp.revenueMonthly || 0;
+        const cost = sp.costMonthly    || 0;
         if (rev <= 0) continue;
 
         const pct = ((rev - cost) / rev) * 100;
@@ -169,7 +152,7 @@ export function MarginBandsChart({ projects, actMap }: Props) {
       }
       return { ...row, ...deltas };
     });
-  }, [projects, actMap, monthRange, snapByMonth]);
+  }, [monthRange, snapByMonth]);
 
   const hasAnyData = chartData.some(r => r._hasData as boolean);
   const totalActivities = chartData.reduce((max, r) => {
