@@ -113,13 +113,31 @@ export function MarginBandsChart({ projects, actMap }: Props) {
           _hasData: false,
         };
       }
-      // Use ONLY the snapshot's stored revenueMonthly/costMonthly — exactly
-      // what Portfolio's Gross Margin card sums for that month. No actMap
-      // fallback (avoids inflating the total with services whose values
-      // were never recorded for the month).
+      // Two modes, based on whether the snapshot has any recorded revenue:
+      //   A) Snapshot HAS revenue → it's the authoritative source. Use only
+      //      its revenueMonthly/costMonthly. Don't sum extras from actMap
+      //      (those would inflate the weighted margin above what's saved).
+      //   B) Snapshot has ALL zero revenue (incomplete save, e.g. March) →
+      //      fall back to the Margin Calculator (actMap) for every project
+      //      in the snapshot. This is the only way to recover real values.
+      const snapHasRevenue = snap.some(sp => (sp.revenueMonthly || 0) > 0);
+
       for (const sp of snap) {
-        const rev  = sp.revenueMonthly || 0;
-        const cost = sp.costMonthly    || 0;
+        let rev: number;
+        let cost: number;
+
+        if (snapHasRevenue) {
+          rev  = sp.revenueMonthly || 0;
+          cost = sp.costMonthly    || 0;
+        } else if (sp.ifsCode) {
+          const entry = actMap[sp.ifsCode]?.find(mm => mm.mes === mes);
+          if (!entry || entry.produccion <= 0) continue;
+          rev  = entry.produccion;
+          cost = entry.produccion - entry.margen;
+        } else {
+          continue;
+        }
+
         if (rev <= 0) continue;
 
         const pct = ((rev - cost) / rev) * 100;
@@ -152,7 +170,7 @@ export function MarginBandsChart({ projects, actMap }: Props) {
       }
       return { ...row, ...deltas };
     });
-  }, [monthRange, snapByMonth]);
+  }, [monthRange, snapByMonth, actMap]);
 
   const hasAnyData = chartData.some(r => r._hasData as boolean);
   const totalActivities = chartData.reduce((max, r) => {
