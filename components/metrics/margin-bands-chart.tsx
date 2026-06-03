@@ -5,6 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, LabelList, Cell,
 } from "recharts";
 import type { Project, ProjectReport } from "@/types";
+import { computeMonthlyWeighted } from "@/lib/monthly-margin";
 
 interface ActividadMesLite { mes: string; produccion: number; margen: number; }
 
@@ -146,14 +147,17 @@ export function MarginBandsChart({ projects, actMap }: Props) {
         };
       }
 
-      // Mode A: snapshot/source has revenue → use it directly.
-      // Mode B: nothing has revenue → actMap fallback per project.
-      const sourceHasRevenue = sourceProjects.some(sp => (sp.revenueMonthly || 0) > 0);
+      // Aggregate weighted from the shared helper (single source of truth).
+      const agg = computeMonthlyWeighted(sourceProjects, actMap, mes);
+      totalRevenue = agg.totalRevenue;
+      totalCost    = agg.totalCost;
+      const weightedPct = Math.round(agg.weightedPct);
 
+      // Per-band counts for the stacked bars (using identical cascade).
+      const sourceHasRevenue = sourceProjects.some(sp => (sp.revenueMonthly || 0) > 0);
       for (const sp of sourceProjects) {
         let rev: number;
         let cost: number;
-
         if (sourceHasRevenue) {
           rev  = sp.revenueMonthly || 0;
           cost = sp.costMonthly    || 0;
@@ -162,30 +166,19 @@ export function MarginBandsChart({ projects, actMap }: Props) {
           if (!entry || entry.produccion <= 0) continue;
           rev  = entry.produccion;
           cost = entry.produccion - entry.margen;
-        } else {
-          continue;
-        }
-
+        } else continue;
         if (rev <= 0) continue;
-
         const pct = ((rev - cost) / rev) * 100;
-        totalRevenue += rev;
-        totalCost    += cost;
-
         const band = pickBand(pct);
         if (band) counts[band]++;
       }
-
-      const weightedPct = totalRevenue > 0
-        ? Math.round(((totalRevenue - totalCost) / totalRevenue) * 100)
-        : 0;
 
       return {
         mes,
         monthLabel: monthLabel(mes),
         ...counts,
         _weightedPct: weightedPct,
-        _hasData: totalRevenue > 0,
+        _hasData: agg.hasData,
         _isForecast: isForecast,
       };
     });

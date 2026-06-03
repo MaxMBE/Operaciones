@@ -15,6 +15,7 @@ import { PrintHeader } from "@/components/print-header";
 import { MultiFilter } from "@/components/multi-filter";
 import { CsvUploadMenuItems } from "@/components/csv-upload-menu-items";
 import { MarginBandsChart } from "@/components/metrics/margin-bands-chart";
+import { computeMonthlyWeighted } from "@/lib/monthly-margin";
 import type { Project, ProjectReport, HealthStatus, TeamMember } from "@/types";
 import {
   CheckCircle2, TrendingUp, DollarSign,
@@ -1504,23 +1505,17 @@ function CORView() {
 
   // ── Calculated KPIs (from month-filtered project data) ─────────────────
   const corKPIsCalc = useMemo(() => {
-    // Mode A — Historical month whose snapshot has any project with revenue:
-    //   Read revenueMonthly/costMonthly DIRECTLY from monthData.projects
-    //   (skip kpiMonthProjects entirely so live overlay can't leak in).
-    //   This is the same source the Activities by Margin Range chart uses.
-    // Mode B — Current month or empty snapshot:
-    //   Run effectiveMonthlyFin on kpiMonthProjects so actMap can fill in.
-    const snapHasRevenue = !!monthData && monthData.projects.some(p => (p.revenueMonthly || 0) > 0);
+    // Use the SAME helper the Activities by Margin Range chart uses, so the
+    // Gross Margin card and the chart's bar badge are always literally the
+    // same number — computed by one function in one place.
     let totalRevenue = 0;
     let totalCost = 0;
-    if (snapHasRevenue && monthData) {
-      for (const sp of monthData.projects) {
-        const rev = sp.revenueMonthly || 0;
-        if (rev <= 0) continue;
-        totalRevenue += rev;
-        totalCost    += sp.costMonthly || 0;
-      }
+    if (monthData) {
+      const agg = computeMonthlyWeighted(monthData.projects, actMap, activeMonth);
+      totalRevenue = agg.totalRevenue;
+      totalCost    = agg.totalCost;
     } else {
+      // Current month with no snapshot: keep prior cascade behavior.
       const fin = kpiMonthProjects.map(p => effectiveMonthlyFin(p));
       totalRevenue = fin.reduce((s, x) => s + x.rev,  0);
       totalCost    = fin.reduce((s, x) => s + x.cost, 0);
@@ -1536,7 +1531,7 @@ function CORView() {
     const wc = { G: 0, A: 0, R: 0, grey: 0, done: 0 };
     kpiMonthProjects.forEach(p => { const k = reportData[p.id]?.overallStatus ?? "grey"; if (k in wc) wc[k as keyof typeof wc]++; });
     return { totalRevenue, totalCost, grossMargin, avgOTD, avgOQD, activeCount: kpiMonthProjects.length, wc };
-  }, [kpiMonthProjects, reportData, effectiveMonthlyFin, monthData]);
+  }, [kpiMonthProjects, reportData, effectiveMonthlyFin, monthData, actMap, activeMonth]);
 
   // ── KPIs applying manual overrides ────────────────────────────────────
   const corKPIs = useMemo(() => {
