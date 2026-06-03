@@ -1246,26 +1246,19 @@ function CORView() {
   }, [actMonthLookup]);
 
   // Projects active in the selected month.
-  // Date filtering uses liveProjects (authoritative for which projects exist/active).
-  // For historical months: per-month financial fields are merged from the snapshot so
-  // the table and KPI cards always reflect the saved monthly data.
+  // For historical months (monthData exists): use snapshot.projects as the
+  // authoritative source, overlaying live metadata (name, client, dates) so
+  // KPIs and the table reflect the saved snapshot exactly — the same source
+  // the Activities by Margin Range chart uses, so card and chart always agree.
+  // For the current month: filter liveProjects by isActiveInMonth.
   const kpiMonthProjects = useMemo(() => {
-    const [y, m] = activeMonth.split("-").map(Number);
-    const firstDay = new Date(y, m - 1, 1);
-    const lastDay  = new Date(y, m, 0);
-    const active = liveProjects.filter(p => {
-      const start = p.startDate ? new Date(p.startDate + "T00:00:00") : null;
-      const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
-      return (!start || start <= lastDay) && (!end || end >= firstDay);
-    });
-    // For historical months, overlay per-month financials from the snapshot
     if (monthData) {
-      const snapMap = new Map(monthData.projects.map(sp => [sp.id, sp]));
-      return active.map(p => {
-        const snap = snapMap.get(p.id);
-        if (!snap) return p;
+      const liveMap = new Map(liveProjects.map(p => [p.id, p]));
+      return monthData.projects.map(snap => {
+        const live = liveMap.get(snap.id);
+        if (!live) return snap;
         return {
-          ...p,
+          ...live,
           revenueMonthly:    snap.revenueMonthly,
           costMonthly:       snap.costMonthly,
           billingMonthly:    snap.billingMonthly,
@@ -1275,7 +1268,14 @@ function CORView() {
         };
       });
     }
-    return active;
+    const [y, m] = activeMonth.split("-").map(Number);
+    const firstDay = new Date(y, m - 1, 1);
+    const lastDay  = new Date(y, m, 0);
+    return liveProjects.filter(p => {
+      const start = p.startDate ? new Date(p.startDate + "T00:00:00") : null;
+      const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
+      return (!start || start <= lastDay) && (!end || end >= firstDay);
+    });
   }, [liveProjects, activeMonth, monthData]);
 
   // Load list of saved months on mount
