@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, LabelList,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip, LabelList, Cell,
 } from "recharts";
 import type { Project, ProjectReport } from "@/types";
 
@@ -14,8 +14,28 @@ interface Props {
   reportData?: Record<string, ProjectReport>;
 }
 
-interface SnapshotMeta { id: string; snapshot_date: string; }
-interface SnapshotFull { id: string; snapshot_date: string; projects: Project[]; }
+interface SnapshotMeta { id: string; snapshot_date: string; created_at: string; }
+interface SnapshotFull { id: string; snapshot_date: string; created_at: string; projects: Project[]; }
+
+// A snapshot is "forecast" when it was created BEFORE its month started —
+// i.e. the numbers were pre-loaded and aren't confirmed actuals yet.
+function isForecastSnapshot(snapshotDate: string, createdAt: string): boolean {
+  return new Date(createdAt) < new Date(snapshotDate + "T00:00:00Z");
+}
+
+function isActiveInMonth(p: Project, mes: string): boolean {
+  const [y, m] = mes.split("-").map(Number);
+  const firstDay = new Date(y, m - 1, 1);
+  const lastDay  = new Date(y, m, 0);
+  const start = p.startDate ? new Date(p.startDate + "T00:00:00") : null;
+  const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
+  return (!start || start <= lastDay) && (!end || end >= firstDay);
+}
+
+function currentMonthKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
 
 function buildMonthRange(): string[] {
   // Year-to-date: January of the current year through the current month.
@@ -55,14 +75,10 @@ function pickBand(pct: number): string | null {
   return BANDS[BANDS.length - 1].key;
 }
 
+interface MonthSnap { projects: Project[]; forecast: boolean; }
+
 export function MarginBandsChart({ projects, actMap }: Props) {
-  // Per-month Monthly Margin uses the same cascade as the Overview/Portfolio
-  // table. For each (project, month):
-  //   1. revenueMonthly/costMonthly from the month's snapshot (if any)
-  //   2. actMap[ifsCode][month] (Margin Calculator, includes officialized
-  //      months from the simulator)
-  //   3. otherwise the project is not counted in that month
-  const [snapByMonth, setSnapByMonth] = useState<Record<string, Project[]>>({});
+  const [snapByMonth, setSnapByMonth] = useState<Record<string, MonthSnap>>({});
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -73,9 +89,9 @@ export function MarginBandsChart({ projects, actMap }: Props) {
           fetch(`/api/snapshots/${s.id}`).then(r => r.json() as Promise<SnapshotFull>).catch(() => null)
         ));
         if (cancelled) return;
-        // When several snapshots share a month (e.g. weekly + canonical
-        // monthly), prefer the day-01 one — that's Portfolio's official record.
-        const map: Record<string, Project[]> = {};
+        // When several snapshots share a month (weekly + canonical monthly),
+        // prefer the day-01 one — that's Portfolio's official record.
+        const map: Record<string, MonthSnap> = {};
         const chosen: Record<string, string> = {};
         for (const s of fulls) {
           if (!s) continue;
@@ -83,7 +99,10 @@ export function MarginBandsChart({ projects, actMap }: Props) {
           const day = s.snapshot_date.slice(8, 10);
           const existing = chosen[ym];
           if (!existing || day === "01") {
-            map[ym] = s.projects;
+            map[ym] = {
+              projects: s.projects,
+              forecast: isForecastSnapshot(s.snapshot_date, s.created_at),
+            };
             chosen[ym] = day;
           }
         }
@@ -96,37 +115,46 @@ export function MarginBandsChart({ projects, actMap }: Props) {
   const monthRange = useMemo(() => buildMonthRange(), []);
 
   const chartData = useMemo<ChartRow[]>(() => {
+    const currentMes = currentMonthKey();
+
     const rows: ChartRow[] = monthRange.map(mes => {
       const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
       let totalRevenue = 0, totalCost = 0;
 
-      // Exactly what Portfolio does when navigating to a historical month
-      // (page.tsx line 1211-1227): source = snapshot.projects with live
-      // metadata overlaid. No snapshot → no bar (matches hasConfirmedData=false).
-      const snap = snapByMonth[mes];
-      if (!snap) {
+      const snapEntry = snapByMonth[mes];
+      let sourceProjects: Project[] | null = null;
+      let isForecast = false;
+
+      if (snapEntry) {
+        sourceProjects = snapEntry.projects;
+        isForecast = snapEntry.forecast;
+      } else if (mes === currentMes) {
+        // Current month with no snapshot yet → forecast from live projects
+        // filtered by isActiveInMonth (matches Portfolio's "current month" view).
+        sourceProjects = projects.filter(p => isActiveInMonth(p, mes));
+        isForecast = true;
+      }
+
+      if (!sourceProjects) {
         return {
           mes,
           monthLabel: monthLabel(mes),
           ...counts,
           _weightedPct: 0,
           _hasData: false,
+          _isForecast: false,
         };
       }
-      // Two modes, based on whether the snapshot has any recorded revenue:
-      //   A) Snapshot HAS revenue → it's the authoritative source. Use only
-      //      its revenueMonthly/costMonthly. Don't sum extras from actMap
-      //      (those would inflate the weighted margin above what's saved).
-      //   B) Snapshot has ALL zero revenue (incomplete save, e.g. March) →
-      //      fall back to the Margin Calculator (actMap) for every project
-      //      in the snapshot. This is the only way to recover real values.
-      const snapHasRevenue = snap.some(sp => (sp.revenueMonthly || 0) > 0);
 
-      for (const sp of snap) {
+      // Mode A: snapshot/source has revenue → use it directly.
+      // Mode B: nothing has revenue → actMap fallback per project.
+      const sourceHasRevenue = sourceProjects.some(sp => (sp.revenueMonthly || 0) > 0);
+
+      for (const sp of sourceProjects) {
         let rev: number;
         let cost: number;
 
-        if (snapHasRevenue) {
+        if (sourceHasRevenue) {
           rev  = sp.revenueMonthly || 0;
           cost = sp.costMonthly    || 0;
         } else if (sp.ifsCode) {
@@ -158,6 +186,7 @@ export function MarginBandsChart({ projects, actMap }: Props) {
         ...counts,
         _weightedPct: weightedPct,
         _hasData: totalRevenue > 0,
+        _isForecast: isForecast,
       };
     });
     return rows.map((row, idx) => {
@@ -170,7 +199,7 @@ export function MarginBandsChart({ projects, actMap }: Props) {
       }
       return { ...row, ...deltas };
     });
-  }, [monthRange, snapByMonth, actMap]);
+  }, [monthRange, snapByMonth, actMap, projects]);
 
   const hasAnyData = chartData.some(r => r._hasData as boolean);
   const totalActivities = chartData.reduce((max, r) => {
@@ -201,6 +230,10 @@ export function MarginBandsChart({ projects, actMap }: Props) {
             <span className="w-3 h-[2px] inline-block" style={{ background: "#16a34a" }}/>
             Weighted Margin
           </span>
+          <span className="flex items-center gap-1 text-[9px]" style={{ color: "#f59e0b" }}>
+            <span className="w-2.5 h-2.5 rounded-sm inline-block bg-amber-500 opacity-45"/>
+            Forecast (not confirmed)
+          </span>
         </div>
       </div>
 
@@ -212,7 +245,27 @@ export function MarginBandsChart({ projects, actMap }: Props) {
         <ResponsiveContainer width="100%" height={420}>
           <BarChart data={chartData} margin={{ top: 36, right: 16, bottom: 4, left: -8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false}/>
-            <XAxis dataKey="monthLabel" tick={{ fontSize: 10, fill: "currentColor" }}/>
+            <XAxis
+              dataKey="monthLabel"
+              interval={0}
+              tick={(tickProps: { x: number; y: number; payload: { value: string; index: number } }) => {
+                const row = chartData[tickProps.payload.index];
+                const fc = !!row?._isForecast;
+                return (
+                  <g transform={`translate(${tickProps.x},${tickProps.y})`}>
+                    <text x={0} y={0} dy={12} textAnchor="middle" fontSize={10} fill="currentColor">
+                      {tickProps.payload.value}
+                    </text>
+                    {fc && (
+                      <text x={0} y={0} dy={24} textAnchor="middle" fontSize={8} fontWeight={600} fill="#f59e0b">
+                        Forecast
+                      </text>
+                    )}
+                  </g>
+                );
+              }}
+              height={40}
+            />
             <YAxis
               tick={{ fontSize: 10, fill: "currentColor" }}
               allowDecimals={false}
@@ -233,6 +286,9 @@ export function MarginBandsChart({ projects, actMap }: Props) {
             />
             {BANDS.map((b, i) => (
               <Bar key={b.key} dataKey={b.key} name={b.label} stackId="margin" fill={b.color} isAnimationActive={false}>
+                {chartData.map((row, idx) => (
+                  <Cell key={idx} fillOpacity={row._isForecast ? 0.45 : 1}/>
+                ))}
                 <LabelList
                   dataKey={b.key}
                   content={((props: Record<string, unknown>) => {
