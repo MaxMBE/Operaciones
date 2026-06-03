@@ -2272,12 +2272,7 @@ function CORView() {
                         <div className="truncate">{p.name}</div>
                       </td>
                       <td className="px-3 py-2 text-center font-semibold">
-                        {p.serviceType
-                          ? p.serviceType.toLowerCase().includes("competence") ? "3"
-                          : p.serviceType.toLowerCase().includes("service center") ? "4"
-                          : p.serviceType.toLowerCase().includes("fixed") ? "5"
-                          : <span className="text-gray-400 dark:text-gray-500">—</span>
-                          : <span className="text-gray-400 dark:text-gray-500">—</span>}
+                        {p.serviceType || <span className="text-gray-400 dark:text-gray-500">—</span>}
                       </td>
                       <td className="px-3 py-2 text-center text-muted-foreground whitespace-nowrap">
                         {p.startDate ? new Date(p.startDate + "T00:00:00").toLocaleDateString(lang === "en" ? "en-US" : "es-CL",{day:"2-digit",month:"2-digit",year:"2-digit"}) : "—"}

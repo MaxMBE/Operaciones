@@ -531,7 +531,7 @@ export default function OverviewPage() {
     return `${m}/${d}/${(y ?? "").slice(2)}`;
   }
   // Commitment models (matchea titulo de Transformation View "M3 · M4 · M5")
-  const SERVICE_TYPE_OPTIONS = ["M3", "M4", "M5"] as const;
+  const SERVICE_TYPE_OPTIONS = ["M3", "M4", "M5", "Soporte"] as const;
 
   const statusBadge: Record<ProjectStatus, { label: string; cls: string }> = {
     active:     { label: t.status_active,     cls: "bg-blue-100 text-blue-700"      },
