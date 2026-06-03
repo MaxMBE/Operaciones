@@ -17,19 +17,14 @@ interface Props {
 interface SnapshotMeta { id: string; snapshot_date: string; }
 interface SnapshotFull { id: string; snapshot_date: string; projects: Project[]; }
 
-const START_YEAR = 2025;
-const START_MONTH = 1;
-
 function buildMonthRange(): string[] {
+  // Year-to-date: January of the current year through the current month.
   const now = new Date();
-  const endYear = now.getFullYear();
+  const year = now.getFullYear();
   const endMonth = now.getMonth() + 1;
   const out: string[] = [];
-  let y = START_YEAR, m = START_MONTH;
-  while (y < endYear || (y === endYear && m <= endMonth)) {
-    out.push(`${y}-${String(m).padStart(2, "0")}`);
-    m++;
-    if (m > 12) { m = 1; y++; }
+  for (let m = 1; m <= endMonth; m++) {
+    out.push(`${year}-${String(m).padStart(2, "0")}`);
   }
   return out;
 }
@@ -90,10 +85,21 @@ export function MarginBandsChart({ projects }: Props) {
           fetch(`/api/snapshots/${s.id}`).then(r => r.json() as Promise<SnapshotFull>).catch(() => null)
         ));
         if (cancelled) return;
+        // When more than one snapshot exists in the same month (e.g. a weekly
+        // snapshot and the canonical monthly one), prefer the snapshot saved
+        // on the 1st of the month — that's the one Portfolio promotes as the
+        // month's official record.
         const map: Record<string, Project[]> = {};
+        const chosen: Record<string, string> = {};
         for (const s of fulls) {
           if (!s) continue;
-          map[s.snapshot_date.slice(0, 7)] = s.projects;
+          const ym = s.snapshot_date.slice(0, 7);
+          const day = s.snapshot_date.slice(8, 10);
+          const existing = chosen[ym];
+          if (!existing || day === "01") {
+            map[ym] = s.projects;
+            chosen[ym] = day;
+          }
         }
         setSnapByMonth(map);
       } catch {}
@@ -109,8 +115,16 @@ export function MarginBandsChart({ projects }: Props) {
       const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
       let totalRevenue = 0, totalCost = 0;
 
+      // Pick the source for this month:
+      //   1. Current month  → live projects (matches Overview today).
+      //   2. Snapshot exists AND has at least one project with revenue → use it.
+      //   3. Otherwise (no snapshot, or snapshot exists but is empty) → use
+      //      live projects filtered by activity dates, so the bar reflects
+      //      the projects that were active that month with today's figures.
       const isCurrent = mes === currentMonth;
-      const sourceProjects = isCurrent ? projects : (snapByMonth[mes] || []);
+      const snap = snapByMonth[mes];
+      const snapHasRevenue = !!snap && snap.some(p => (p.revenueMonthly || 0) > 0);
+      const sourceProjects = isCurrent || !snapHasRevenue ? projects : snap;
 
       for (const p of sourceProjects) {
         if (!isActiveInMonth(p, mes)) continue;
