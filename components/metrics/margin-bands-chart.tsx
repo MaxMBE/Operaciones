@@ -55,6 +55,15 @@ function pickBand(pct: number): string | null {
   return BANDS[BANDS.length - 1].key;
 }
 
+function isActiveInMonth(p: Project, mes: string): boolean {
+  const [y, m] = mes.split("-").map(Number);
+  const firstDay = new Date(y, m - 1, 1);
+  const lastDay  = new Date(y, m, 0);
+  const start = p.startDate ? new Date(p.startDate + "T00:00:00") : null;
+  const end   = p.endDate   ? new Date(p.endDate   + "T00:00:00") : null;
+  return (!start || start <= lastDay) && (!end || end >= firstDay);
+}
+
 export function MarginBandsChart({ projects, actMap }: Props) {
   // Per-month Monthly Margin uses the same cascade as the Overview/Portfolio
   // table. For each (project, month):
@@ -100,28 +109,35 @@ export function MarginBandsChart({ projects, actMap }: Props) {
       const counts: Record<string, number> = Object.fromEntries(BANDS.map(b => [b.key, 0]));
       let totalRevenue = 0, totalCost = 0;
 
+      // Replicate Portfolio's kpiMonthProjects: start from live projects
+      // active in this month, then overlay per-month financials from the
+      // snapshot (if any) — same source of truth as the Gross Margin card.
       const snap = snapByMonth[mes];
       const snapById = snap ? new Map(snap.map(sp => [sp.id, sp])) : null;
+      const monthProjects = projects
+        .filter(p => isActiveInMonth(p, mes))
+        .map(p => {
+          const sp = snapById?.get(p.id);
+          if (!sp) return p;
+          return {
+            ...p,
+            revenueMonthly: sp.revenueMonthly,
+            costMonthly:    sp.costMonthly,
+          };
+        });
 
-      for (const p of projects) {
-        let rev = 0, cost = 0;
-
-        // 1. Snapshot's monthly figures for this project
-        const snapP = snapById?.get(p.id);
-        if (snapP && (snapP.revenueMonthly || 0) > 0) {
-          rev  = snapP.revenueMonthly || 0;
-          cost = snapP.costMonthly    || 0;
-        }
-
-        // 2. Margin Calculator entry for this month
-        if (rev <= 0 && p.ifsCode) {
-          const entry = actMap[p.ifsCode]?.find(m => m.mes === mes);
+      for (const p of monthProjects) {
+        // Mirror effectiveMonthlyFin: explicit revenueMonthly/costMonthly
+        // take priority when either is non-zero; else fall back to actMap.
+        let rev = p.revenueMonthly || 0;
+        let cost = p.costMonthly    || 0;
+        if (rev <= 0 && cost <= 0 && p.ifsCode) {
+          const entry = actMap[p.ifsCode]?.find(mm => mm.mes === mes);
           if (entry && entry.produccion > 0) {
             rev  = entry.produccion;
             cost = entry.produccion - entry.margen;
           }
         }
-
         if (rev <= 0) continue;
 
         const pct = ((rev - cost) / rev) * 100;
